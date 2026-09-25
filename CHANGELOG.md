@@ -3,6 +3,14 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.3 — Fix: gutter painting over the editor text
+
+- Fixed the editor text being invisible while line numbers showed. Since macOS 14, views
+  don't clip their drawing by default and can be asked to redraw an area larger than
+  themselves; the line number gutter filled that whole area with the background colour,
+  covering the text beside it. The gutter now clips to its bounds and only fills inside
+  itself, and the current line highlight is clamped the same way.
+
 ## v1.2 — Fix: editor text not visible
 
 - Fixed the editor showing no text. The text view was created before SwiftUI gave its

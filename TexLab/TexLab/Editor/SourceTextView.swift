@@ -221,9 +221,11 @@ final class SourceTextView: NSTextView {
 
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
-        guard configuration.highlightsCurrentLine, let lineRect = currentLineRect, lineRect.intersects(rect) else { return }
+        guard configuration.highlightsCurrentLine, let lineRect = currentLineRect else { return }
+        let area = lineRect.intersection(rect).intersection(bounds)
+        guard !area.isEmpty else { return }
         SyntaxPalette.currentLine.setFill()
-        lineRect.intersection(rect).fill()
+        area.fill()
     }
 
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting stillSelectingFlag: Bool) {

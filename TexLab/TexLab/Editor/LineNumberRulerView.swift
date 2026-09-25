@@ -36,6 +36,7 @@ final class LineNumberRulerView: NSRulerView {
         reservedThicknessForAccessoryView = 0
         updateThickness()
         setAccessibilityElement(false)
+        clipsToBounds = true
 
         let clipView = scrollView.contentView
         clipView.postsBoundsChangedNotifications = true
@@ -90,9 +91,13 @@ final class LineNumberRulerView: NSRulerView {
     // MARK: - Drawing
 
     override func draw(_ dirtyRect: NSRect) {
+        // Since macOS 14 views don't clip their drawing by default and the dirty rect can
+        // extend past the gutter, so filling it would paint over the editor's text.
+        let area = dirtyRect.intersection(bounds)
+        guard !area.isEmpty else { return }
         NSColor.textBackgroundColor.setFill()
-        dirtyRect.fill()
-        drawHashMarksAndLabels(in: dirtyRect)
+        area.fill()
+        drawHashMarksAndLabels(in: area)
     }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
