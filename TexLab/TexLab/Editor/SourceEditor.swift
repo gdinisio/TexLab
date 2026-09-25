@@ -81,7 +81,11 @@ struct SourceEditor: NSViewRepresentable {
         }
 
         private var completionProvider: CompletionProvider {
-            CompletionProvider(documentDirectory: parent.session.documentDirectory)
+            CompletionProvider(
+                documentDirectory: parent.session.projectFolder,
+                projectLabels: parent.session.project?.labels ?? [],
+                projectCitationKeys: parent.session.project?.citationKeys ?? []
+            )
         }
 
         func textDidChange(_ notification: Notification) {

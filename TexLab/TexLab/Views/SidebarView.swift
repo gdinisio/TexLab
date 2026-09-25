@@ -13,6 +13,8 @@ struct SidebarView: View {
     var body: some View {
         Group {
             switch session.sidebarTab {
+            case .project:
+                ProjectSidebar(session: session)
             case .outline:
                 OutlineSidebar(session: session)
             case .issues:
@@ -20,20 +22,32 @@ struct SidebarView: View {
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
+            // Icons, like Xcode's navigator bar, so three tabs fit a narrow sidebar.
             Picker("Sidebar", selection: $session.sidebarTab) {
-                Text("Outline").tag(SidebarTab.outline)
-                Text(issuesTitle).tag(SidebarTab.issues)
+                Label("Project", systemImage: "folder")
+                    .help("Project")
+                    .tag(SidebarTab.project)
+                Label("Outline", systemImage: "list.bullet.indent")
+                    .help("Outline")
+                    .tag(SidebarTab.outline)
+                Label(issuesTitle, systemImage: issuesCount > 0 ? "exclamationmark.triangle.fill" : "exclamationmark.triangle")
+                    .help(issuesTitle)
+                    .tag(SidebarTab.issues)
             }
             .pickerStyle(.segmented)
+            .labelStyle(.iconOnly)
             .labelsHidden()
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
         }
     }
 
+    private var issuesCount: Int {
+        session.errorCount + session.warningCount
+    }
+
     private var issuesTitle: String {
-        let count = session.errorCount + session.warningCount
-        return count > 0 ? String(localized: "Issues (\(count))") : String(localized: "Issues")
+        issuesCount > 0 ? String(localized: "Issues (\(issuesCount))") : String(localized: "Issues")
     }
 }
 

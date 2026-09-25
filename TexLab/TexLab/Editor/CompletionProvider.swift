@@ -79,8 +79,13 @@ nonisolated enum CompletionContext {
 /// and macros defined in the document, citation keys from its bibliography, packages,
 /// document classes and files next to the document.
 struct CompletionProvider {
-    /// The folder containing the document, used to find bibliographies and files.
+    /// The folder paths are relative to — the main file's — used to find bibliographies
+    /// and files.
     var documentDirectory: URL?
+    /// Labels defined in the project's other files.
+    var projectLabels: [String] = []
+    /// Entry keys from the project's bibliographies.
+    var projectCitationKeys: [String] = []
 
     func completions(for partialRange: NSRange, in text: NSString, defaultWords: [String]) -> [String] {
         let partial = text.substring(with: partialRange)
@@ -97,9 +102,9 @@ struct CompletionProvider {
         case "begin", "end":
             candidates = LaTeXCatalog.environments + matches(of: Self.definedEnvironmentPattern, in: text)
         case let name where LaTeXLanguage.labelReferenceCommands.contains(name):
-            candidates = matches(of: Self.labelPattern, in: text)
+            candidates = matches(of: Self.labelPattern, in: text) + projectLabels
         case let name where LaTeXLanguage.citationCommands.contains(name):
-            candidates = citationKeys(in: text)
+            candidates = citationKeys(in: text) + projectCitationKeys
         case "usepackage", "RequirePackage":
             candidates = LaTeXCatalog.packages
         case "documentclass", "LoadClass":

@@ -73,6 +73,9 @@ struct ContentView: View {
         .sheet(isPresented: $session.isShowingGoToLine) {
             GoToLineSheet(session: session)
         }
+        .sheet(isPresented: $session.isShowingNewFileSheet) {
+            NewProjectFileSheet(session: session)
+        }
         .fileExporter(
             isPresented: $session.isExportingPDF,
             document: session.isExportingPDF ? session.pdfExportDocument : nil,
@@ -88,6 +91,7 @@ struct ContentView: View {
         }
         .onChange(of: fileURL) { _, newValue in
             session.fileURL = newValue
+            session.refreshProject()
         }
         .onChange(of: session.isPreviewVisible) { _, newValue in
             showsPreview = newValue

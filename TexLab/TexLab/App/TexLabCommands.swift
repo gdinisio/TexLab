@@ -234,6 +234,16 @@ struct FileAndHelpCommands: Commands {
     var body: some Commands {
         CommandGroup(after: .newItem) {
             NewFromTemplateMenu()
+            Button("New Project…") {
+                ProjectCreator.createProject()
+            }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+            Button("New File in Project…") {
+                session?.newFileFolder = session?.projectFolder
+                session?.isShowingNewFileSheet = true
+            }
+            .keyboardShortcut("n", modifiers: [.command, .option])
+            .disabled(session?.project == nil)
         }
         CommandGroup(after: .importExport) {
             Button("Export PDF…") {

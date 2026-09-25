@@ -71,6 +71,28 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 - **Templates** — File ▸ New from Template: Article, Report, Book, Presentation (Beamer),
   Letter and Blank.
 
+**Projects**
+
+- **Project navigator** — the first sidebar tab lists the files of the document's folder,
+  like Xcode's: LaTeX files, bibliographies, packages, images and subfolders, with the
+  main file marked. Double-click a file to open it in a tab of the same window (images
+  and PDFs open in their usual app), drag it into the editor to insert `\input`,
+  `\includegraphics`, `\bibliography` or `\usepackage` with the right relative path, and
+  use the context menu to open, reference, rename, show in Finder or move to the Trash.
+  The list follows changes made in the Finder.
+- **New File in Project** (⌥⌘N, or + in the navigator) creates a section or chapter, a
+  BibTeX bibliography, a package or a complete document in any folder of the project, and
+  can add it to the main file: `\input{…}` before `\end{document}`, the bibliography
+  (`\bibliography` or `\addbibresource` for biblatex), or `\usepackage` in the preamble —
+  in the main file's window if it's open, as an undoable edit.
+- **New Project** (⇧⌘N) creates a folder with `main.tex` from any template and, if you
+  like, a `references.bib` already wired up.
+- **Main file** — a part of a project is typeset through the file that includes it, found
+  automatically when it has no `\documentclass`, or named with `% !TEX root` (the
+  navigator's "Use as Main File for This Document" writes that comment). Completion
+  offers `\label`s from every file of the project and keys from all its bibliographies,
+  and file paths are relative to the main file, where TeX looks for them.
+
 **Typesetting and preview**
 
 - **Typeset** with ⌘R, or automatically after a pause in typing. Unsaved changes are
@@ -115,6 +137,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 | Show/Hide Sidebar | ⌃⌘S |
 | PDF Zoom In / Out / Actual Size / Fit | ⌘> / ⌘< / ⌘0 / ⌘9 |
 | Export PDF / Print | ⇧⌘E / ⌘P |
+| New Project | ⇧⌘N |
+| New File in Project | ⌥⌘N |
 
 ## Requirements
 
@@ -162,6 +186,7 @@ TexLab/TexLab/
 ├── Editor/         Source editor (AppKit text system), syntax, completion, snippets
 ├── Typesetting/    TeX discovery, typesetting pipeline, log parsing, SyncTeX
 ├── Preview/        PDF preview and navigation
+├── Project/        Project folder scanning, main file detection, new files and references
 ├── Views/          Window layout, sidebar, toolbar, sheets, Settings
 └── Support/        Settings keys and defaults, paths, text statistics
 ```
@@ -198,6 +223,12 @@ TexLab/TexLab/
   file-based output so pipes can't stall). `LaTeXLogParser` turns the log into issues;
   `SourceMap` maps the paths TeX reports (build copy, overlay, relative paths) back to the
   files you edit; `SyncTeXData` parses uncompressed SyncTeX with a byte-level parser.
+- **Projects** — a project is the main file's folder, not a new file format, so projects
+  stay plain folders other TeX tools understand. `ProjectIndex` builds a
+  `ProjectSnapshot` off the main thread (file tree, main file, labels and citation keys of
+  the other files); `DirectoryWatcher` (a dispatch source per folder) and app activation
+  keep it current. Each file is still its own document, so saving, undo and versions
+  work per file; the navigator opens files as native window tabs.
 - **Preview** — `SyncPDFView` (`PDFView` subclass) restores the scroll position when a
   new PDF arrives, handles ⌘-click and highlights forward-search results.
 - **Imports** — the target enables `MemberImportVisibility`, so each file imports every

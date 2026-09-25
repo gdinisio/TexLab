@@ -17,6 +17,8 @@ nonisolated struct MagicComments: Sendable {
     var root: String?
     /// The range of the `% !TEX program` line, including its line break.
     var programLineRange: NSRange?
+    /// The range of the `% !TEX root` line, including its line break.
+    var rootLineRange: NSRange?
 
     private static let programPattern = try! NSRegularExpression(
         pattern: #"^[ \t]*%[ \t]*![ \t]*TEX[ \t]+(?:TS-)?program[ \t]*=[ \t]*([^\s]+)[^\n]*\n?"#,
@@ -38,7 +40,13 @@ nonisolated struct MagicComments: Sendable {
         if let match = Self.rootPattern.firstMatch(in: head as String, range: range) {
             let value = head.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespaces)
             root = value.isEmpty ? nil : value
+            rootLineRange = head.lineRange(for: match.range)
         }
+    }
+
+    /// The `% !TEX root` line naming `path` as the main file.
+    static func rootLine(for path: String) -> String {
+        "% !TEX root = \(path)\n"
     }
 
     /// The `% !TEX program` line for `engine`.

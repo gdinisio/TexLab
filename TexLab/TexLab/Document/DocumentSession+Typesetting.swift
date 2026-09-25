@@ -75,6 +75,14 @@ extension DocumentSession {
                     rootEngine = MagicComments(text: rootText).program
                 }
             }
+        } else if let project, project.mainFileIsDetected, let main = project.mainFile,
+                  FileManager.default.fileExists(atPath: main.filePath) {
+            // A part of a project without a root comment is typeset through the file that
+            // includes it.
+            rootURL = main
+            if let data = try? Data(contentsOf: main), let rootText = try? TextDecoding.decode(data).text {
+                rootEngine = MagicComments(text: rootText).program
+            }
         }
 
         let engine = rootEngine ?? magic.program ?? defaultEngine

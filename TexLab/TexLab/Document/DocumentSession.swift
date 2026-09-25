@@ -11,6 +11,7 @@ import SwiftUI
 
 /// The views the sidebar can show.
 nonisolated enum SidebarTab: String, CaseIterable, Identifiable {
+    case project
     case outline
     case issues
 
@@ -54,6 +55,14 @@ final class DocumentSession {
     var log = ""
     var console = ""
 
+    // MARK: Project
+
+    /// The project this document belongs to, once it has been saved in a folder.
+    var project: ProjectSnapshot?
+    var isShowingNewFileSheet = false
+    /// The folder New File creates the file in.
+    var newFileFolder: URL?
+
     // MARK: Preview
 
     /// The latest successfully produced PDF.
@@ -64,7 +73,7 @@ final class DocumentSession {
     // MARK: Presentation
 
     var columnVisibility: NavigationSplitViewVisibility = .all
-    var sidebarTab: SidebarTab = .outline
+    var sidebarTab: SidebarTab = .project
     var isPreviewVisible = true
     var isShowingLog = false
     var isShowingSymbols = false
@@ -93,6 +102,11 @@ final class DocumentSession {
     @ObservationIgnored var mathRenderTask: Task<Void, Never>?
     @ObservationIgnored var needsAnotherMathRender = false
     @ObservationIgnored var hasScannedFolds = false
+    @ObservationIgnored var projectRefreshTask: Task<Void, Never>?
+    @ObservationIgnored var projectWatchers: [DirectoryWatcher] = []
+    @ObservationIgnored var watchedFolders: [URL] = []
+    @ObservationIgnored var projectObservers: [NSObjectProtocol] = []
+    @ObservationIgnored var lastProjectKey = ""
     /// Identifies an untitled document's build folder.
     let sessionID = UUID()
 
@@ -124,9 +138,14 @@ final class DocumentSession {
         self.text = text
         self.encoding = encoding
         self.fileURL = fileURL
+        if fileURL == nil {
+            // An untitled document has no project yet.
+            sidebarTab = .outline
+        }
         configureLivePreview()
         analyze()
         observeNavigationRequests()
+        startProject()
         if let fileURL, let line = SourceNavigator.takePendingLine(for: fileURL) {
             DispatchQueue.main.async { [weak self] in
                 self?.editor.revealLine(line)
@@ -142,6 +161,7 @@ final class DocumentSession {
         analysisTask?.cancel()
         mathRenderTask?.cancel()
         needsAnotherMathRender = false
+        stopProject()
         automaticTypesetTask?.cancel()
         typesetTask?.cancel()
         needsAnotherTypeset = false
@@ -177,7 +197,7 @@ final class DocumentSession {
     /// Inserts a figure for an image file, with a path relative to the document and the
     /// insertion point in the caption.
     func insertFigure(for url: URL) {
-        let path = documentDirectory.map { PathUtilities.relativePath(of: url, from: $0) } ?? url.filePath
+        let path = projectFolder.map { PathUtilities.relativePath(of: url, from: $0) } ?? url.filePath
         let label = BuildNaming.jobName(for: url.deletingPathExtension().lastPathComponent).lowercased()
         editor.insert(Snippet(
             String(localized: "Figure"),
@@ -236,7 +256,8 @@ final class DocumentSession {
     /// `\includegraphics`, sources `\input` and bibliographies `\bibliography`.
     func textForDroppedFiles(_ urls: [URL]) -> String {
         urls.map { url in
-            let path = documentDirectory.map { PathUtilities.relativePath(of: url, from: $0) } ?? url.filePath
+            // Relative to the main file, which is where TeX looks.
+            let path = projectFolder.map { PathUtilities.relativePath(of: url, from: $0) } ?? url.filePath
             let pathWithoutExtension = String(path.dropLast(url.pathExtension.isEmpty ? 0 : url.pathExtension.count + 1))
             switch url.pathExtension.lowercased() {
             case "pdf", "png", "jpg", "jpeg", "eps":
@@ -275,6 +296,13 @@ final class DocumentSession {
             updateCurrentOutlineItem()
         }
         updateLivePreview()
+
+        // Whether this is a main file or a part of one decides the project's main file.
+        let projectKey = "\(ProjectIndex.isMainDocument(text))|\(MagicComments(text: text).root ?? "")"
+        if projectKey != lastProjectKey {
+            lastProjectKey = projectKey
+            refreshProject()
+        }
     }
 
     // MARK: - Navigation between windows

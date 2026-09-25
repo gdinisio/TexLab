@@ -180,8 +180,10 @@ extension DocumentSession {
         if let preamble = Self.preamble(of: text) {
             return (preamble, engine)
         }
-        if let root = magic.root, let url = documentDirectory?.appending(path: root).standardizedFileURL,
-           let data = try? Data(contentsOf: url), let rootText = try? TextDecoding.decode(data).text {
+        // A part of a project uses its main file's preamble.
+        let rootURL = magic.root.flatMap { documentDirectory?.appending(path: $0).standardizedFileURL }
+            ?? (project?.mainFileIsDetected == true ? project?.mainFile : nil)
+        if let url = rootURL, let data = try? Data(contentsOf: url), let rootText = try? TextDecoding.decode(data).text {
             if let rootEngine = MagicComments(text: rootText).program {
                 engine = rootEngine
             }
@@ -204,7 +206,7 @@ extension DocumentSession {
         if let root = MagicComments(text: text).root, let directory = documentDirectory {
             return directory.appending(path: root).standardizedFileURL.deletingLastPathComponent()
         }
-        return documentDirectory
+        return projectFolder
     }
 
     /// The file an `\includegraphics` path refers to, for the thumbnail of a collapsed

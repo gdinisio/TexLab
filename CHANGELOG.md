@@ -3,6 +3,22 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.9 — Projects
+
+- Project navigator: a new first sidebar tab lists the document's folder (files,
+  subfolders, the main file marked), follows changes on disk, opens files as tabs of the
+  same window, and has a context menu to open, reference, rename, show in Finder, use as
+  the main file and move to the Trash. Files can be dragged into the editor.
+- New File in Project (⌥⌘N): sections or chapters (with `% !TEX root`), bibliographies,
+  packages and documents, optionally referenced from the main file in its open window or
+  on disk.
+- New Project (⇧⌘N): a folder with `main.tex` from a template and an optional
+  `references.bib`.
+- Parts of a project without `\documentclass` are typeset through the file that includes
+  them, also for rendered math; completion includes labels and citation keys from the
+  whole project; inserted paths are relative to the main file.
+- The sidebar tabs are now icons: Project, Outline and Issues.
+
 ## v1.8 — Fix: the insertion point jumping while typing
 
 - Fixed the insertion point moving to the next row, or the one after, after every typed
