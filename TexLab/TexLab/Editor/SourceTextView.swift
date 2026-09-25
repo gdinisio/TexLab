@@ -50,6 +50,10 @@ final class SourceTextView: NSTextView {
     var missingThumbnails: Set<String> = []
     /// Locations of the formulas currently shown as source because the selection is in them.
     var revealedMath: Set<Int> = []
+    /// Text-style commands whose markup the live preview hides, kept in step with edits.
+    var formattedSpans: [FormattedSpan] = []
+    /// Locations of the styled spans currently showing their markup.
+    var revealedFormatting: Set<Int> = []
 
     // MARK: - Creation
 
@@ -70,7 +74,9 @@ final class SourceTextView: NSTextView {
         textView.maxSize = NSSize(width: unbounded, height: unbounded)
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
-        textView.autoresizingMask = [.width]
+        // EditorScrollView sizes the text view itself; autoresizing would follow the
+        // transient zero widths of the first layout passes.
+        textView.autoresizingMask = []
 
         let scrollView = EditorScrollView()
         scrollView.borderType = .noBorder
@@ -135,6 +141,7 @@ final class SourceTextView: NSTextView {
         if previous == nil || configuration.needsNewTheme(comparedTo: previous!) {
             let theme = SyntaxTheme(fontSize: CGFloat(configuration.fontSize), indentWidth: configuration.indentWidth)
             highlighter.theme = theme
+            highlighter.stylesFormatting = configuration.stylesFormatting
             font = theme.font
             defaultParagraphStyle = theme.paragraphStyle
             typingAttributes = theme.baseAttributes
@@ -144,7 +151,15 @@ final class SourceTextView: NSTextView {
             lineNumberRuler?.editorFontDidChange()
         }
         isContinuousSpellCheckingEnabled = configuration.checksSpelling
-        if previous == nil || previous?.rendersMath != configuration.rendersMath || configuration.needsNewTheme(comparedTo: previous!) {
+        if let previous, previous.stylesFormatting != configuration.stylesFormatting, !configuration.needsNewTheme(comparedTo: previous) {
+            highlighter.stylesFormatting = configuration.stylesFormatting
+            if let storage = textStorage, storage.length > 0 {
+                highlighter.highlightAll(storage)
+            }
+        }
+        if previous == nil || previous?.rendersMath != configuration.rendersMath
+            || previous?.stylesFormatting != configuration.stylesFormatting
+            || configuration.needsNewTheme(comparedTo: previous!) {
             updatePresentation()
         }
         applyLineWrapping()
@@ -158,13 +173,12 @@ final class SourceTextView: NSTextView {
         if configuration.wrapsLines {
             scrollView.hasHorizontalScroller = false
             isHorizontallyResizable = false
-            autoresizingMask = [.width]
+            autoresizingMask = []
             container.widthTracksTextView = true
-            container.size = NSSize(width: scrollView.contentSize.width, height: unbounded)
         } else {
             scrollView.hasHorizontalScroller = true
             isHorizontallyResizable = true
-            autoresizingMask = [.width, .height]
+            autoresizingMask = []
             container.widthTracksTextView = false
             container.size = NSSize(width: unbounded, height: unbounded)
         }
@@ -178,7 +192,9 @@ final class SourceTextView: NSTextView {
     func fitToScrollView() {
         guard let scrollView = enclosingScrollView else { return }
         let visible = scrollView.contentSize
-        guard visible.width > 0, visible.height > 0 else { return }
+        // Ignore the momentary tiny sizes SwiftUI passes through while laying out a split
+        // view: laying the text out in them wraps after every character.
+        guard visible.width >= Self.minimumLayoutWidth, visible.height > 0 else { return }
         // Fill the visible area, so clicking below the last line still places the caret.
         minSize = NSSize(width: configuration.wrapsLines ? 0 : visible.width, height: visible.height)
         if configuration.wrapsLines {
@@ -191,9 +207,25 @@ final class SourceTextView: NSTextView {
         if frame.height < visible.height {
             setFrameSize(NSSize(width: frame.width, height: visible.height))
         }
+        // Keep the text container exactly as wide as the text area. Tracking the text view's
+        // width only happens when its frame changes, so a container that got out of step
+        // (for example sized while the window was still being laid out) would stay wrong.
+        if configuration.wrapsLines, let container = textContainer {
+            let width = max(frame.width - 2 * textContainerInset.width, Self.minimumLayoutWidth)
+            if abs(container.size.width - width) > 0.5 {
+                container.size = NSSize(width: width, height: CGFloat(Float.greatestFiniteMagnitude))
+            }
+        }
         lineNumberRuler?.needsDisplay = true
-        refreshCurrentLineHighlight()
+        // Not synchronously: the scroll view can lay out while the text is being laid out,
+        // and asking for line geometry then would re-enter the layout manager.
+        DispatchQueue.main.async { [weak self] in
+            self?.refreshCurrentLineHighlight()
+        }
     }
+
+    /// The narrowest width the editor lays text out in.
+    static let minimumLayoutWidth: CGFloat = 60
 
     // MARK: - Text
 

@@ -28,6 +28,13 @@ final class Replacement {
     enum Kind {
         case math(MathImage, region: MathRegion)
         case fold(FoldableRegion, thumbnail: NSImage?)
+        /// Markup hidden without a drawing, such as the `\emph{` and `}` around emphasis.
+        case hidden
+    }
+
+    var isHidden: Bool {
+        if case .hidden = kind { return true }
+        return false
     }
 
     let range: NSRange
@@ -61,6 +68,8 @@ final class Replacement {
             drawTinted(math.image, in: rect)
         case .fold(let region, let thumbnail):
             FoldChip.draw(region, thumbnail: thumbnail, in: rect, font: font)
+        case .hidden:
+            break
         }
     }
 
@@ -179,7 +188,11 @@ final class PresentationLayoutManager: NSLayoutManager, NSLayoutManagerDelegate 
 
     /// Replaces the set of replacements, relaying out only what changed.
     func setReplacements(_ newReplacements: [Replacement]) {
-        var sorted = newReplacements.sorted { $0.range.location < $1.range.location }
+        // At the same location the longer one wins, so a collapsed section keeps priority
+        // over markup hidden at its start.
+        var sorted = newReplacements.sorted {
+            $0.range.location != $1.range.location ? $0.range.location < $1.range.location : $0.range.length > $1.range.length
+        }
         // Drop any that overlap an earlier one.
         var accepted: [Replacement] = []
         for replacement in sorted where accepted.last.map({ NSMaxRange($0.range) <= replacement.range.location }) ?? true {
@@ -276,7 +289,7 @@ final class PresentationLayoutManager: NSLayoutManager, NSLayoutManagerDelegate 
 
     /// Whether the line starting at `location` is hidden inside a replacement.
     func isHidden(_ location: Int) -> Bool {
-        guard let replacement = replacement(containing: location) else { return false }
+        guard let replacement = replacement(containing: location), !replacement.isHidden else { return false }
         return location != replacement.range.location
     }
 
@@ -298,7 +311,7 @@ final class PresentationLayoutManager: NSLayoutManager, NSLayoutManagerDelegate 
             if modified == nil {
                 modified = Array(UnsafeBufferPointer(start: props, count: glyphRange.length))
             }
-            if character == replacement.range.location {
+            if character == replacement.range.location && !replacement.isHidden {
                 modified?[index] = .controlCharacter
             } else if !props[index].contains(.controlCharacter) {
                 // Line breaks stay control characters so they can be given zero advancement.
@@ -318,7 +331,7 @@ final class PresentationLayoutManager: NSLayoutManager, NSLayoutManagerDelegate 
         forControlCharacterAt charIndex: Int
     ) -> NSLayoutManager.ControlCharacterAction {
         guard let replacement = replacement(containing: charIndex) else { return action }
-        return charIndex == replacement.range.location ? .whitespace : .zeroAdvancement
+        return charIndex == replacement.range.location && !replacement.isHidden ? .whitespace : .zeroAdvancement
     }
 
     func layoutManager(
@@ -332,12 +345,9 @@ final class PresentationLayoutManager: NSLayoutManager, NSLayoutManagerDelegate 
         guard let replacement = replacement(containing: charIndex), charIndex == replacement.range.location else {
             return NSRect(x: 0, y: 0, width: 0, height: 0)
         }
-        var width = replacement.size.width
-        if replacement.fillsLine {
-            // Take the rest of the line, so the formula can be centred.
-            width = max(width, proposedRect.maxX - glyphPosition.x - textContainer.lineFragmentPadding)
-        }
-        return NSRect(x: 0, y: 0, width: width, height: replacement.size.height)
+        // Display math is centred when drawn; its glyph only takes the formula's width, so
+        // the line can never overflow and push what follows onto the next line.
+        return NSRect(x: 0, y: 0, width: replacement.size.width, height: replacement.size.height)
     }
 
     /// Makes lines tall enough for the drawings they contain.
@@ -351,7 +361,7 @@ final class PresentationLayoutManager: NSLayoutManager, NSLayoutManagerDelegate 
     ) -> Bool {
         guard !replacements.isEmpty else { return false }
         let characters = characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
-        let anchored = replacements(anchoredIn: characters)
+        let anchored = replacements(anchoredIn: characters).filter { !$0.isHidden }
         guard !anchored.isEmpty else { return false }
 
         let padding: CGFloat = 2
@@ -379,14 +389,21 @@ final class PresentationLayoutManager: NSLayoutManager, NSLayoutManagerDelegate 
             ? (textStorage?.attribute(.font, at: 0, effectiveRange: nil) as? NSFont) ?? NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
             : NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
 
-        for replacement in replacements(anchoredIn: characters) {
+        for replacement in replacements(anchoredIn: characters) where !replacement.isHidden {
             let glyph = glyphIndexForCharacter(at: replacement.range.location)
             let fragment = lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
             let box = boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: textContainer)
             let baseline = fragment.minY + location(forGlyphAt: glyph).y
             var x = box.minX
             if replacement.fillsLine {
-                x += max((box.width - replacement.size.width) / 2, 0)
+                // Centre in the visible text width, like display math in the PDF.
+                let padding = textContainer.lineFragmentPadding
+                var usable = textContainer.size.width
+                if let textView = textContainer.textView {
+                    usable = min(usable, textView.visibleRect.width - 2 * textView.textContainerInset.width)
+                }
+                usable -= 2 * padding
+                x = max(fragment.minX + padding + (usable - replacement.size.width) / 2, box.minX)
             }
             let rect = NSRect(
                 x: origin.x + x,

@@ -3,6 +3,25 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.5 — Formatting preview, more folding and an editor layout fix
+
+- Fixed typed text wrapping onto a new line after every character. The editor no longer
+  follows the transient zero widths SwiftUI passes through while laying out the window,
+  keeps its text container exactly as wide as the text area whenever the scroll view
+  lays out, and no longer asks for line geometry in the middle of layout.
+- Display math is now centred when drawn instead of widening its glyph to the whole line,
+  so it can never push the rest of the line onto the next one; editing the line of a
+  formula shown alone on it drops the rendering until the source is scanned again.
+- Formatting preview: `\emph`, `\textbf`, `\textit`, `\textsl`, `\texttt`, `\textsc`,
+  `\textsf`, `\textrm`, `\textup`, `\textmd`, `\textnormal`, `\underline`, `\uline`
+  and `\sout` hide their markup and show their argument styled; nested commands combine.
+- View ▸ Live Preview (⌃⌘M) replaces Render Math and covers formulas and formatting;
+  Settings ▸ Editor can turn either off.
+- Folding now covers section bodies (the heading stays visible, each section folds up to
+  the next heading of the same or a higher level), the preamble and blocks of three or
+  more comment lines. New Fold Sections and Fold Preamble commands, and an option to
+  collapse the preamble when opening a document.
+
 ## v1.4 — Live preview in the editor: rendered math and code folding
 
 - Formulas are shown typeset in the source, with the document's own macros and packages,

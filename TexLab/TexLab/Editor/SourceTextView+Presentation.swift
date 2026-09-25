@@ -48,6 +48,16 @@ extension SourceTextView {
             ))
         }
 
+        let revealedSpans = formattedSpansTouchingSelection()
+        revealedFormatting = revealedSpans
+        if configuration.stylesFormatting {
+            for span in formattedSpans where NSMaxRange(span.range) <= length && !revealedSpans.contains(span.range.location) {
+                for markup in [span.openingRange, span.closingRange] where markup.length > 0 {
+                    replacements.append(Replacement(range: markup, kind: .hidden, size: .zero, descent: 0, fillsLine: false, identity: "hidden"))
+                }
+            }
+        }
+
         let revealed = mathRegionsTouchingSelection()
         revealedMath = revealed
         if configuration.rendersMath {
@@ -81,10 +91,21 @@ extension SourceTextView {
             }
             return
         }
-        guard configuration.rendersMath, !mathRegions.isEmpty else { return }
-        if mathRegionsTouchingSelection() != revealedMath {
+        let mathChanged = configuration.rendersMath && !mathRegions.isEmpty && mathRegionsTouchingSelection() != revealedMath
+        let formattingChanged = configuration.stylesFormatting && !formattedSpans.isEmpty && formattedSpansTouchingSelection() != revealedFormatting
+        if mathChanged || formattingChanged {
             updatePresentation()
         }
+    }
+
+    /// Styled spans the selection touches, which show their markup for editing.
+    private func formattedSpansTouchingSelection() -> Set<Int> {
+        let selection = selectedRange()
+        var touching: Set<Int> = []
+        for span in formattedSpans where selection.location <= NSMaxRange(span.range) && NSMaxRange(selection) >= span.range.location {
+            touching.insert(span.range.location)
+        }
+        return touching
     }
 
     private func contains(_ range: NSRange, strictly location: Int) -> Bool {
@@ -116,7 +137,19 @@ extension SourceTextView {
             }
             return nil
         }
-        mathRegions = mathRegions.compactMap { region in survives(region.range).map { region.shifted(by: $0) } }
+        // Display math drawn alone on its line stops being alone when that line is edited.
+        let editedLines = textStorage.map { storage in
+            storage.mutableString.lineRange(for: NSRange(location: min(editedRange.location, storage.length), length: min(editedRange.length, storage.length - min(editedRange.location, storage.length))))
+        }
+        mathRegions = mathRegions.compactMap { region in
+            guard let shift = survives(region.range) else { return nil }
+            let shifted = region.shifted(by: shift)
+            if shifted.standsAlone, let editedLines, NSIntersectionRange(editedLines, shifted.range).length > 0 || NSMaxRange(shifted.range) == editedLines.location {
+                return nil
+            }
+            return shifted
+        }
+        formattedSpans = formattedSpans.compactMap { span in survives(span.range).map { span.shifted(by: $0) } }
         foldableRegions = foldableRegions.compactMap { region in survives(region.range).map { region.shifted(by: $0) } }
         folds = folds.compactMap { region in survives(region.range).map { region.shifted(by: $0) } }
     }
@@ -127,6 +160,13 @@ extension SourceTextView {
     func setMathRegions(_ regions: [MathRegion]) {
         guard regions != mathRegions else { return }
         mathRegions = regions
+        updatePresentation()
+    }
+
+    /// Updates the styled spans found in the source.
+    func setFormattedSpans(_ spans: [FormattedSpan]) {
+        guard spans != formattedSpans else { return }
+        formattedSpans = spans
         updatePresentation()
     }
 
@@ -214,6 +254,30 @@ extension SourceTextView {
     /// Collapses every figure and table, outermost first.
     func foldFloats() {
         for region in foldableRegions where region.isFloat {
+            fold(region)
+        }
+    }
+
+    /// Collapses the preamble, leaving the document body in view.
+    func foldPreamble(beepsIfMissing: Bool = true) {
+        guard let preamble = foldableRegions.first(where: { $0.kind == .preamble }) else {
+            if beepsIfMissing {
+                NSSound.beep()
+            }
+            return
+        }
+        fold(preamble)
+    }
+
+    /// Collapses every section's body, leaving the headings as an outline.
+    func foldSections() {
+        let sections = foldableRegions.filter(\.isSection)
+        guard !sections.isEmpty else {
+            NSSound.beep()
+            return
+        }
+        // Outermost first, so each fold replaces the ones inside it.
+        for region in sections.sorted(by: { $0.range.length > $1.range.length }) {
             fold(region)
         }
     }

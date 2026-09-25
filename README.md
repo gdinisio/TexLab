@@ -29,10 +29,17 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   editor, with the document's own macros, until the insertion point enters them; then
   their source appears for editing. Click a formula to edit it. Display math is centred
   on its line like in the PDF. Formulas are drawn in the text colour, so they follow Dark
-  Mode (colour set with `\color` inside a formula isn't shown). Turn it off with View ▸
-  Render Math (⌃⌘M).
-- **Code folding** — collapse any environment of two or more lines with the chevron
-  beside its line number, or View ▸ Code Folding. A collapsed figure or table shows its
+  Mode (colour set with `\color` inside a formula isn't shown).
+- **Formatting preview** — `\emph{…}`, `\textbf{…}`, `\textit`, `\texttt`, `\textsc`,
+  `\textsf`, `\textrm`, `\underline` and `\sout` show their argument styled (italic,
+  bold, monospace…) with the command and braces hidden, and nest like in TeX. Moving the
+  insertion point onto one shows its markup again.
+- Rendered math and the formatting preview together make up **Live Preview**, turned on
+  and off with View ▸ Live Preview (⌃⌘M); each part can be turned off in Settings.
+- **Code folding** — collapse sections (the heading stays visible), the preamble, blocks
+  of comments and any environment of two or more lines with the chevron beside a line
+  number, or View ▸ Code Folding, which can also fold every section or the preamble at
+  once. A collapsed figure or table shows its
   caption, line count and a thumbnail of its image; click it to expand it again. Fold
   Figures and Tables tidies a long document in one step, and Settings can do this for
   every document you open. Folding never changes the text: moving the insertion point
@@ -89,7 +96,7 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 | Shift Right / Left | ⌘] / ⌘[ or Tab / ⇧Tab |
 | Complete | Esc |
 | Go to Line (`line` or `line:column`) | ⌘L |
-| Render Math in the editor | ⌃⌘M |
+| Live Preview in the editor | ⌃⌘M |
 | Fold / Unfold | ⌥⌘← / ⌥⌘→ |
 | Fold Figures and Tables / Unfold All | ⌃⌥⌘← / ⌃⌥⌘→ |
 | Bigger / Smaller Text | ⌘+ (or ⌘=) / ⌘- |

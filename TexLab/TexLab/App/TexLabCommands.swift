@@ -15,7 +15,7 @@ struct TexLabCommands: Commands {
     @AppStorage(SettingsKey.showsStatusBar) private var showsStatusBar = AppSettings.showsStatusBar
     @AppStorage(SettingsKey.previewShowsTwoPages) private var previewShowsTwoPages = AppSettings.previewShowsTwoPages
     @AppStorage(SettingsKey.typesetsAutomatically) private var typesetsAutomatically = AppSettings.typesetsAutomatically
-    @AppStorage(SettingsKey.rendersMathInEditor) private var rendersMath = AppSettings.rendersMathInEditor
+    @AppStorage(SettingsKey.showsLivePreview) private var showsLivePreview = AppSettings.showsLivePreview
 
     var body: some Commands {
         SidebarCommands()
@@ -162,10 +162,10 @@ struct TexLabCommands: Commands {
         .disabled(session == nil)
     }
 
-    /// Render Math and Code Folding, for the live preview in the editor.
+    /// Live Preview and Code Folding.
     @ViewBuilder
     private var liveSourceCommands: some View {
-        Toggle("Render Math", isOn: $rendersMath)
+        Toggle("Live Preview", isOn: $showsLivePreview)
             .keyboardShortcut("m", modifiers: [.command, .control])
         Menu("Code Folding") {
             Button("Fold") {
@@ -181,6 +181,12 @@ struct TexLabCommands: Commands {
                 session?.editor.foldFloats()
             }
             .keyboardShortcut(.leftArrow, modifiers: [.command, .option, .control])
+            Button("Fold Sections") {
+                session?.editor.foldSections()
+            }
+            Button("Fold Preamble") {
+                session?.editor.foldPreamble()
+            }
             Button("Unfold All") {
                 session?.editor.unfoldAll()
             }

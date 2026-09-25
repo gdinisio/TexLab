@@ -64,8 +64,13 @@ nonisolated enum SettingsKey {
     static let checksSpelling = "checksSpelling"
     static let suggestsCompletions = "suggestsCompletions"
     static let showsStatusBar = "showsStatusBar"
+    /// Live preview in the editor as a whole; formulas and formatting can be turned off
+    /// separately.
+    static let showsLivePreview = "showsLivePreview"
     static let rendersMathInEditor = "rendersMathInEditor"
+    static let hidesFormattingCommands = "hidesFormattingCommands"
     static let foldsFloatsOnOpen = "foldsFloatsOnOpen"
+    static let foldsPreambleOnOpen = "foldsPreambleOnOpen"
 
     static let defaultEngine = "defaultEngine"
     static let typesetsAutomatically = "typesetsAutomatically"
@@ -93,8 +98,11 @@ nonisolated enum AppSettings {
     static let checksSpelling = true
     static let suggestsCompletions = true
     static let showsStatusBar = true
+    static let showsLivePreview = true
     static let rendersMathInEditor = true
+    static let hidesFormattingCommands = true
     static let foldsFloatsOnOpen = false
+    static let foldsPreambleOnOpen = false
 
     static let defaultEngine = TypesettingEngine.pdfLaTeX.rawValue
     static let typesetsAutomatically = true
@@ -121,8 +129,11 @@ nonisolated enum AppSettings {
             SettingsKey.checksSpelling: checksSpelling,
             SettingsKey.suggestsCompletions: suggestsCompletions,
             SettingsKey.showsStatusBar: showsStatusBar,
+            SettingsKey.showsLivePreview: showsLivePreview,
             SettingsKey.rendersMathInEditor: rendersMathInEditor,
+            SettingsKey.hidesFormattingCommands: hidesFormattingCommands,
             SettingsKey.foldsFloatsOnOpen: foldsFloatsOnOpen,
+            SettingsKey.foldsPreambleOnOpen: foldsPreambleOnOpen,
             SettingsKey.defaultEngine: defaultEngine,
             SettingsKey.typesetsAutomatically: typesetsAutomatically,
             SettingsKey.autoTypesetDelay: autoTypesetDelay,
@@ -136,6 +147,12 @@ nonisolated enum AppSettings {
     }
 
     /// Clamps an editor font size to the supported range.
+    /// Whether formulas are shown rendered in the editor.
+    static var rendersMathNow: Bool {
+        let defaults = UserDefaults.standard
+        return defaults.bool(forKey: SettingsKey.showsLivePreview) && defaults.bool(forKey: SettingsKey.rendersMathInEditor)
+    }
+
     static func clampedFontSize(_ size: Double) -> Double {
         min(max(size, minimumFontSize), maximumFontSize)
     }

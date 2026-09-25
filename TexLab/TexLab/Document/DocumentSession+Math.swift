@@ -27,11 +27,19 @@ extension DocumentSession {
     func updateLivePreview() {
         let regions = MathScanner.scan(text)
         editor.setMathRegions(regions)
+        let string = text as NSString
+        let bodyStart = FormattingScanner.bodyStart(in: string)
+        let body = NSRange(location: bodyStart, length: string.length - bodyStart)
+        editor.setFormattedSpans(FormattingScanner.scan(string, range: body, excluding: regions.map(\.range)))
         editor.setFoldableRegions(FoldScanner.scan(text))
 
         if !hasScannedFolds {
             hasScannedFolds = true
-            if UserDefaults.standard.bool(forKey: SettingsKey.foldsFloatsOnOpen) {
+            let defaults = UserDefaults.standard
+            if defaults.bool(forKey: SettingsKey.foldsPreambleOnOpen) {
+                editor.foldPreamble(beepsIfMissing: false)
+            }
+            if defaults.bool(forKey: SettingsKey.foldsFloatsOnOpen) {
                 editor.foldFloats()
             }
         }
@@ -40,7 +48,7 @@ extension DocumentSession {
 
     /// Called when Render Math is turned on or off.
     func livePreviewSettingDidChange() {
-        if UserDefaults.standard.bool(forKey: SettingsKey.rendersMathInEditor) {
+        if AppSettings.rendersMathNow {
             renderMath(for: MathScanner.scan(text))
         } else {
             mathRenderTask?.cancel()
@@ -52,7 +60,7 @@ extension DocumentSession {
 
     private func renderMath(for regions: [MathRegion]) {
         let defaults = UserDefaults.standard
-        guard defaults.bool(forKey: SettingsKey.rendersMathInEditor), !regions.isEmpty,
+        guard AppSettings.rendersMathNow, !regions.isEmpty,
               let distribution = TeXDistribution.locate(customPath: defaults.string(forKey: SettingsKey.texBinPath) ?? "") else { return }
         guard mathRenderTask == nil else {
             needsAnotherMathRender = true

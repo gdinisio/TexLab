@@ -128,6 +128,10 @@ final class EditorController {
         textView?.setRenderedMath(images)
     }
 
+    func setFormattedSpans(_ spans: [FormattedSpan]) {
+        textView?.setFormattedSpans(spans)
+    }
+
     func setFoldableRegions(_ regions: [FoldableRegion]) {
         textView?.setFoldableRegions(regions)
     }
@@ -148,6 +152,14 @@ final class EditorController {
 
     func foldFloats() {
         textView?.foldFloats()
+    }
+
+    func foldPreamble(beepsIfMissing: Bool = true) {
+        textView?.foldPreamble(beepsIfMissing: beepsIfMissing)
+    }
+
+    func foldSections() {
+        textView?.foldSections()
     }
 
     func unfoldAll() {

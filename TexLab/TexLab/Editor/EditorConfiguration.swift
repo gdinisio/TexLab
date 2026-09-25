@@ -19,6 +19,9 @@ nonisolated struct EditorConfiguration: Equatable, Sendable {
     var suggestsCompletions = AppSettings.suggestsCompletions
     /// Shows typeset formulas in place of their source until the insertion point enters them.
     var rendersMath = AppSettings.rendersMathInEditor
+    /// Hides the markup of `\emph{…}`, `\textbf{…}` and similar commands and shows their
+    /// argument in its style instead.
+    var stylesFormatting = AppSettings.hidesFormattingCommands
 
     /// The text inserted for one level of indentation.
     var indentUnit: String {

@@ -82,8 +82,11 @@ private struct EditorSettings: View {
     @AppStorage(SettingsKey.indentsWithSpaces) private var indentsWithSpaces = AppSettings.indentsWithSpaces
     @AppStorage(SettingsKey.checksSpelling) private var checksSpelling = AppSettings.checksSpelling
     @AppStorage(SettingsKey.suggestsCompletions) private var suggestsCompletions = AppSettings.suggestsCompletions
+    @AppStorage(SettingsKey.showsLivePreview) private var showsLivePreview = AppSettings.showsLivePreview
     @AppStorage(SettingsKey.rendersMathInEditor) private var rendersMath = AppSettings.rendersMathInEditor
+    @AppStorage(SettingsKey.hidesFormattingCommands) private var hidesFormatting = AppSettings.hidesFormattingCommands
     @AppStorage(SettingsKey.foldsFloatsOnOpen) private var foldsFloatsOnOpen = AppSettings.foldsFloatsOnOpen
+    @AppStorage(SettingsKey.foldsPreambleOnOpen) private var foldsPreambleOnOpen = AppSettings.foldsPreambleOnOpen
     @AppStorage(SettingsKey.texBinPath) private var texBinPath = AppSettings.texBinPath
     /// Whether formulas can be rendered with the TeX distribution; nil while checking.
     @State private var canRenderMath: Bool?
@@ -112,14 +115,19 @@ private struct EditorSettings: View {
             }
 
             Section {
+                Toggle("Live preview", isOn: $showsLivePreview)
                 Toggle("Show formulas rendered", isOn: $rendersMath)
+                    .disabled(!showsLivePreview)
+                Toggle("Hide \\emph, \\textbf and other formatting commands", isOn: $hidesFormatting)
+                    .disabled(!showsLivePreview)
+                Toggle("Collapse the preamble when opening a document", isOn: $foldsPreambleOnOpen)
                 Toggle("Collapse figures and tables when opening a document", isOn: $foldsFloatsOnOpen)
             } header: {
                 Text("Live Preview")
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Formulas show their source again while the insertion point is inside them. Click the chevron beside a line number to collapse an environment.")
-                    if rendersMath && canRenderMath == false {
+                    Text("Formulas and formatting show their source again while the insertion point is inside them. Click the chevron beside a line number to collapse a section, environment, the preamble or a block of comments.")
+                    if showsLivePreview && rendersMath && canRenderMath == false {
                         Label("Rendering formulas needs a TeX distribution with the preview package, which MacTeX includes.", systemImage: "exclamationmark.triangle")
                     }
                 }

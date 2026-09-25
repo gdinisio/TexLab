@@ -5,6 +5,7 @@
 
 import AppKit
 import CoreGraphics
+import CoreText
 import Foundation
 
 extension NSAttributedString.Key {
@@ -97,7 +98,13 @@ struct SyntaxTheme {
 /// lines, so scanning from the blank line before an edit to the blank line after it is
 /// both correct and fast, whatever the length of the document.
 final class SyntaxHighlighter {
-    var theme: SyntaxTheme
+    var theme: SyntaxTheme {
+        didSet { styledFonts.removeAll() }
+    }
+    /// Shows the arguments of `\emph`, `\textbf` and similar commands in their style, for
+    /// the live preview.
+    var stylesFormatting = false
+    private var styledFonts: [String: NSFont] = [:]
 
     init(theme: SyntaxTheme) {
         self.theme = theme
@@ -123,6 +130,8 @@ final class SyntaxHighlighter {
 
         storage.addAttributes(theme.baseAttributes, range: region)
         storage.removeAttribute(.texLabSyntax, range: region)
+        storage.removeAttribute(.underlineStyle, range: region)
+        storage.removeAttribute(.strikethroughStyle, range: region)
 
         for span in scan.regions {
             storage.addAttributes([
@@ -140,6 +149,69 @@ final class SyntaxHighlighter {
                 ], range: span.range)
             }
         }
+        if stylesFormatting {
+            applyFormatting(to: storage, in: region, scan: scan)
+        }
+    }
+
+    // MARK: - Formatting preview
+
+    private func applyFormatting(to storage: NSTextStorage, in region: NSRange, scan: SyntaxScan) {
+        let string = storage.mutableString
+        let bodyStart = FormattingScanner.bodyStart(in: string)
+        guard NSMaxRange(region) > bodyStart else { return }
+        let start = max(region.location, bodyStart)
+        let range = NSRange(location: start, length: NSMaxRange(region) - start)
+        let excluded = scan.regions.map(\.range) + scan.tokens.filter { $0.kind == .verbatim || $0.kind == .comment }.map(\.range)
+        // Outer commands come first, so nested ones combine: \textbf{\emph{…}} is bold italic.
+        for span in FormattingScanner.scan(string, range: range, excluding: excluded) {
+            storage.enumerateAttribute(.font, in: span.contentRange) { value, run, _ in
+                let font = (value as? NSFont) ?? theme.font
+                storage.addAttribute(.font, value: styledFont(font, span.style), range: run)
+            }
+            if span.style.contains(.underline) {
+                storage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: span.contentRange)
+            }
+            if span.style.contains(.strikethrough) {
+                storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: span.contentRange)
+            }
+        }
+    }
+
+    /// `font` changed to show `style`, keeping its size and any bold or italic it has.
+    private func styledFont(_ font: NSFont, _ style: TextStyle) -> NSFont {
+        let key = "\(font.fontName)|\(font.pointSize)|\(font.fontDescriptor.symbolicTraits.rawValue)|\(style.rawValue)"
+        if let cached = styledFonts[key] {
+            return cached
+        }
+        let size = font.pointSize
+        var descriptor = font.fontDescriptor
+        var traits = descriptor.symbolicTraits.intersection([.bold, .italic])
+        if style.contains(.monospace) {
+            descriptor = NSFont.monospacedSystemFont(ofSize: size, weight: .regular).fontDescriptor
+        } else if style.contains(.sansSerif) {
+            descriptor = NSFont.systemFont(ofSize: size).fontDescriptor
+        } else if style.contains(.serif) {
+            let system = NSFont.systemFont(ofSize: size).fontDescriptor
+            descriptor = system.withDesign(.serif) ?? system
+        } else if style.contains(.smallCaps) {
+            let system = NSFont.systemFont(ofSize: size).fontDescriptor
+            descriptor = system.addingAttributes([
+                .featureSettings: [[
+                    NSFontDescriptor.FeatureKey.typeIdentifier: kLowerCaseType,
+                    NSFontDescriptor.FeatureKey.selectorIdentifier: kLowerCaseSmallCapsSelector,
+                ]],
+            ])
+        }
+        if style.contains(.bold) { traits.insert(.bold) }
+        if style.contains(.italic) { traits.insert(.italic) }
+        if style.contains(.upright) { traits.remove(.italic) }
+        if style.contains(.medium) { traits.remove(.bold) }
+        let styled = NSFont(descriptor: descriptor.withSymbolicTraits(traits), size: size)
+            ?? NSFont(descriptor: descriptor, size: size)
+            ?? font
+        styledFonts[key] = styled
+        return styled
     }
 
     /// The paragraph block around `range`, extended to cover verbatim environments that

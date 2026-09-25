@@ -117,7 +117,7 @@ nonisolated enum MathScanner {
         )
     }
 
-    /// Whether only whitespace (or a comment) shares the lines of `range`.
+    /// Whether only whitespace shares the lines of `range`.
     private static func isAloneOnItsLines(_ range: NSRange, in string: NSString) -> Bool {
         let lineStart = string.lineRange(for: NSRange(location: range.location, length: 0)).location
         let before = string.substring(with: NSRange(location: lineStart, length: range.location - lineStart))
@@ -125,7 +125,8 @@ nonisolated enum MathScanner {
         let endLine = string.lineRange(for: NSRange(location: max(NSMaxRange(range) - 1, range.location), length: 0))
         let afterLength = NSMaxRange(endLine) - NSMaxRange(range)
         guard afterLength >= 0 else { return true }
-        let after = LaTeXText.stripComment(string.substring(with: NSRange(location: NSMaxRange(range), length: afterLength)))
+        // A trailing comment would be drawn over the centred formula, so it counts as text.
+        let after = string.substring(with: NSRange(location: NSMaxRange(range), length: afterLength))
         return after.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }
