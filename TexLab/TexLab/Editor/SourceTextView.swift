@@ -312,7 +312,7 @@ final class SourceTextView: NSTextView {
     }
 
     private func computeCurrentLineRect() -> NSRect? {
-        guard let layoutManager, let textContainer, let storage = textStorage else { return nil }
+        guard let layoutManager, let storage = textStorage else { return nil }
         let selection = selectedRange()
         guard selection.length == 0 else { return nil }
         let text = storage.mutableString
@@ -493,6 +493,9 @@ final class SourceTextView: NSTextView {
             case .fold(let region, _):
                 unfold(region)
                 setSelectedRange(NSRange(location: region.range.location, length: 0))
+            case .hidden:
+                // Hidden markup isn't drawn, so it can't be clicked; edit as usual.
+                super.mouseDown(with: event)
             }
             return
         }

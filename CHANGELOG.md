@@ -3,6 +3,12 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.6 — Build fixes
+
+- Handled hidden formatting markup in the editor's click handling (the switch over
+  replacement kinds wasn't exhaustive).
+- Removed an unused binding in the current line highlight.
+
 ## v1.5 — Formatting preview, more folding and an editor layout fix
 
 - Fixed typed text wrapping onto a new line after every character. The editor no longer
