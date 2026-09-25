@@ -3,6 +3,14 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.1 — Build fix: explicit framework imports
+
+- Fixed the first Xcode build: with the `MemberImportVisibility` upcoming feature
+  enabled, `CGRect`/`CGPoint` members in `SyncTeX.swift` weren't visible because the file
+  didn't import CoreGraphics.
+- Every file that uses geometry types now imports CoreGraphics, and every file imports
+  Foundation explicitly, so members are never visible only through another framework.
+
 ## v1.0 — Review and polish
 
 - Full review of every source file for correctness, concurrency isolation and Apple API

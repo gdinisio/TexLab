@@ -3,6 +3,7 @@
 //  TexLab
 //
 
+import Foundation
 import SwiftUI
 
 /// The sidebar: the document outline, or the issues from the latest typesetting.

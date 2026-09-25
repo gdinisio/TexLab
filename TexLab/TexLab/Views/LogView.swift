@@ -4,6 +4,8 @@
 //
 
 import AppKit
+import CoreGraphics
+import Foundation
 import SwiftUI
 
 /// The full TeX log and tool output, for problems the Issues list can't explain.

@@ -4,6 +4,7 @@
 //
 
 import AppKit
+import Foundation
 import SwiftUI
 
 /// Hosts the AppKit source editor in SwiftUI and keeps it in sync with the document.

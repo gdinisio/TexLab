@@ -4,6 +4,7 @@
 //
 
 import AppKit
+import Foundation
 import SwiftUI
 
 /// Edit ▸ Go to Line…: jumps to a line number, optionally with a column (`12:5`).

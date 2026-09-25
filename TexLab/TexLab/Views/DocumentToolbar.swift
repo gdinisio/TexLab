@@ -3,6 +3,7 @@
 //  TexLab
 //
 
+import Foundation
 import SwiftUI
 
 /// Typeset: click to typeset, or hold for the engine and Stop.

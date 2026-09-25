@@ -3,6 +3,7 @@
 //  TexLab
 //
 
+import Foundation
 import SwiftUI
 
 /// The menu bar. Commands act on the focused document window through its session.

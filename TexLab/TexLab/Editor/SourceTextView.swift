@@ -4,6 +4,8 @@
 //
 
 import AppKit
+import CoreGraphics
+import Foundation
 
 /// The LaTeX source editor.
 ///

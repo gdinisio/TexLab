@@ -4,6 +4,8 @@
 //
 
 import AppKit
+import CoreGraphics
+import Foundation
 import PDFKit
 
 /// The PDF preview.

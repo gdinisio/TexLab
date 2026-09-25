@@ -3,6 +3,7 @@
 //  TexLab
 //
 
+import CoreGraphics
 import Foundation
 
 /// A place in the PDF that corresponds to a source line.

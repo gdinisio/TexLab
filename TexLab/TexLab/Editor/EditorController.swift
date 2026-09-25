@@ -4,6 +4,7 @@
 //
 
 import AppKit
+import Foundation
 
 /// The interface menu commands, the sidebar and the preview use to work with a window's
 /// source editor.

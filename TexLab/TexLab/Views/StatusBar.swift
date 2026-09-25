@@ -3,6 +3,7 @@
 //  TexLab
 //
 
+import Foundation
 import SwiftUI
 
 /// A Finder-style status bar under the editor: where the insertion point is, how long the

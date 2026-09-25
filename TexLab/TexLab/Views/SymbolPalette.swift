@@ -3,6 +3,7 @@
 //  TexLab
 //
 
+import Foundation
 import SwiftUI
 
 /// A searchable palette of math and text symbols, like the Character Viewer. Clicking a

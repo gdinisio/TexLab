@@ -156,6 +156,9 @@ TexLab/TexLab/
   files you edit; `SyncTeXData` parses uncompressed SyncTeX with a byte-level parser.
 - **Preview** — `SyncPDFView` (`PDFView` subclass) restores the scroll position when a
   new PDF arrives, handles ⌘-click and highlights forward-search results.
+- **Imports** — the target enables `MemberImportVisibility`, so each file imports every
+  framework whose members it uses (Foundation, CoreGraphics, AppKit, PDFKit, SwiftUI,
+  UniformTypeIdentifiers); re-exports from another framework don't count.
 - **Concurrency** — the project builds with Swift's default `MainActor` isolation. Code
   that runs off the main thread (decoding, typesetting, parsing) is explicitly
   `nonisolated` and `Sendable`; typesetting runs in a detached task and results are

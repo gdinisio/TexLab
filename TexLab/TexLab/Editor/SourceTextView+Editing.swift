@@ -4,6 +4,8 @@
 //
 
 import AppKit
+import CoreGraphics
+import Foundation
 
 /// Text inserted by the Insert and Format menus.
 ///

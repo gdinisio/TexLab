@@ -4,6 +4,8 @@
 //
 
 import AppKit
+import CoreGraphics
+import Foundation
 
 extension NSAttributedString.Key {
     /// Marks characters that are LaTeX markup rather than prose. The value is the raw value

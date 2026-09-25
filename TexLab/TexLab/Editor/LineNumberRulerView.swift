@@ -4,6 +4,8 @@
 //
 
 import AppKit
+import CoreGraphics
+import Foundation
 
 /// The severity of an issue marked in the editor's gutter.
 nonisolated enum IssueMarker: Int, Comparable, Sendable {
