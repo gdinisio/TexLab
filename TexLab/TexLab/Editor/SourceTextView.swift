@@ -50,10 +50,10 @@ final class SourceTextView: NSTextView {
     var missingThumbnails: Set<String> = []
     /// Locations of the formulas currently shown as source because the selection is in them.
     var revealedMath: Set<Int> = []
-    /// Text-style commands whose markup the live preview hides, kept in step with edits.
-    var formattedSpans: [FormattedSpan] = []
-    /// Locations of the styled spans currently showing their markup.
-    var revealedFormatting: Set<Int> = []
+    /// Markup the visual preview shows as it will look, kept in step with edits.
+    var visualElements: [VisualElement] = []
+    /// Locations of the visual elements currently showing their markup.
+    var revealedVisuals: Set<Int> = []
 
     // MARK: - Creation
 
@@ -496,6 +496,16 @@ final class SourceTextView: NSTextView {
             case .hidden:
                 // Hidden markup isn't drawn, so it can't be clicked; edit as usual.
                 super.mouseDown(with: event)
+            case .label(let label, _):
+                let end = NSMaxRange(label.range)
+                if case .inline = label.kind, end < (textStorage?.length ?? 0),
+                   textStorage?.mutableString.character(at: end) == Char.space {
+                    // Clicking a bullet or number starts typing in the item.
+                    setSelectedRange(NSRange(location: end + 1, length: 0))
+                } else {
+                    // Anything else shows its source for editing.
+                    setSelectedRange(NSRange(location: end, length: 0))
+                }
             }
             return
         }

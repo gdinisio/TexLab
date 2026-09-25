@@ -128,8 +128,8 @@ final class EditorController {
         textView?.setRenderedMath(images)
     }
 
-    func setFormattedSpans(_ spans: [FormattedSpan]) {
-        textView?.setFormattedSpans(spans)
+    func setVisualElements(_ elements: [VisualElement]) {
+        textView?.setVisualElements(elements)
     }
 
     func setFoldableRegions(_ regions: [FoldableRegion]) {

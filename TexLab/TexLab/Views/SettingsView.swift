@@ -118,7 +118,7 @@ private struct EditorSettings: View {
                 Toggle("Live preview", isOn: $showsLivePreview)
                 Toggle("Show formulas rendered", isOn: $rendersMath)
                     .disabled(!showsLivePreview)
-                Toggle("Hide \\emph, \\textbf and other formatting commands", isOn: $hidesFormatting)
+                Toggle("Show headings, lists, formatting, references and figures as in the document", isOn: $hidesFormatting)
                     .disabled(!showsLivePreview)
                 Toggle("Collapse the preamble when opening a document", isOn: $foldsPreambleOnOpen)
                 Toggle("Collapse figures and tables when opening a document", isOn: $foldsFloatsOnOpen)

@@ -158,24 +158,55 @@ final class SyntaxHighlighter {
 
     private func applyFormatting(to storage: NSTextStorage, in region: NSRange, scan: SyntaxScan) {
         let string = storage.mutableString
-        let bodyStart = FormattingScanner.bodyStart(in: string)
-        guard NSMaxRange(region) > bodyStart else { return }
-        let start = max(region.location, bodyStart)
-        let range = NSRange(location: start, length: NSMaxRange(region) - start)
         let excluded = scan.regions.map(\.range) + scan.tokens.filter { $0.kind == .verbatim || $0.kind == .comment }.map(\.range)
         // Outer commands come first, so nested ones combine: \textbf{\emph{…}} is bold italic.
-        for span in FormattingScanner.scan(string, range: range, excluding: excluded) {
-            storage.enumerateAttribute(.font, in: span.contentRange) { value, run, _ in
+        for element in VisualScanner.scan(string, range: region, excluding: excluded, stylesOnly: true) {
+            guard let content = element.contentRange, content.length > 0, NSMaxRange(content) <= NSMaxRange(region) else { continue }
+            switch element.role {
+            case .plain:
+                break
+            case .heading(let level):
+                storage.addAttributes([.font: roleFont(size: Self.headingScale(level), weight: .bold), .foregroundColor: NSColor.labelColor], range: content)
+            case .title:
+                storage.addAttributes([.font: roleFont(size: 1.6, weight: .bold), .foregroundColor: NSColor.labelColor], range: content)
+            case .author:
+                storage.addAttributes([.font: roleFont(size: 1.1, weight: .regular), .foregroundColor: NSColor.secondaryLabelColor], range: content)
+            case .link:
+                storage.addAttributes([
+                    .foregroundColor: NSColor.linkColor,
+                    .underlineStyle: NSUnderlineStyle.single.rawValue,
+                ], range: content)
+            case .footnote:
+                storage.addAttributes([.font: roleFont(size: 0.85, weight: .regular), .foregroundColor: NSColor.secondaryLabelColor], range: content)
+            }
+            guard !element.style.isEmpty else { continue }
+            storage.enumerateAttribute(.font, in: content) { value, run, _ in
                 let font = (value as? NSFont) ?? theme.font
-                storage.addAttribute(.font, value: styledFont(font, span.style), range: run)
+                storage.addAttribute(.font, value: styledFont(font, element.style), range: run)
             }
-            if span.style.contains(.underline) {
-                storage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: span.contentRange)
+            if element.style.contains(.underline) {
+                storage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: content)
             }
-            if span.style.contains(.strikethrough) {
-                storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: span.contentRange)
+            if element.style.contains(.strikethrough) {
+                storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: content)
             }
         }
+    }
+
+    /// Heading sizes relative to the editor font, from `\part` down to `\subparagraph`.
+    static func headingScale(_ level: Int) -> CGFloat {
+        [1.8, 1.65, 1.4, 1.2, 1.08, 1, 1][min(max(level, 0), 6)]
+    }
+
+    /// The system font at `size` times the editor font's, for headings and the title.
+    private func roleFont(size: CGFloat, weight: NSFont.Weight) -> NSFont {
+        let key = "role|\(size)|\(weight.rawValue)|\(theme.font.pointSize)"
+        if let cached = styledFonts[key] {
+            return cached
+        }
+        let font = NSFont.systemFont(ofSize: (theme.font.pointSize * size).rounded(), weight: weight)
+        styledFonts[key] = font
+        return font
     }
 
     /// `font` changed to show `style`, keeping its size and any bold or italic it has.

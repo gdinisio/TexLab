@@ -48,13 +48,29 @@ extension SourceTextView {
             ))
         }
 
-        let revealedSpans = formattedSpansTouchingSelection()
-        revealedFormatting = revealedSpans
+        let revealedElements = visualElementsTouchingSelection()
+        revealedVisuals = revealedElements
         if configuration.stylesFormatting {
-            for span in formattedSpans where NSMaxRange(span.range) <= length && !revealedSpans.contains(span.range.location) {
-                for markup in [span.openingRange, span.closingRange] where markup.length > 0 {
+            let availableWidth = presentationWidth
+            for element in visualElements where NSMaxRange(element.range) <= length && !revealedElements.contains(element.range.location) {
+                for markup in element.hidden where markup.length > 0 {
                     replacements.append(Replacement(range: markup, kind: .hidden, size: .zero, descent: 0, fillsLine: false, identity: "hidden"))
                 }
+                guard let label = element.label else { continue }
+                var image: NSImage?
+                if case .picture(let path) = label.kind {
+                    image = thumbnail(for: path)
+                    guard image != nil else { continue }
+                }
+                let metrics = VisualLabelRenderer.metrics(for: label, image: image, font: font, lineHeight: lineHeight, availableWidth: availableWidth)
+                replacements.append(Replacement(
+                    range: label.range,
+                    kind: .label(label, image: image),
+                    size: metrics.size,
+                    descent: metrics.descent,
+                    fillsLine: label.fillsLine,
+                    identity: "label:\(label.text):\(label.kind):\(font.pointSize):\(Int(availableWidth))"
+                ))
             }
         }
 
@@ -92,20 +108,31 @@ extension SourceTextView {
             return
         }
         let mathChanged = configuration.rendersMath && !mathRegions.isEmpty && mathRegionsTouchingSelection() != revealedMath
-        let formattingChanged = configuration.stylesFormatting && !formattedSpans.isEmpty && formattedSpansTouchingSelection() != revealedFormatting
+        let formattingChanged = configuration.stylesFormatting && !visualElements.isEmpty && visualElementsTouchingSelection() != revealedVisuals
         if mathChanged || formattingChanged {
             updatePresentation()
         }
     }
 
-    /// Styled spans the selection touches, which show their markup for editing.
-    private func formattedSpansTouchingSelection() -> Set<Int> {
+    /// Visual elements the selection touches, which show their markup for editing.
+    private func visualElementsTouchingSelection() -> Set<Int> {
         let selection = selectedRange()
         var touching: Set<Int> = []
-        for span in formattedSpans where selection.location <= NSMaxRange(span.range) && NSMaxRange(selection) >= span.range.location {
-            touching.insert(span.range.location)
+        for element in visualElements where selection.location <= NSMaxRange(element.range) && NSMaxRange(selection) >= element.range.location {
+            touching.insert(element.range.location)
         }
         return touching
+    }
+
+    /// The width text is laid out in, for sizing figures and the title block.
+    private var presentationWidth: CGFloat {
+        let padding = textContainer?.lineFragmentPadding ?? 0
+        var width = textContainer?.size.width ?? 0
+        let visible = visibleRect.width - 2 * textContainerInset.width
+        if visible > 0 {
+            width = min(width, visible)
+        }
+        return max(width - 2 * padding, 100)
     }
 
     private func contains(_ range: NSRange, strictly location: Int) -> Bool {
@@ -149,7 +176,7 @@ extension SourceTextView {
             }
             return shifted
         }
-        formattedSpans = formattedSpans.compactMap { span in survives(span.range).map { span.shifted(by: $0) } }
+        visualElements = visualElements.compactMap { element in survives(element.range).map { element.shifted(by: $0) } }
         foldableRegions = foldableRegions.compactMap { region in survives(region.range).map { region.shifted(by: $0) } }
         folds = folds.compactMap { region in survives(region.range).map { region.shifted(by: $0) } }
     }
@@ -163,10 +190,10 @@ extension SourceTextView {
         updatePresentation()
     }
 
-    /// Updates the styled spans found in the source.
-    func setFormattedSpans(_ spans: [FormattedSpan]) {
-        guard spans != formattedSpans else { return }
-        formattedSpans = spans
+    /// Updates the visual elements found in the source.
+    func setVisualElements(_ elements: [VisualElement]) {
+        guard elements != visualElements else { return }
+        visualElements = elements
         updatePresentation()
     }
 

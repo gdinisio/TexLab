@@ -30,11 +30,22 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   their source appears for editing. Click a formula to edit it. Display math is centred
   on its line like in the PDF. Formulas are drawn in the text colour, so they follow Dark
   Mode (colour set with `\color` inside a formula isn't shown).
-- **Formatting preview** — `\emph{…}`, `\textbf{…}`, `\textit`, `\texttt`, `\textsc`,
-  `\textsf`, `\textrm`, `\underline` and `\sout` show their argument styled (italic,
-  bold, monospace…) with the command and braces hidden, and nest like in TeX. Moving the
-  insertion point onto one shows its markup again.
-- Rendered math and the formatting preview together make up **Live Preview**, turned on
+- **Visual preview**, in the spirit of Overleaf's Visual Editor — the source reads like
+  the typeset document while you write, and the markup comes back wherever the
+  insertion point is:
+  - `\section{…}` and the other headings show as large bold titles, `\title` and
+    `\author` as a title block, and `\maketitle` as the title and author centred.
+  - `\begin{abstract}` shows a centred Abstract heading; theorem-like environments
+    (theorem, lemma, definition, …) show "Theorem (title)."; proofs show "Proof." and ∎.
+  - Lists show bullets (•, –, ∗, ·) and numbers (1., (a), i., A.) in place of `\item`,
+    with the `\begin{itemize}` lines hidden; quote and center markers are hidden too.
+  - `\emph`, `\textbf`, `\textit`, `\texttt`, `\textsc`, `\textsf`, `\textrm`,
+    `\underline` and `\sout` style their argument, nesting like in TeX.
+  - `\ref`, `\eqref`, `\cref`, `\cite` (and variants) and `\label` show as chips;
+    `\url` and `\href` as links; footnotes in small grey text.
+  - `\includegraphics` shows the image itself; `---`, `--`, ``` `` ```, `''`, `\ldots`,
+    `\LaTeX` and escapes such as `\&` show as the characters they produce.
+- Rendered math and the visual preview together make up **Live Preview**, turned on
   and off with View ▸ Live Preview (⌃⌘M); each part can be turned off in Settings.
 - **Code folding** — collapse sections (the heading stays visible), the preamble, blocks
   of comments and any environment of two or more lines with the chevron beside a line
@@ -171,7 +182,7 @@ TexLab/TexLab/
   `SyntaxHighlighter` re-colours only the paragraph block around an edit (TeX resets math
   mode at blank lines) from the text storage's `willProcessEditing`, so fonts are fixed
   up afterwards. `LineIndex` maps offsets to lines incrementally.
-- **Live preview in the editor** — `MathScanner` and `FoldScanner` (in
+- **Live preview in the editor** — `MathScanner`, `VisualScanner` and `FoldScanner` (in
   `Editor/Presentation/`) find formulas and foldable environments after each pause in
   typing. `PresentationLayoutManager` shows a range as a drawing without touching the
   text, with the standard TextKit 1 technique: its first character becomes a control

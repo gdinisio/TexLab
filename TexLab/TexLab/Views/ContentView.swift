@@ -38,13 +38,10 @@ struct ContentView: View {
             SidebarView(session: session)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 420)
         } detail: {
-            HSplitView {
+            PaneSplitView(showsTrailing: session.isPreviewVisible, autosaveName: "TexLabEditorPreviewSplit") {
                 editorColumn
-                    .frame(minWidth: 320, idealWidth: 620, maxWidth: .infinity, maxHeight: .infinity)
-                if session.isPreviewVisible {
-                    PreviewPane(session: session)
-                        .frame(minWidth: 280, idealWidth: 560, maxWidth: .infinity, maxHeight: .infinity)
-                }
+            } trailing: {
+                PreviewPane(session: session)
             }
         }
         .frame(minWidth: 640, minHeight: 400)

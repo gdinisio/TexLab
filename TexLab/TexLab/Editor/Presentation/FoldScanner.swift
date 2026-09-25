@@ -175,7 +175,7 @@ nonisolated enum FoldScanner {
     /// a higher level. The heading itself stays visible when collapsed.
     private static func sectionRegions(in string: NSString) -> [FoldableRegion] {
         let whole = NSRange(location: 0, length: string.length)
-        let bodyStart = FormattingScanner.bodyStart(in: string)
+        let bodyStart = VisualScanner.bodyStart(in: string)
         var headings: [(level: Int, command: String, title: String, lineEnd: Int, lineStart: Int)] = []
         for match in headingPattern.matches(in: string as String, range: whole) where match.range.location >= bodyStart {
             let command = string.substring(with: match.range(at: 1))

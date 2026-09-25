@@ -3,6 +3,21 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.7 — Visual preview, a native divider and reliable fold controls
+
+- Visual preview, modelled on Overleaf's Visual Editor: headings as large titles, the
+  title block for `\maketitle`, Abstract and theorem/proof headings, bullets and numbers
+  for list items with the list markers hidden, chips for references, citations and
+  labels, links for `\url` and `\href`, small grey footnotes, images in place of
+  `\includegraphics`, and typographic dashes, quotes and escaped characters. Markup
+  reappears at the insertion point, and clicking a drawn element edits it.
+- The divider between the editor and the preview is now a native `NSSplitView` divider
+  with a grab area 4 points either side, so the resize pointer appears reliably; its
+  position is remembered.
+- Fold chevrons appear whenever the pointer is over the gutter (the tracking area is
+  now always active and covers the whole gutter), with the one under the pointer
+  emphasised.
+
 ## v1.6 — Build fixes
 
 - Handled hidden formatting markup in the editor's click handling (the switch over

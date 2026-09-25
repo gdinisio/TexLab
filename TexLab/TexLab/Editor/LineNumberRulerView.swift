@@ -24,7 +24,9 @@ final class LineNumberRulerView: NSRulerView {
     private weak var sourceView: SourceTextView?
     private var numberFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
     private var digitCount = 0
-    private var isMouseInside = false
+    /// The pointer's position in the gutter while it's over it, for showing fold controls.
+    private var hoverPoint: NSPoint?
+    private var hoverTrackingArea: NSTrackingArea?
     /// Width of the fold control column at the right edge.
     private let foldColumnWidth: CGFloat = 14
 
@@ -41,7 +43,7 @@ final class LineNumberRulerView: NSRulerView {
         updateThickness()
         setAccessibilityElement(false)
         clipsToBounds = true
-        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self))
+        updateTrackingAreas()
 
         let clipView = scrollView.contentView
         clipView.postsBoundsChangedNotifications = true
@@ -130,8 +132,10 @@ final class LineNumberRulerView: NSRulerView {
             let start = lineIndex.startOfLine(line)
             guard start < text.length, start <= NSMaxRange(visibleCharacters) else { break }
             line += 1
-            // Lines inside a collapsed environment or a rendered formula aren't shown.
-            if presentation?.isHidden(start) == true {
+            // Lines inside a collapsed environment or a rendered formula aren't shown, nor
+            // lines the visual preview hides, such as \begin{itemize}.
+            if let presentation, presentation.isHidden(start)
+                || presentation.isLineHidden(NSRange(location: start, length: lineIndex.startOfLine(line) - start)) && line <= lineIndex.lineCount {
                 continue
             }
             let glyph = layoutManager.glyphIndexForCharacter(at: start)
@@ -139,7 +143,8 @@ final class LineNumberRulerView: NSRulerView {
             let baseline = fragment.minY + layoutManager.location(forGlyphAt: glyph).y + containerOrigin.y
             drawNumber(line - 1, atBaseline: baseline, in: textView, isCurrent: (firstSelectedLine...lastSelectedLine).contains(line - 1))
             if let control = foldControls[line - 1] {
-                drawFoldControl(isFolded: control.isFolded, atBaseline: baseline, in: textView)
+                let isHovered = hoverPoint.map { abs(convert(NSPoint(x: 0, y: baseline), from: textView).y - numberFont.xHeight / 2 - $0.y) < fragment.height / 2 } ?? false
+                drawFoldControl(isFolded: control.isFolded, isHovered: isHovered, atBaseline: baseline, in: textView)
             }
         }
 
@@ -181,10 +186,11 @@ final class LineNumberRulerView: NSRulerView {
     /// their chevron; the others only while the pointer is over the gutter, as in Xcode.
     private func foldControlsByLine(in textView: SourceTextView) -> [Int: FoldControl] {
         var controls: [Int: FoldControl] = [:]
+        let showsAll = isPointerInside
         for region in textView.foldableRegions {
             let line = textView.lineIndex.lineNumber(at: region.range.location)
             let isFolded = textView.isFolded(region)
-            guard isFolded || isMouseInside else { continue }
+            guard isFolded || showsAll else { continue }
             if let existing = controls[line], existing.region.range.length >= region.range.length, !isFolded {
                 continue
             }
@@ -193,9 +199,9 @@ final class LineNumberRulerView: NSRulerView {
         return controls
     }
 
-    private func drawFoldControl(isFolded: Bool, atBaseline baseline: CGFloat, in textView: NSTextView) {
+    private func drawFoldControl(isFolded: Bool, isHovered: Bool, atBaseline baseline: CGFloat, in textView: NSTextView) {
         let y = convert(NSPoint(x: 0, y: baseline), from: textView).y
-        let color: NSColor = isFolded ? .controlAccentColor : .tertiaryLabelColor
+        let color: NSColor = isFolded ? .controlAccentColor : (isHovered ? .labelColor : .secondaryLabelColor)
         let configuration = NSImage.SymbolConfiguration(pointSize: max(numberFont.pointSize - 2, 8), weight: .semibold)
             .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
         guard let symbol = NSImage(systemSymbolName: isFolded ? "chevron.right" : "chevron.down", accessibilityDescription: nil)?
@@ -206,14 +212,53 @@ final class LineNumberRulerView: NSRulerView {
         symbol.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
     }
 
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTrackingArea {
+            removeTrackingArea(hoverTrackingArea)
+        }
+        // Always active and covering the whole gutter, so the chevrons appear whenever the
+        // pointer is over it, even while another window is key.
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect, .cursorUpdate],
+            owner: self
+        )
+        addTrackingArea(area)
+        hoverTrackingArea = area
+    }
+
     override func mouseEntered(with event: NSEvent) {
-        isMouseInside = true
-        needsDisplay = true
+        updateHover(with: event)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        updateHover(with: event)
     }
 
     override func mouseExited(with event: NSEvent) {
-        isMouseInside = false
+        hoverPoint = nil
         needsDisplay = true
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        NSCursor.arrow.set()
+    }
+
+    private func updateHover(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let newPoint: NSPoint? = bounds.contains(point) ? point : nil
+        guard newPoint != hoverPoint else { return }
+        hoverPoint = newPoint
+        needsDisplay = true
+    }
+
+    /// Whether the pointer is over the gutter, checked directly as well, in case a tracking
+    /// event was missed while the editor scrolled under it.
+    private var isPointerInside: Bool {
+        if hoverPoint != nil { return true }
+        guard let window else { return false }
+        return bounds.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
     }
 
     // MARK: - Interaction

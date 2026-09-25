@@ -28,9 +28,11 @@ extension DocumentSession {
         let regions = MathScanner.scan(text)
         editor.setMathRegions(regions)
         let string = text as NSString
-        let bodyStart = FormattingScanner.bodyStart(in: string)
-        let body = NSRange(location: bodyStart, length: string.length - bodyStart)
-        editor.setFormattedSpans(FormattingScanner.scan(string, range: body, excluding: regions.map(\.range)))
+        let whole = NSRange(location: 0, length: string.length)
+        // Comments and verbatim text stay as source, like math.
+        let scan = LaTeXTokenizer.scan(string, range: whole)
+        let excluded = scan.regions.map(\.range) + scan.tokens.filter { $0.kind == .comment || $0.kind == .verbatim }.map(\.range)
+        editor.setVisualElements(VisualScanner.scan(string, range: whole, excluding: excluded))
         editor.setFoldableRegions(FoldScanner.scan(text))
 
         if !hasScannedFolds {

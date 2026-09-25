@@ -30,6 +30,8 @@ final class Replacement {
         case fold(FoldableRegion, thumbnail: NSImage?)
         /// Markup hidden without a drawing, such as the `\emph{` and `}` around emphasis.
         case hidden
+        /// Markup shown as a drawing: a bullet, a reference chip, a heading or a figure.
+        case label(VisualLabel, image: NSImage?)
     }
 
     var isHidden: Bool {
@@ -70,6 +72,8 @@ final class Replacement {
             FoldChip.draw(region, thumbnail: thumbnail, in: rect, font: font)
         case .hidden:
             break
+        case .label(let label, let image):
+            VisualLabelRenderer.draw(label, image: image, in: rect, font: font)
         }
     }
 
@@ -285,6 +289,13 @@ final class PresentationLayoutManager: NSLayoutManager, NSLayoutManagerDelegate 
     func replacement(at point: NSPoint) -> Replacement? {
         guard let entry = drawnRects.first(where: { $0.value.contains(point) }) else { return nil }
         return replacement(containing: entry.key)
+    }
+
+    /// Whether all of `line` (including its line break) is hidden markup, such as a
+    /// `\begin{itemize}` line in the visual preview.
+    func isLineHidden(_ line: NSRange) -> Bool {
+        guard line.length > 0, let replacement = replacement(containing: line.location), replacement.isHidden else { return false }
+        return NSMaxRange(replacement.range) >= NSMaxRange(line)
     }
 
     /// Whether the line starting at `location` is hidden inside a replacement.
