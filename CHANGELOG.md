@@ -3,6 +3,15 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.11 — Fix: crash when opening a document with visual preview elements
+
+- Fixed a crash (`EXC_BREAKPOINT`) when a document with headings or `\maketitle` opened, for
+  example a new project's `main.tex`. Visual labels are sized to the text width, which is
+  unbounded when lines don't wrap and zero before the first layout; converting it to an
+  integer overflowed. The width is now kept finite (100–4000 points) and never converted.
+- All 51 regular expressions in the app were compiled with ICU, the engine behind
+  `NSRegularExpression`, to rule them out as a cause.
+
 ## v1.10 — Build fix
 
 - The split view's minimum pane widths are computed properties: generic types (the

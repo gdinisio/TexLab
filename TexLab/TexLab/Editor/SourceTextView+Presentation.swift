@@ -69,7 +69,7 @@ extension SourceTextView {
                     size: metrics.size,
                     descent: metrics.descent,
                     fillsLine: label.fillsLine,
-                    identity: "label:\(label.text):\(label.kind):\(font.pointSize):\(Int(availableWidth))"
+                    identity: "label:\(label.text):\(label.kind):\(font.pointSize):\(availableWidth.rounded())"
                 ))
             }
         }
@@ -124,15 +124,19 @@ extension SourceTextView {
         return touching
     }
 
-    /// The width text is laid out in, for sizing figures and the title block.
+    /// The width text is laid out in, for sizing figures and the title block. Without line
+    /// wrapping the container is unbounded, and before the first layout the view has no
+    /// width, so the result is kept to a sensible, finite range.
     private var presentationWidth: CGFloat {
         let padding = textContainer?.lineFragmentPadding ?? 0
-        var width = textContainer?.size.width ?? 0
+        let container = textContainer?.size.width ?? 0
         let visible = visibleRect.width - 2 * textContainerInset.width
-        if visible > 0 {
-            width = min(width, visible)
+        var width = container
+        if visible > 0 && (visible < width || !width.isFinite || width > 10_000) {
+            width = visible
         }
-        return max(width - 2 * padding, 100)
+        guard width.isFinite, width > 0 else { return 600 }
+        return min(max(width - 2 * padding, 100), 4_000)
     }
 
     private func contains(_ range: NSRange, strictly location: Int) -> Bool {
