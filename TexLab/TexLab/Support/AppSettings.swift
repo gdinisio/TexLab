@@ -71,6 +71,7 @@ nonisolated enum SettingsKey {
     static let usesLatexmk = "usesLatexmk"
     static let texBinPath = "texBinPath"
     static let allowsShellEscape = "allowsShellEscape"
+    static let showsWarnings = "showsWarnings"
     static let showsBadBoxes = "showsBadBoxes"
     static let previewShowsTwoPages = "previewShowsTwoPages"
 }
@@ -97,6 +98,7 @@ nonisolated enum AppSettings {
     static let usesLatexmk = true
     static let texBinPath = ""
     static let allowsShellEscape = false
+    static let showsWarnings = true
     static let showsBadBoxes = false
     static let previewShowsTwoPages = false
 
@@ -121,6 +123,7 @@ nonisolated enum AppSettings {
             SettingsKey.usesLatexmk: usesLatexmk,
             SettingsKey.texBinPath: texBinPath,
             SettingsKey.allowsShellEscape: allowsShellEscape,
+            SettingsKey.showsWarnings: showsWarnings,
             SettingsKey.showsBadBoxes: showsBadBoxes,
             SettingsKey.previewShowsTwoPages: previewShowsTwoPages,
         ])

@@ -6,8 +6,10 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// The content of a document window: the source editor beside the typeset PDF.
+/// The content of a document window: the outline and issues in the sidebar, and the
+/// source editor beside the typeset PDF.
 struct ContentView: View {
     @Binding var document: TexLabDocument
     var fileURL: URL?
@@ -28,35 +30,49 @@ struct ContentView: View {
     @AppStorage(SettingsKey.showsStatusBar) private var showsStatusBar = AppSettings.showsStatusBar
 
     var body: some View {
-        HSplitView {
-            editorColumn
-                .frame(minWidth: 320, idealWidth: 640, maxWidth: .infinity, maxHeight: .infinity)
-            if session.isPreviewVisible {
-                PreviewPane(session: session)
-                    .frame(minWidth: 280, idealWidth: 560, maxWidth: .infinity, maxHeight: .infinity)
+        NavigationSplitView(columnVisibility: $session.columnVisibility) {
+            SidebarView(session: session)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 420)
+        } detail: {
+            HSplitView {
+                editorColumn
+                    .frame(minWidth: 320, idealWidth: 620, maxWidth: .infinity, maxHeight: .infinity)
+                if session.isPreviewVisible {
+                    PreviewPane(session: session)
+                        .frame(minWidth: 280, idealWidth: 560, maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
-        .frame(minWidth: 480, minHeight: 320)
+        .frame(minWidth: 640, minHeight: 400)
         .navigationSubtitle(session.status.summary)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    session.typeset()
-                } label: {
-                    Label("Typeset", systemImage: "play.fill")
-                }
-                .keyboardShortcut("r")
-                .help("Typeset the document")
+        .toolbar(id: "TexLabDocument") {
+            ToolbarItem(id: "typeset", placement: .primaryAction) {
+                TypesetToolbarButton(session: session)
             }
-            ToolbarItem(placement: .primaryAction) {
-                Toggle(isOn: $session.isPreviewVisible) {
-                    Label("Preview", systemImage: "sidebar.trailing")
-                }
-                .help(session.isPreviewVisible ? "Hide the PDF preview" : "Show the PDF preview")
+            ToolbarItem(id: "insert") {
+                InsertToolbarMenu(session: session)
+            }
+            ToolbarItem(id: "symbols") {
+                SymbolsToolbarButton(session: session)
+            }
+            ToolbarItem(id: "preview") {
+                PreviewToolbarToggle(session: session)
+            }
+            ToolbarItem(id: "share") {
+                ShareToolbarButton(session: session)
             }
         }
+        .focusedSceneValue(\.documentSession, session)
         .sheet(isPresented: $session.isShowingLog) {
             LogView(session: session)
+        }
+        .sheet(isPresented: $session.isShowingTableSheet) {
+            TableSheet(session: session)
+        }
+        .fileImporter(isPresented: $session.isImportingImage, allowedContentTypes: [.image, .pdf]) { result in
+            if case .success(let url) = result {
+                session.insertFigure(for: url)
+            }
         }
         .onAppear {
             session.isPreviewVisible = showsPreview
@@ -96,6 +112,11 @@ struct ContentView: View {
             suggestsCompletions: suggestsCompletions
         )
     }
+}
+
+extension FocusedValues {
+    /// The session of the focused document window, for menu commands.
+    @Entry var documentSession: DocumentSession?
 }
 
 #Preview {

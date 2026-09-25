@@ -29,8 +29,14 @@ screen, and the system text system for editing, spelling and Find.
   runs automatically after a pause in typing. Unsaved changes are included, and
   auxiliary files stay out of your folders. Multi-file projects work from any file with
   `% !TEX root = main.tex`.
-- **Issues** — errors, warnings and bad boxes are read from the TeX log with their file
-  and line, and marked in the editor's gutter.
+- **Issue markers** — errors and warnings are marked in the editor's gutter.
+- **Outline** — a sidebar tree of parts, chapters, sections, Beamer frames, figures and
+  tables that follows the insertion point; select an item to jump to it.
+- **Issues** — a sidebar list of errors, warnings and bad boxes; click to see the source.
+- **Insert and Symbols** — toolbar menus for headings, lists, figures (from an image
+  file), tables (any size), math, references and environments, plus a searchable symbol
+  palette that adds `$…$` when needed.
+- **Share** — share the typeset PDF, named after the document.
 - **Live preview** — the PDF appears beside the editor and keeps its place as you type.
 - **SyncTeX** — ⌘-click the PDF (or Show in Source) to jump to the source line, even in
   another file of the project; Show in PDF in the editor highlights the matching text.
@@ -112,6 +118,10 @@ TexLab/TexLab/
   forward-search results; `PDFPreview` hosts it; `PreviewController` exposes zoom,
   layout, reveal and printing to commands. `DocumentSession+Sync` converts between
   editor lines and PDF positions through `SyncTeXData` and `SourceMap`.
+- Window (`Views/`): `ContentView` arranges a `NavigationSplitView` (sidebar: outline or
+  issues) whose detail is an `HSplitView` of editor and preview, with a customizable
+  toolbar (`DocumentToolbar.swift`). `OutlineParser` builds the outline tree;
+  `SnippetCatalog`, `SymbolCatalog` and `FormatCommand` define insertable text.
 - `DocumentSession+Typesetting` queues runs, applies results, maps issues to files and
   schedules automatic typesetting. `SourceNavigator` opens other files at a line.
 - The project builds with Swift's default `MainActor` isolation. Types that run off the

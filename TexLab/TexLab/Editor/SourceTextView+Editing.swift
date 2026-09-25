@@ -28,8 +28,9 @@ nonisolated struct Snippet: Identifiable, Sendable {
 extension SourceTextView {
     // MARK: - Insertion
 
-    /// Inserts a snippet around the selection as one undoable step.
-    func insert(_ snippet: Snippet) {
+    /// Inserts a snippet around the selection as one undoable step, named "Insert …" in
+    /// the Edit menu unless `actionName` says otherwise.
+    func insert(_ snippet: Snippet, actionName: String? = nil) {
         guard let text = textStorage?.mutableString else { return }
         let selection = selectedRange()
         let selected = text.substring(with: selection)
@@ -42,7 +43,7 @@ extension SourceTextView {
             in: selection,
             with: before + selected + after,
             selecting: NSRange(location: innerStart, length: (selected as NSString).length),
-            actionName: snippet.title
+            actionName: actionName ?? String(localized: "Insert \(snippet.title)")
         )
     }
 
@@ -67,7 +68,7 @@ extension SourceTextView {
             )
             return
         }
-        insert(Snippet(actionName, before: prefix, after: suffix))
+        insert(Snippet(actionName, before: prefix, after: suffix), actionName: actionName)
     }
 
     /// Inserts text at the insertion point, replacing the selection.

@@ -72,7 +72,7 @@ final class LineIndex {
     }
 
     /// Offsets just after each line feed in `range`.
-    static func lineBreaks(in string: NSString, range: NSRange) -> [Int] {
+    nonisolated static func lineBreaks(in string: NSString, range: NSRange) -> [Int] {
         var breaks: [Int] = []
         let chunkSize = 4096
         var buffer = [unichar](repeating: 0, count: chunkSize)

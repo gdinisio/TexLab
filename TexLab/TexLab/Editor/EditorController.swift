@@ -72,6 +72,36 @@ final class EditorController {
         textView?.shiftSelectedLines(right: false)
     }
 
+    /// Inserts a symbol's command, wrapped in `$…$` when the insertion point isn't already
+    /// in math, and separated from a following letter so the command stays intact.
+    func insertSymbol(_ symbol: LaTeXSymbol) {
+        guard let textView, let storage = textView.textStorage else { return }
+        var text = symbol.command
+        if symbol.isMath && !isInsertionPointInMath {
+            text = "$\(text)$"
+        } else {
+            let end = NSMaxRange(textView.selectedRange())
+            if end < storage.length,
+               let last = text.unicodeScalars.last, CharacterSet.letters.contains(last),
+               let next = Unicode.Scalar(storage.mutableString.character(at: end)), CharacterSet.letters.contains(next) {
+                text += " "
+            }
+        }
+        insertText(text, actionName: String(localized: "Insert \(symbol.name.capitalized)"))
+    }
+
+    /// Whether the insertion point is inside math, judged from the syntax colouring on
+    /// both sides of it.
+    var isInsertionPointInMath: Bool {
+        guard let textView, let storage = textView.textStorage, storage.length > 0 else { return false }
+        let location = textView.selectedRange().location
+        guard location > 0, location < storage.length else { return false }
+        let math = SyntaxKind.math.rawValue
+        let before = storage.attribute(.texLabSyntax, at: location - 1, effectiveRange: nil) as? Int
+        let after = storage.attribute(.texLabSyntax, at: location, effectiveRange: nil) as? Int
+        return before == math && after == math
+    }
+
     // MARK: - Navigation
 
     func revealLine(_ line: Int, highlight: Bool = true) {

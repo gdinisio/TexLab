@@ -7,6 +7,15 @@ import AppKit
 import Foundation
 import Observation
 import PDFKit
+import SwiftUI
+
+/// The views the sidebar can show.
+enum SidebarTab: String, CaseIterable, Identifiable {
+    case outline
+    case issues
+
+    var id: String { rawValue }
+}
 
 /// The state of one document window: the editor, typesetting, the preview and statistics.
 ///
@@ -28,6 +37,10 @@ final class DocumentSession {
     private(set) var caretColumn = 1
     private(set) var selectionLength = 0
     private(set) var wordCount = 0
+    /// The document's headings, frames and floats.
+    private(set) var outline: [OutlineItem] = []
+    /// The outline item containing the insertion point.
+    private(set) var currentOutlineItemID: OutlineItem.ID?
 
     // MARK: Typesetting
 
@@ -50,8 +63,13 @@ final class DocumentSession {
 
     // MARK: Presentation
 
+    var columnVisibility: NavigationSplitViewVisibility = .all
+    var sidebarTab: SidebarTab = .outline
     var isPreviewVisible = true
     var isShowingLog = false
+    var isShowingSymbols = false
+    var isImportingImage = false
+    var isShowingTableSheet = false
 
     // MARK: Private
 
@@ -64,6 +82,7 @@ final class DocumentSession {
     @ObservationIgnored var lastBuildDirectory: URL?
     @ObservationIgnored var issueCursor = -1
     @ObservationIgnored private var analysisTask: Task<Void, Never>?
+    @ObservationIgnored private var flatOutline: [OutlineItem] = []
     @ObservationIgnored private var navigationObserver: NSObjectProtocol?
     /// Identifies an untitled document's build folder.
     let sessionID = UUID()
@@ -130,9 +149,58 @@ final class DocumentSession {
 
     func selectionDidChange() {
         let position = editor.caretPosition
-        caretLine = position.line
-        caretColumn = position.column
-        selectionLength = editor.selectedRange.length
+        let length = editor.selectedRange.length
+        if caretLine != position.line {
+            caretLine = position.line
+            updateCurrentOutlineItem()
+        }
+        if caretColumn != position.column {
+            caretColumn = position.column
+        }
+        if selectionLength != length {
+            selectionLength = length
+        }
+    }
+
+    /// Inserts a figure for an image file, with a path relative to the document and the
+    /// insertion point in the caption.
+    func insertFigure(for url: URL) {
+        let path = documentDirectory.map { PathUtilities.relativePath(of: url, from: $0) } ?? url.filePath
+        let label = BuildNaming.jobName(for: url.deletingPathExtension().lastPathComponent).lowercased()
+        editor.insert(Snippet(
+            String(localized: "Figure"),
+            before: "\\begin{figure}[htbp]\n\t\\centering\n\t\\includegraphics[width=0.8\\linewidth]{\(path)}\n\t\\caption{",
+            after: "}\n\t\\label{fig:\(label)}\n\\end{figure}"
+        ))
+    }
+
+    // MARK: - Outline
+
+    func outlineItem(withID id: OutlineItem.ID) -> OutlineItem? {
+        flatOutline.first { $0.id == id }
+    }
+
+    /// Moves the editor to an outline item and shows it in the preview too.
+    func revealOutlineItem(_ item: OutlineItem) {
+        editor.revealLine(item.line)
+        if canSynchronize && isPreviewVisible {
+            revealInPreview(line: item.line)
+        }
+    }
+
+    private func updateCurrentOutlineItem() {
+        let current = flatOutline.last { $0.line <= caretLine }?.id
+        if current != currentOutlineItemID {
+            currentOutlineItemID = current
+        }
+    }
+
+    /// Shows the Issues list in the sidebar.
+    func showIssues() {
+        sidebarTab = .issues
+        if columnVisibility == .detailOnly {
+            columnVisibility = .all
+        }
     }
 
     /// Text inserted when files are dropped on the editor: graphics become
@@ -167,7 +235,16 @@ final class DocumentSession {
     }
 
     private func analyze() {
-        wordCount = WordCounter.count(in: text)
+        let count = WordCounter.count(in: text)
+        if count != wordCount {
+            wordCount = count
+        }
+        let newOutline = OutlineParser.parse(text)
+        if newOutline != outline {
+            outline = newOutline
+            flatOutline = OutlineParser.flatten(newOutline)
+            updateCurrentOutlineItem()
+        }
     }
 
     // MARK: - Navigation between windows

@@ -3,6 +3,34 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v0.5 — Main window: sidebar, toolbar and palettes
+
+- The window now has a sidebar (NavigationSplitView) with two views, switched by a
+  segmented control:
+  - **Outline** — parts, chapters, sections, Beamer frames, and figures and tables by
+    caption, nested as in the document. Selecting an item jumps to it in the editor and
+    the preview; the selection follows the insertion point, so the outline always shows
+    where you are. Commented-out headings are ignored.
+  - **Issues** — errors, warnings and bad boxes with file and line; clicking one shows
+    its source (opening other project files as needed). Filter buttons for warnings and
+    bad boxes, and a button for the full log.
+- Customizable toolbar (View ▸ Customize Toolbar): **Typeset** (click to typeset, hold
+  to stop or choose the engine), **Insert**, **Symbols**, **Preview** and **Share**.
+- Choosing an engine writes or removes a `% !TEX program` comment, so the choice is
+  visible, undoable and understood by other TeX editors.
+- **Insert** menu: headings, lists, figure, table, math (inline, display, equations,
+  fractions, matrices…), references, environments, spacing and breaks. Inserted text is
+  indented to fit, wraps the selection, and places the insertion point where you type
+  next. Undo names the insertion ("Undo Insert Figure").
+- **Image…** inserts a figure for a chosen image with a path relative to the document and
+  the insertion point in the caption. **Table…** builds a table of any size, alignment,
+  rules and header row.
+- **Symbols** palette: searchable Greek letters, relations, operators, arrows and text
+  symbols. Math symbols are wrapped in `$…$` when inserted outside math; the footer
+  shows the command and any package it needs.
+- **Share** sends the PDF named after the document.
+- The status bar shows error and warning counts; clicking them opens Issues.
+
 ## v0.4 — Live PDF preview with SyncTeX
 
 - The typeset PDF appears beside the editor in a native PDFKit preview that keeps its
