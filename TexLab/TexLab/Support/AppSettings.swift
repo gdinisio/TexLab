@@ -1,0 +1,130 @@
+//
+//  AppSettings.swift
+//  TexLab
+//
+
+import Foundation
+
+/// The TeX engine used to typeset a document.
+///
+/// A document can choose its engine with a `% !TEX program = xelatex` magic comment,
+/// the convention shared by TeXShop, TeXstudio and other editors. Otherwise the default
+/// engine from Settings is used.
+nonisolated enum TypesettingEngine: String, CaseIterable, Identifiable, Sendable {
+    case pdfLaTeX = "pdflatex"
+    case xeLaTeX = "xelatex"
+    case luaLaTeX = "lualatex"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .pdfLaTeX: "pdfLaTeX"
+        case .xeLaTeX: "XeLaTeX"
+        case .luaLaTeX: "LuaLaTeX"
+        }
+    }
+
+    /// The executable that runs this engine.
+    var executableName: String { rawValue }
+
+    /// The latexmk option that selects this engine.
+    var latexmkOption: String {
+        switch self {
+        case .pdfLaTeX: "-pdf"
+        case .xeLaTeX: "-pdfxe"
+        case .luaLaTeX: "-pdflua"
+        }
+    }
+
+    /// Parses the value of a `% !TEX program` magic comment.
+    init?(magicCommentValue value: String) {
+        switch value.lowercased() {
+        case "pdflatex", "latex", "pdftex": self = .pdfLaTeX
+        case "xelatex", "xetex": self = .xeLaTeX
+        case "lualatex", "luatex": self = .luaLaTeX
+        default: return nil
+        }
+    }
+}
+
+/// `UserDefaults` keys for TexLab's settings.
+///
+/// Views read these with `@AppStorage`; the editor and typesetting code read them through
+/// `UserDefaults.standard`. `AppSettings.registerDefaults()` keeps both in agreement.
+nonisolated enum SettingsKey {
+    static let editorFontSize = "editorFontSize"
+    static let showsLineNumbers = "showsLineNumbers"
+    static let highlightsCurrentLine = "highlightsCurrentLine"
+    static let wrapsLines = "wrapsLines"
+    static let autoPairsBrackets = "autoPairsBrackets"
+    static let autoClosesEnvironments = "autoClosesEnvironments"
+    static let indentWidth = "indentWidth"
+    static let indentsWithSpaces = "indentsWithSpaces"
+    static let checksSpelling = "checksSpelling"
+    static let suggestsCompletions = "suggestsCompletions"
+    static let showsStatusBar = "showsStatusBar"
+
+    static let defaultEngine = "defaultEngine"
+    static let typesetsAutomatically = "typesetsAutomatically"
+    static let autoTypesetDelay = "autoTypesetDelay"
+    static let usesLatexmk = "usesLatexmk"
+    static let texBinPath = "texBinPath"
+    static let allowsShellEscape = "allowsShellEscape"
+    static let showsBadBoxes = "showsBadBoxes"
+}
+
+/// Default values for every setting.
+nonisolated enum AppSettings {
+    static let editorFontSize: Double = 13
+    static let minimumFontSize: Double = 9
+    static let maximumFontSize: Double = 32
+    static let showsLineNumbers = true
+    static let highlightsCurrentLine = true
+    static let wrapsLines = true
+    static let autoPairsBrackets = true
+    static let autoClosesEnvironments = true
+    static let indentWidth = 2
+    static let indentsWithSpaces = true
+    static let checksSpelling = true
+    static let suggestsCompletions = true
+    static let showsStatusBar = true
+
+    static let defaultEngine = TypesettingEngine.pdfLaTeX.rawValue
+    static let typesetsAutomatically = true
+    static let autoTypesetDelay: Double = 1.5
+    static let usesLatexmk = true
+    static let texBinPath = ""
+    static let allowsShellEscape = false
+    static let showsBadBoxes = false
+
+    /// Registers the defaults so code that reads `UserDefaults` directly sees the same
+    /// values as `@AppStorage` before the user changes anything.
+    static func registerDefaults() {
+        UserDefaults.standard.register(defaults: [
+            SettingsKey.editorFontSize: editorFontSize,
+            SettingsKey.showsLineNumbers: showsLineNumbers,
+            SettingsKey.highlightsCurrentLine: highlightsCurrentLine,
+            SettingsKey.wrapsLines: wrapsLines,
+            SettingsKey.autoPairsBrackets: autoPairsBrackets,
+            SettingsKey.autoClosesEnvironments: autoClosesEnvironments,
+            SettingsKey.indentWidth: indentWidth,
+            SettingsKey.indentsWithSpaces: indentsWithSpaces,
+            SettingsKey.checksSpelling: checksSpelling,
+            SettingsKey.suggestsCompletions: suggestsCompletions,
+            SettingsKey.showsStatusBar: showsStatusBar,
+            SettingsKey.defaultEngine: defaultEngine,
+            SettingsKey.typesetsAutomatically: typesetsAutomatically,
+            SettingsKey.autoTypesetDelay: autoTypesetDelay,
+            SettingsKey.usesLatexmk: usesLatexmk,
+            SettingsKey.texBinPath: texBinPath,
+            SettingsKey.allowsShellEscape: allowsShellEscape,
+            SettingsKey.showsBadBoxes: showsBadBoxes,
+        ])
+    }
+
+    /// Clamps an editor font size to the supported range.
+    static func clampedFontSize(_ size: Double) -> Double {
+        min(max(size, minimumFontSize), maximumFontSize)
+    }
+}
