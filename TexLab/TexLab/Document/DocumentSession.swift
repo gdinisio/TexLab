@@ -15,6 +15,7 @@ import PDFKit
 @Observable
 final class DocumentSession {
     let editor = EditorController()
+    let preview = PreviewController()
 
     /// The document's location on disk, or nil while it is untitled.
     var fileURL: URL?
@@ -46,11 +47,10 @@ final class DocumentSession {
     var pdfDocument: PDFDocument?
     /// A copy of the PDF named after the document, for sharing and exporting.
     var pdfFileURL: URL?
-    /// A PDF location to reveal, set by forward search and consumed by the preview.
-    var pendingPreviewReveal: SyncTeXLocation?
 
     // MARK: Presentation
 
+    var isPreviewVisible = true
     var isShowingLog = false
 
     // MARK: Private

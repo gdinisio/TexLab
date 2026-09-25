@@ -3,6 +3,22 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v0.4 — Live PDF preview with SyncTeX
+
+- The typeset PDF appears beside the editor in a native PDFKit preview that keeps its
+  scroll position and zoom when a new version arrives, so live typesetting never makes
+  it jump. The preview can be shown or hidden from the toolbar; the choice is remembered
+  per window.
+- Command-click in the PDF, or choose Show in Source from its context menu, to jump to
+  the line that produced it — in another window if it came from another file.
+- Show in PDF in the editor's context menu scrolls the preview to that line and
+  highlights it with the same animation Preview uses for Find (figures get a brief
+  outline instead).
+- When there is no PDF, the preview explains why and offers the next step: Typeset,
+  Show Log, Get MacTeX, Open Settings, or how to lift the App Sandbox restriction.
+- New log window with the TeX log and the tools' console output, searchable with ⌘F.
+- Printing and zoom helpers (`PreviewController`) ready for the menus.
+
 ## v0.3 — Typesetting
 
 - Typeset with ⌘R (toolbar button for now; menus arrive in a later version). The window

@@ -98,6 +98,22 @@ struct SourceEditor: NSViewRepresentable {
             return !completionProvider.completions(for: range, in: storage.mutableString, defaultWords: []).isEmpty
         }
 
+        /// Adds Show in PDF to the editor's context menu once there is a preview to show.
+        func textView(_ view: NSTextView, menu: NSMenu, for event: NSEvent, at charIndex: Int) -> NSMenu? {
+            guard parent.session.canSynchronize, let sourceView = view as? SourceTextView else { return menu }
+            let item = NSMenuItem(title: String(localized: "Show in PDF"), action: #selector(showInPDF(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = sourceView.lineIndex.lineNumber(at: max(charIndex, 0))
+            item.image = NSImage(systemSymbolName: "doc.richtext", accessibilityDescription: nil)
+            menu.insertItem(item, at: 0)
+            menu.insertItem(.separator(), at: 1)
+            return menu
+        }
+
+        @objc private func showInPDF(_ sender: NSMenuItem) {
+            parent.session.revealInPreview(line: sender.tag)
+        }
+
         /// Keeps spelling checks to prose: commands, math, keys and verbatim text aren't
         /// marked as misspelled. Comments are still checked.
         func textView(_ textView: NSTextView, shouldSetSpellingState value: Int, range affectedCharRange: NSRange) -> Int {

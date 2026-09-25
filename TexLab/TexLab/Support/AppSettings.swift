@@ -72,6 +72,7 @@ nonisolated enum SettingsKey {
     static let texBinPath = "texBinPath"
     static let allowsShellEscape = "allowsShellEscape"
     static let showsBadBoxes = "showsBadBoxes"
+    static let previewShowsTwoPages = "previewShowsTwoPages"
 }
 
 /// Default values for every setting.
@@ -97,6 +98,7 @@ nonisolated enum AppSettings {
     static let texBinPath = ""
     static let allowsShellEscape = false
     static let showsBadBoxes = false
+    static let previewShowsTwoPages = false
 
     /// Registers the defaults so code that reads `UserDefaults` directly sees the same
     /// values as `@AppStorage` before the user changes anything.
@@ -120,6 +122,7 @@ nonisolated enum AppSettings {
             SettingsKey.texBinPath: texBinPath,
             SettingsKey.allowsShellEscape: allowsShellEscape,
             SettingsKey.showsBadBoxes: showsBadBoxes,
+            SettingsKey.previewShowsTwoPages: previewShowsTwoPages,
         ])
     }
 

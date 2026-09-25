@@ -31,6 +31,9 @@ screen, and the system text system for editing, spelling and Find.
   `% !TEX root = main.tex`.
 - **Issues** — errors, warnings and bad boxes are read from the TeX log with their file
   and line, and marked in the editor's gutter.
+- **Live preview** — the PDF appears beside the editor and keeps its place as you type.
+- **SyncTeX** — ⌘-click the PDF (or Show in Source) to jump to the source line, even in
+  another file of the project; Show in PDF in the editor highlights the matching text.
 - **Drag and drop** — drop images, `.tex` or `.bib` files on the editor to insert
   `\includegraphics`, `\input` or `\bibliography` with a path relative to the document.
 
@@ -104,6 +107,11 @@ TexLab/TexLab/
   `LogEntry` values; `SourceMap` maps the paths TeX reports (build copy, overlay,
   relative paths) back to the files the user edits; `SyncTeXData` parses SyncTeX.
   `MagicComments` reads `% !TEX program` and `% !TEX root`.
+- Preview (`Preview/`): `SyncPDFView` is a `PDFView` subclass that restores the clip
+  view origin when a new document arrives, handles ⌘-click inverse search and highlights
+  forward-search results; `PDFPreview` hosts it; `PreviewController` exposes zoom,
+  layout, reveal and printing to commands. `DocumentSession+Sync` converts between
+  editor lines and PDF positions through `SyncTeXData` and `SourceMap`.
 - `DocumentSession+Typesetting` queues runs, applies results, maps issues to files and
   schedules automatic typesetting. `SourceNavigator` opens other files at a line.
 - The project builds with Swift's default `MainActor` isolation. Types that run off the
