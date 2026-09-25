@@ -3,6 +3,12 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.10 — Build fix
+
+- The split view's minimum pane widths are computed properties: generic types (the
+  coordinator is nested in `PaneSplitView<Leading, Trailing>`) can't have static stored
+  properties.
+
 ## v1.9 — Projects
 
 - Project navigator: a new first sidebar tab lists the document's folder (files,

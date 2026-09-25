@@ -73,8 +73,8 @@ struct PaneSplitView<Leading: View, Trailing: View>: NSViewRepresentable {
     }
 
     final class Coordinator: NSObject, NSSplitViewDelegate {
-        static let minimumLeadingWidth: CGFloat = 320
-        static let minimumTrailingWidth: CGFloat = 280
+        static var minimumLeadingWidth: CGFloat { 320 }
+        static var minimumTrailingWidth: CGFloat { 280 }
 
         var leadingHost: NSHostingView<AnyView>?
         var trailingHost: NSHostingView<AnyView>?
