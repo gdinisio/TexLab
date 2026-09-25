@@ -29,6 +29,7 @@ struct ContentView: View {
     @AppStorage(SettingsKey.checksSpelling) private var checksSpelling = AppSettings.checksSpelling
     @AppStorage(SettingsKey.suggestsCompletions) private var suggestsCompletions = AppSettings.suggestsCompletions
     @AppStorage(SettingsKey.showsStatusBar) private var showsStatusBar = AppSettings.showsStatusBar
+    @AppStorage(SettingsKey.rendersMathInEditor) private var rendersMath = AppSettings.rendersMathInEditor
 
     var body: some View {
         NavigationSplitView(columnVisibility: $session.columnVisibility) {
@@ -92,6 +93,9 @@ struct ContentView: View {
         .onChange(of: session.isPreviewVisible) { _, newValue in
             showsPreview = newValue
         }
+        .onChange(of: rendersMath) {
+            session.livePreviewSettingDidChange()
+        }
     }
 
     private var editorColumn: some View {
@@ -120,7 +124,8 @@ struct ContentView: View {
             indentWidth: indentWidth,
             indentsWithSpaces: indentsWithSpaces,
             checksSpelling: checksSpelling,
-            suggestsCompletions: suggestsCompletions
+            suggestsCompletions: suggestsCompletions,
+            rendersMath: rendersMath
         )
     }
 }

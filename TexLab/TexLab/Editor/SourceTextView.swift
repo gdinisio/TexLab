@@ -34,12 +34,29 @@ final class SourceTextView: NSTextView {
 
     private var currentLineRect: NSRect?
 
+    // MARK: Presentation (rendered math and folding)
+
+    /// Math found in the source, kept in step with edits.
+    var mathRegions: [MathRegion] = []
+    /// Rendered formulas by `MathRegion.key`.
+    var renderedMath: [String: MathImage] = [:]
+    /// Environments that can be collapsed, kept in step with edits.
+    var foldableRegions: [FoldableRegion] = []
+    /// Collapsed environments.
+    var folds: [FoldableRegion] = []
+    /// Resolves an `\includegraphics` path for figure thumbnails.
+    var resolveImageURL: ((String) -> URL?)?
+    var thumbnails: [String: NSImage] = [:]
+    var missingThumbnails: Set<String> = []
+    /// Locations of the formulas currently shown as source because the selection is in them.
+    var revealedMath: Set<Int> = []
+
     // MARK: - Creation
 
     /// Creates an editor inside a scroll view, with line numbers.
     static func makeScrollableEditor() -> (scrollView: NSScrollView, textView: SourceTextView) {
         let storage = NSTextStorage()
-        let layoutManager = NSLayoutManager()
+        let layoutManager = PresentationLayoutManager()
         layoutManager.allowsNonContiguousLayout = true
         storage.addLayoutManager(layoutManager)
 
@@ -127,6 +144,9 @@ final class SourceTextView: NSTextView {
             lineNumberRuler?.editorFontDidChange()
         }
         isContinuousSpellCheckingEnabled = configuration.checksSpelling
+        if previous == nil || previous?.rendersMath != configuration.rendersMath || configuration.needsNewTheme(comparedTo: previous!) {
+            updatePresentation()
+        }
         applyLineWrapping()
         enclosingScrollView?.rulersVisible = configuration.showsLineNumbers
         refreshCurrentLineHighlight()
@@ -184,8 +204,10 @@ final class SourceTextView: NSTextView {
         storage.beginEditing()
         storage.replaceCharacters(in: NSRange(location: 0, length: storage.length), with: text)
         storage.endEditing()
+        presentationLayoutManager?.flushPendingInvalidation()
         let length = storage.length
         setSelectedRange(NSRange(location: min(selection.location, length), length: 0))
+        updatePresentation()
         lineNumberRuler?.textDidChange()
     }
 
@@ -207,6 +229,8 @@ final class SourceTextView: NSTextView {
 
     override func didChangeText() {
         super.didChangeText()
+        presentationLayoutManager?.flushPendingInvalidation()
+        updatePresentation()
         lineNumberRuler?.textDidChange()
         refreshCurrentLineHighlight()
     }
@@ -214,6 +238,7 @@ final class SourceTextView: NSTextView {
     fileprivate func textStorageWillProcessEditing(_ storage: NSTextStorage, editedMask: NSTextStorageEditActions, range: NSRange, delta: Int) {
         guard editedMask.contains(.editedCharacters) else { return }
         lineIndex.update(from: storage.mutableString, editedRange: range, changeInLength: delta)
+        presentationTextWillChange(editedRange: range, changeInLength: delta)
         highlighter.highlight(storage, editedRange: range)
     }
 
@@ -230,6 +255,7 @@ final class SourceTextView: NSTextView {
 
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting stillSelectingFlag: Bool) {
         super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelectingFlag)
+        selectionDidChangeForPresentation()
         refreshCurrentLineHighlight()
         lineNumberRuler?.needsDisplay = true
     }
@@ -384,6 +410,12 @@ final class SourceTextView: NSTextView {
             return
         }
 
+        // Deleting just after a collapsed environment expands it instead of editing it unseen.
+        if let fold = folds.first(where: { NSMaxRange($0.range) == location }) {
+            unfold(fold)
+            return
+        }
+
         // Deleting the opening half of an empty pair deletes both halves.
         if configuration.autoPairsBrackets, location < text.length,
            let closer = AutoPair.closer(for: text.character(at: location - 1)),
@@ -407,6 +439,32 @@ final class SourceTextView: NSTextView {
             }
         }
         super.deleteBackward(sender)
+    }
+
+    override func deleteForward(_ sender: Any?) {
+        let selection = selectedRange()
+        if selection.length == 0, let fold = folds.first(where: { $0.range.location == selection.location }) {
+            unfold(fold)
+            return
+        }
+        super.deleteForward(sender)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        if let replacement = presentationLayoutManager?.replacement(at: point) {
+            window?.makeFirstResponder(self)
+            switch replacement.kind {
+            case .math(_, let region):
+                // Clicking a formula edits it: its source appears with the caret at the end.
+                setSelectedRange(NSRange(location: NSMaxRange(region.contentRange), length: 0))
+            case .fold(let region, _):
+                unfold(region)
+                setSelectedRange(NSRange(location: region.range.location, length: 0))
+            }
+            return
+        }
+        super.mouseDown(with: event)
     }
 
     override func insertNewline(_ sender: Any?) {

@@ -17,6 +17,8 @@ nonisolated struct EditorConfiguration: Equatable, Sendable {
     var indentsWithSpaces = AppSettings.indentsWithSpaces
     var checksSpelling = AppSettings.checksSpelling
     var suggestsCompletions = AppSettings.suggestsCompletions
+    /// Shows typeset formulas in place of their source until the insertion point enters them.
+    var rendersMath = AppSettings.rendersMathInEditor
 
     /// The text inserted for one level of indentation.
     var indentUnit: String {

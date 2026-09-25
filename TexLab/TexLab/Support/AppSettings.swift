@@ -64,6 +64,8 @@ nonisolated enum SettingsKey {
     static let checksSpelling = "checksSpelling"
     static let suggestsCompletions = "suggestsCompletions"
     static let showsStatusBar = "showsStatusBar"
+    static let rendersMathInEditor = "rendersMathInEditor"
+    static let foldsFloatsOnOpen = "foldsFloatsOnOpen"
 
     static let defaultEngine = "defaultEngine"
     static let typesetsAutomatically = "typesetsAutomatically"
@@ -91,6 +93,8 @@ nonisolated enum AppSettings {
     static let checksSpelling = true
     static let suggestsCompletions = true
     static let showsStatusBar = true
+    static let rendersMathInEditor = true
+    static let foldsFloatsOnOpen = false
 
     static let defaultEngine = TypesettingEngine.pdfLaTeX.rawValue
     static let typesetsAutomatically = true
@@ -117,6 +121,8 @@ nonisolated enum AppSettings {
             SettingsKey.checksSpelling: checksSpelling,
             SettingsKey.suggestsCompletions: suggestsCompletions,
             SettingsKey.showsStatusBar: showsStatusBar,
+            SettingsKey.rendersMathInEditor: rendersMathInEditor,
+            SettingsKey.foldsFloatsOnOpen: foldsFloatsOnOpen,
             SettingsKey.defaultEngine: defaultEngine,
             SettingsKey.typesetsAutomatically: typesetsAutomatically,
             SettingsKey.autoTypesetDelay: autoTypesetDelay,

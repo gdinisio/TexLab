@@ -82,6 +82,11 @@ private struct EditorSettings: View {
     @AppStorage(SettingsKey.indentsWithSpaces) private var indentsWithSpaces = AppSettings.indentsWithSpaces
     @AppStorage(SettingsKey.checksSpelling) private var checksSpelling = AppSettings.checksSpelling
     @AppStorage(SettingsKey.suggestsCompletions) private var suggestsCompletions = AppSettings.suggestsCompletions
+    @AppStorage(SettingsKey.rendersMathInEditor) private var rendersMath = AppSettings.rendersMathInEditor
+    @AppStorage(SettingsKey.foldsFloatsOnOpen) private var foldsFloatsOnOpen = AppSettings.foldsFloatsOnOpen
+    @AppStorage(SettingsKey.texBinPath) private var texBinPath = AppSettings.texBinPath
+    /// Whether formulas can be rendered with the TeX distribution; nil while checking.
+    @State private var canRenderMath: Bool?
 
     var body: some View {
         Form {
@@ -104,6 +109,29 @@ private struct EditorSettings: View {
                 Toggle("Highlight the current line", isOn: $highlightsCurrentLine)
                 Toggle("Wrap lines to the editor width", isOn: $wrapsLines)
                 Toggle("Show status bar", isOn: $showsStatusBar)
+            }
+
+            Section {
+                Toggle("Show formulas rendered", isOn: $rendersMath)
+                Toggle("Collapse figures and tables when opening a document", isOn: $foldsFloatsOnOpen)
+            } header: {
+                Text("Live Preview")
+            } footer: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Formulas show their source again while the insertion point is inside them. Click the chevron beside a line number to collapse an environment.")
+                    if rendersMath && canRenderMath == false {
+                        Label("Rendering formulas needs a TeX distribution with the preview package, which MacTeX includes.", systemImage: "exclamationmark.triangle")
+                    }
+                }
+                .foregroundStyle(.secondary)
+            }
+            .task(id: texBinPath) {
+                canRenderMath = nil
+                guard let distribution = TeXDistribution.locate(customPath: texBinPath) else {
+                    canRenderMath = false
+                    return
+                }
+                canRenderMath = await MathRenderer.isAvailable(in: distribution)
             }
 
             Section {

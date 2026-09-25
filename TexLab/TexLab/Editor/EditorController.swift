@@ -118,6 +118,50 @@ final class EditorController {
         textView?.lineIndex.lineCount ?? 1
     }
 
+    // MARK: - Live preview
+
+    func setMathRegions(_ regions: [MathRegion]) {
+        textView?.setMathRegions(regions)
+    }
+
+    func setRenderedMath(_ images: [String: MathImage]) {
+        textView?.setRenderedMath(images)
+    }
+
+    func setFoldableRegions(_ regions: [FoldableRegion]) {
+        textView?.setFoldableRegions(regions)
+    }
+
+    func setImageResolver(_ resolver: @escaping (String) -> URL?) {
+        textView?.resolveImageURL = resolver
+    }
+
+    // MARK: - Folding
+
+    func foldAtSelection() {
+        textView?.foldAtSelection()
+    }
+
+    func unfoldAtSelection() {
+        textView?.unfoldAtSelection()
+    }
+
+    func foldFloats() {
+        textView?.foldFloats()
+    }
+
+    func unfoldAll() {
+        textView?.unfoldAll()
+    }
+
+    var hasFolds: Bool {
+        !(textView?.folds.isEmpty ?? true)
+    }
+
+    var hasFoldableRegions: Bool {
+        !(textView?.foldableRegions.isEmpty ?? true)
+    }
+
     // MARK: - Issues
 
     func setIssueMarkers(_ markers: [Int: IssueMarker]) {

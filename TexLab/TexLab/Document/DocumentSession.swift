@@ -86,6 +86,13 @@ final class DocumentSession {
     @ObservationIgnored private var analysisTask: Task<Void, Never>?
     @ObservationIgnored private var flatOutline: [OutlineItem] = []
     @ObservationIgnored private var navigationObserver: NSObjectProtocol?
+    @ObservationIgnored var mathCache: [String: MathImage] = [:]
+    @ObservationIgnored var failedMathKeys: Set<String> = []
+    /// The preamble and engine the cached formulas were typeset with.
+    @ObservationIgnored var mathCacheSignature = ""
+    @ObservationIgnored var mathRenderTask: Task<Void, Never>?
+    @ObservationIgnored var needsAnotherMathRender = false
+    @ObservationIgnored var hasScannedFolds = false
     /// Identifies an untitled document's build folder.
     let sessionID = UUID()
 
@@ -117,6 +124,7 @@ final class DocumentSession {
         self.text = text
         self.encoding = encoding
         self.fileURL = fileURL
+        configureLivePreview()
         analyze()
         observeNavigationRequests()
         if let fileURL, let line = SourceNavigator.takePendingLine(for: fileURL) {
@@ -132,6 +140,8 @@ final class DocumentSession {
     /// Called when the window closes.
     func stop() {
         analysisTask?.cancel()
+        mathRenderTask?.cancel()
+        needsAnotherMathRender = false
         automaticTypesetTask?.cancel()
         typesetTask?.cancel()
         needsAnotherTypeset = false
@@ -264,6 +274,7 @@ final class DocumentSession {
             flatOutline = OutlineParser.flatten(newOutline)
             updateCurrentOutlineItem()
         }
+        updateLivePreview()
     }
 
     // MARK: - Navigation between windows

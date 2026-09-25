@@ -24,6 +24,19 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   (Option-Return inserts a plain line break); brackets and `$` pair automatically, and
   typing an opening bracket with a selection wraps it; Tab and Shift-Tab indent lines;
   ⌘/ comments lines.
+- **Rendered math in the source** — formulas (`$…$`, `\(…\)`, `\[…\]`, `$$…$$` and
+  math environments such as `equation` and `align`) are shown typeset right in the
+  editor, with the document's own macros, until the insertion point enters them; then
+  their source appears for editing. Click a formula to edit it. Display math is centred
+  on its line like in the PDF. Formulas are drawn in the text colour, so they follow Dark
+  Mode (colour set with `\color` inside a formula isn't shown). Turn it off with View ▸
+  Render Math (⌃⌘M).
+- **Code folding** — collapse any environment of two or more lines with the chevron
+  beside its line number, or View ▸ Code Folding. A collapsed figure or table shows its
+  caption, line count and a thumbnail of its image; click it to expand it again. Fold
+  Figures and Tables tidies a long document in one step, and Settings can do this for
+  every document you open. Folding never changes the text: moving the insertion point
+  into a collapsed environment, or deleting next to it, expands it.
 - **Completion** — press Esc for commands, environments, labels, citation keys (from
   `.bib` files and `\bibitem`), macros defined in the document, packages, document classes
   and files beside the document. Completions appear automatically after `\begin{`,
@@ -76,6 +89,9 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 | Shift Right / Left | ⌘] / ⌘[ or Tab / ⇧Tab |
 | Complete | Esc |
 | Go to Line (`line` or `line:column`) | ⌘L |
+| Render Math in the editor | ⌃⌘M |
+| Fold / Unfold | ⌥⌘← / ⌥⌘→ |
+| Fold Figures and Tables / Unfold All | ⌃⌥⌘← / ⌃⌥⌘→ |
 | Bigger / Smaller Text | ⌘+ (or ⌘=) / ⌘- |
 | Show/Hide Preview | ⌥⌘P |
 | Show/Hide Sidebar | ⌃⌘S |
@@ -148,6 +164,15 @@ TexLab/TexLab/
   `SyntaxHighlighter` re-colours only the paragraph block around an edit (TeX resets math
   mode at blank lines) from the text storage's `willProcessEditing`, so fonts are fixed
   up afterwards. `LineIndex` maps offsets to lines incrementally.
+- **Live preview in the editor** — `MathScanner` and `FoldScanner` (in
+  `Editor/Presentation/`) find formulas and foldable environments after each pause in
+  typing. `PresentationLayoutManager` shows a range as a drawing without touching the
+  text, with the standard TextKit 1 technique: its first character becomes a control
+  glyph as wide as the drawing, the rest get null glyphs, line breaks inside get zero
+  advancement, and the line grows to fit. `MathRenderer` typesets every new formula in
+  one TeX run with the `preview` package, whose `auctex` option reports each formula's
+  depth so it sits on the baseline; the session (`+Math`) caches images per formula and
+  preamble and renders in the background.
 - **Typesetting** — `TeXDistribution` finds TeX without relying on the shell `PATH`.
   `Typesetter` writes the editor text to a build folder in
   `~/Library/Caches/com.gdinisio.TexLab/Typeset` and runs TeX in the document's folder
@@ -176,6 +201,10 @@ TexLab/TexLab/
   path, so for those the saved file is used.
 - An untitled document is typeset in its build folder, so files it references by
   relative path are found once the document is saved.
+- Rendered formulas are typeset at 10 pt in `article` with the document's preamble (the
+  root file's for `% !TEX root` chapters) and scaled to the editor font. If that preamble
+  doesn't typeset on its own, `amsmath` and `amssymb` are used instead. This needs the
+  `preview` package, which MacTeX includes; Settings ▸ Editor says when it's missing.
 - Shell escape is off by default and can be enabled in Settings for packages such as
   minted.
 

@@ -3,6 +3,24 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.4 — Live preview in the editor: rendered math and code folding
+
+- Formulas are shown typeset in the source, with the document's own macros and packages,
+  and switch back to their source while the insertion point is inside them. Inline math
+  sits on the text baseline; display math alone on its lines is centred like in the PDF.
+  Covers `$…$`, `$$…$$`, `\(…\)`, `\[…\]` and math environments (`equation`, `align`,
+  `gather`, `multline` and their starred forms), without labels and tags.
+- Rendering runs in the background in one TeX run per batch using the `preview` package,
+  is cached per formula, and redone only when the preamble or engine changes. Formulas
+  TeX can't typeset stay as source.
+- Code folding: collapse any multi-line environment from a chevron in the gutter (shown
+  on hover, like Xcode) or View ▸ Code Folding (⌥⌘←, ⌥⌘→, ⌃⌥⌘←, ⌃⌥⌘→). Collapsed
+  figures and tables show their caption, line count and a thumbnail of the image.
+- Folding and rendering only change the layout, never the text; editing into a collapsed
+  environment expands it first, and line numbers skip hidden lines.
+- New View ▸ Render Math (⌃⌘M) and a Live Preview section in Settings ▸ Editor, with an
+  option to collapse figures and tables when opening a document.
+
 ## v1.3 — Fix: gutter painting over the editor text
 
 - Fixed the editor text being invisible while line numbers showed. Since macOS 14, views

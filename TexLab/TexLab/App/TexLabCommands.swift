@@ -15,6 +15,7 @@ struct TexLabCommands: Commands {
     @AppStorage(SettingsKey.showsStatusBar) private var showsStatusBar = AppSettings.showsStatusBar
     @AppStorage(SettingsKey.previewShowsTwoPages) private var previewShowsTwoPages = AppSettings.previewShowsTwoPages
     @AppStorage(SettingsKey.typesetsAutomatically) private var typesetsAutomatically = AppSettings.typesetsAutomatically
+    @AppStorage(SettingsKey.rendersMathInEditor) private var rendersMath = AppSettings.rendersMathInEditor
 
     var body: some Commands {
         SidebarCommands()
@@ -47,6 +48,7 @@ struct TexLabCommands: Commands {
                 Toggle("Line Numbers", isOn: $showsLineNumbers)
                 Toggle("Wrap Lines", isOn: $wrapsLines)
             }
+            liveSourceCommands
             Divider()
             previewZoomCommands
             Toggle("Two Pages", isOn: $previewShowsTwoPages)
@@ -156,6 +158,33 @@ struct TexLabCommands: Commands {
             if let session {
                 EnginePicker(session: session)
             }
+        }
+        .disabled(session == nil)
+    }
+
+    /// Render Math and Code Folding, for the live preview in the editor.
+    @ViewBuilder
+    private var liveSourceCommands: some View {
+        Toggle("Render Math", isOn: $rendersMath)
+            .keyboardShortcut("m", modifiers: [.command, .control])
+        Menu("Code Folding") {
+            Button("Fold") {
+                session?.editor.foldAtSelection()
+            }
+            .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
+            Button("Unfold") {
+                session?.editor.unfoldAtSelection()
+            }
+            .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+            Divider()
+            Button("Fold Figures and Tables") {
+                session?.editor.foldFloats()
+            }
+            .keyboardShortcut(.leftArrow, modifiers: [.command, .option, .control])
+            Button("Unfold All") {
+                session?.editor.unfoldAll()
+            }
+            .keyboardShortcut(.rightArrow, modifiers: [.command, .option, .control])
         }
         .disabled(session == nil)
     }
