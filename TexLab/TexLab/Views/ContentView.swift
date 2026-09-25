@@ -34,8 +34,20 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 480, minHeight: 320)
+        .navigationSubtitle(session.status.summary)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    session.typeset()
+                } label: {
+                    Label("Typeset", systemImage: "play.fill")
+                }
+                .keyboardShortcut("r")
+                .help("Typeset the document")
+            }
+        }
         .onAppear {
-            session.start(text: document.text, fileURL: fileURL)
+            session.start(text: document.text, encoding: document.encoding, fileURL: fileURL)
         }
         .onDisappear {
             session.stop()

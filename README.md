@@ -24,6 +24,13 @@ screen, and the system text system for editing, spelling and Find.
 - **Completion** — press Esc for commands, environments, labels, citation keys, packages,
   classes and files. Completions appear automatically after `\begin{`, `\ref{`,
   `\cite{`, `\usepackage{`, `\includegraphics{` and similar.
+- **Typesetting** — ⌘R typesets with pdfLaTeX, XeLaTeX or LuaLaTeX (`% !TEX program`
+  magic comment or the default engine), through latexmk when available. Typesetting also
+  runs automatically after a pause in typing. Unsaved changes are included, and
+  auxiliary files stay out of your folders. Multi-file projects work from any file with
+  `% !TEX root = main.tex`.
+- **Issues** — errors, warnings and bad boxes are read from the TeX log with their file
+  and line, and marked in the editor's gutter.
 - **Drag and drop** — drop images, `.tex` or `.bib` files on the editor to insert
   `\includegraphics`, `\input` or `\bibliography` with a path relative to the document.
 
@@ -36,7 +43,29 @@ screen, and the system text system for editing, spelling and Find.
 
 1. Open `TexLab/TexLab.xcodeproj` in Xcode.
 2. Select the **TexLab** scheme and a signing team (Signing & Capabilities).
-3. Build and run (⌘R).
+3. **Turn off App Sandbox** for the TexLab target (see below).
+4. Build and run (⌘R).
+
+### Why App Sandbox must be off
+
+TexLab typesets with the TeX distribution installed on your Mac, like TeXShop and
+TeXstudio. A sandboxed app can't run programs from `/Library/TeX` or
+`/usr/local/texlive`, and anything it runs inherits the sandbox, so TeX couldn't read the
+chapters, images and bibliographies next to your document either. The Xcode template
+enables the sandbox, so disable it once, by hand:
+
+> Xcode ▸ select the **TexLab** project ▸ **TexLab** target ▸ **Signing & Capabilities** ▸
+> **App Sandbox** ▸ click the trash button to remove the capability.
+
+Hardened Runtime can stay on. If the sandbox is left on, TexLab still runs and explains in
+the preview that TeX is unavailable.
+
+### TeX distribution
+
+Install [MacTeX](https://tug.org/mactex/) (recommended) or BasicTeX. TexLab looks in
+`/Library/TeX/texbin`, `/usr/local/texlive/*/bin/*`, Homebrew and MacPorts locations; a
+custom folder can be chosen in Settings. latexmk is used when it is installed (it is part
+of MacTeX); otherwise TexLab runs the engine, BibTeX/Biber and makeindex itself.
 
 ## Architecture
 
@@ -68,6 +97,15 @@ TexLab/TexLab/
   `LineIndex` maps offsets to line numbers and is updated incrementally on every edit.
 - `DocumentSession` is the per-window model (`@Observable`): editor controller, caret
   position and statistics. It grows with typesetting and preview state.
+- Typesetting (`Typesetting/`): `TeXDistribution` finds TeX; `Typesetter` writes the
+  editor text to a private build folder and runs latexmk or the engine directly through
+  `ProcessRunner` (async `Process` wrapper with cancellation and a time limit, output
+  written to a file so pipes can't stall); `LaTeXLogParser` turns the log into
+  `LogEntry` values; `SourceMap` maps the paths TeX reports (build copy, overlay,
+  relative paths) back to the files the user edits; `SyncTeXData` parses SyncTeX.
+  `MagicComments` reads `% !TEX program` and `% !TEX root`.
+- `DocumentSession+Typesetting` queues runs, applies results, maps issues to files and
+  schedules automatic typesetting. `SourceNavigator` opens other files at a line.
 - The project builds with Swift's default `MainActor` isolation. Types that run off the
   main thread (file decoding, typesetting, parsing) are explicitly `nonisolated`.
 

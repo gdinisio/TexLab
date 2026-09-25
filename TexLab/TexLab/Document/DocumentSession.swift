@@ -3,10 +3,12 @@
 //  TexLab
 //
 
+import AppKit
 import Foundation
 import Observation
+import PDFKit
 
-/// The state of one document window: the editor, cursor position and statistics.
+/// The state of one document window: the editor, typesetting, the preview and statistics.
 ///
 /// Each window owns a session. Views observe it, and menu commands reach the focused
 /// window's session through `FocusedValues`.
@@ -16,15 +18,55 @@ final class DocumentSession {
 
     /// The document's location on disk, or nil while it is untitled.
     var fileURL: URL?
+    /// The document's text encoding, used for the copy TeX reads.
+    var encoding: String.Encoding = .utf8
+
+    // MARK: Editing
 
     private(set) var caretLine = 1
     private(set) var caretColumn = 1
     private(set) var selectionLength = 0
     private(set) var wordCount = 0
 
-    /// The latest source text.
+    // MARK: Typesetting
+
+    var status: TypesetStatus = .idle
+    var issues: [Issue] = []
+    /// The engine used for the latest typesetting, from a magic comment or Settings.
+    var engine: TypesettingEngine = .pdfLaTeX
+    /// Whether the document chooses its engine with `% !TEX program`.
+    var engineFromMagicComment = false
+    var lastTypesetDate: Date?
+    var log = ""
+    var console = ""
+
+    // MARK: Preview
+
+    /// The latest successfully produced PDF.
+    var pdfDocument: PDFDocument?
+    /// A copy of the PDF named after the document, for sharing and exporting.
+    var pdfFileURL: URL?
+    /// A PDF location to reveal, set by forward search and consumed by the preview.
+    var pendingPreviewReveal: SyncTeXLocation?
+
+    // MARK: Presentation
+
+    var isShowingLog = false
+
+    // MARK: Private
+
     @ObservationIgnored private(set) var text = ""
+    @ObservationIgnored var synctex: SyncTeXData?
+    @ObservationIgnored var sourceMap: SourceMap?
+    @ObservationIgnored var typesetTask: Task<Void, Never>?
+    @ObservationIgnored var automaticTypesetTask: Task<Void, Never>?
+    @ObservationIgnored var needsAnotherTypeset = false
+    @ObservationIgnored var lastBuildDirectory: URL?
+    @ObservationIgnored var issueCursor = -1
     @ObservationIgnored private var analysisTask: Task<Void, Never>?
+    @ObservationIgnored private var navigationObserver: NSObjectProtocol?
+    /// Identifies an untitled document's build folder.
+    let sessionID = UUID()
 
     var documentDirectory: URL? {
         fileURL?.deletingLastPathComponent()
@@ -35,18 +77,47 @@ final class DocumentSession {
         fileURL?.deletingPathExtension().lastPathComponent ?? String(localized: "Untitled")
     }
 
+    var isTypesetting: Bool {
+        status == .running
+    }
+
+    var errorCount: Int {
+        issues.filter { $0.severity == .error }.count
+    }
+
+    var warningCount: Int {
+        issues.filter { $0.severity == .warning }.count
+    }
+
     // MARK: - Lifecycle
 
     /// Called when the window appears with the document's initial contents.
-    func start(text: String, fileURL: URL?) {
+    func start(text: String, encoding: String.Encoding, fileURL: URL?) {
         self.text = text
+        self.encoding = encoding
         self.fileURL = fileURL
         analyze()
+        observeNavigationRequests()
+        if let fileURL, let line = SourceNavigator.takePendingLine(for: fileURL) {
+            DispatchQueue.main.async { [weak self] in
+                self?.editor.revealLine(line)
+            }
+        }
+        if UserDefaults.standard.bool(forKey: SettingsKey.typesetsAutomatically) {
+            typeset()
+        }
     }
 
     /// Called when the window closes.
     func stop() {
         analysisTask?.cancel()
+        automaticTypesetTask?.cancel()
+        typesetTask?.cancel()
+        needsAnotherTypeset = false
+        if let navigationObserver {
+            NotificationCenter.default.removeObserver(navigationObserver)
+        }
+        navigationObserver = nil
     }
 
     // MARK: - Editing
@@ -54,6 +125,7 @@ final class DocumentSession {
     func sourceDidChange(_ text: String) {
         self.text = text
         scheduleAnalysis()
+        scheduleAutomaticTypeset()
     }
 
     func selectionDidChange() {
@@ -96,5 +168,58 @@ final class DocumentSession {
 
     private func analyze() {
         wordCount = WordCounter.count(in: text)
+    }
+
+    // MARK: - Navigation between windows
+
+    private func observeNavigationRequests() {
+        guard navigationObserver == nil else { return }
+        navigationObserver = NotificationCenter.default.addObserver(
+            forName: SourceNavigator.revealLineNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let path = notification.userInfo?[SourceNavigator.pathKey] as? String
+            let line = notification.userInfo?[SourceNavigator.lineKey] as? Int
+            MainActor.assumeIsolated {
+                self?.handleRevealRequest(path: path, line: line)
+            }
+        }
+    }
+
+    private func handleRevealRequest(path: String?, line: Int?) {
+        guard let path, let line, let fileURL, SourceMap.canonicalPath(fileURL) == path else { return }
+        _ = SourceNavigator.takePendingLine(for: fileURL)
+        editor.revealLine(line)
+    }
+}
+
+/// Opens source files in their own windows and reveals a line in them.
+enum SourceNavigator {
+    nonisolated static let revealLineNotification = Notification.Name("TexLabRevealSourceLine")
+    nonisolated static let pathKey = "path"
+    nonisolated static let lineKey = "line"
+
+    private static var pendingLines: [String: Int] = [:]
+
+    /// Opens `url` in TexLab and moves its editor to `line`.
+    static func open(_ url: URL, line: Int?) {
+        let path = SourceMap.canonicalPath(url)
+        if let line {
+            pendingLines[path] = line
+            NotificationCenter.default.post(
+                name: revealLineNotification,
+                object: nil,
+                userInfo: [pathKey: path, lineKey: line]
+            )
+        }
+        Task {
+            _ = try? await NSDocumentController.shared.openDocument(withContentsOf: url, display: true)
+        }
+    }
+
+    /// The line a newly opened window should reveal, if one was requested.
+    static func takePendingLine(for url: URL) -> Int? {
+        pendingLines.removeValue(forKey: SourceMap.canonicalPath(url))
     }
 }

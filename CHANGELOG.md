@@ -3,6 +3,32 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v0.3 — Typesetting
+
+- Typeset with ⌘R (toolbar button for now; menus arrive in a later version). The window
+  subtitle shows progress and the result ("Typeset · 3 pages", "Typeset with 2 errors").
+- Typesetting runs off the main thread from a copy of the editor text in a private build
+  folder (`~/Library/Caches/com.gdinisio.TexLab/Typeset`), so unsaved changes are
+  included, untitled documents can be typeset, and auxiliary files never clutter the
+  document's folder. TeX runs in the document's folder, so relative `\input`,
+  `\includegraphics` and bibliography paths work.
+- Uses latexmk (`-f`, reruns only when needed) when available, otherwise runs the engine,
+  BibTeX or Biber, makeindex and repeated passes directly — so BasicTeX works too.
+- Engines: pdfLaTeX, XeLaTeX and LuaLaTeX, chosen with a `% !TEX program = …` magic
+  comment or the default engine setting.
+- `% !TEX root = main.tex` typesets a multi-file project from any of its files, using the
+  unsaved text of the file being edited (placed in an overlay folder TeX searches first).
+- Finds MacTeX, BasicTeX, TeX Live, Homebrew and MacPorts installations even though
+  Finder-launched apps don't inherit the shell `PATH`.
+- Log parser extracts errors (with file, line and the undefined command's name),
+  warnings (including multi-line package warnings) and bad boxes; noise such as rerun
+  notices and summaries is dropped. Validated against real pdfTeX, XeTeX and LuaTeX logs.
+- Issue markers appear in the editor gutter after typesetting.
+- Uncompressed SyncTeX output is parsed by a byte-level parser with a sorted line index,
+  ready for source ↔ PDF navigation (validated against the `synctex` tool).
+- Automatic typesetting after a pause in typing (on by default), with runs queued rather
+  than overlapping, cancellation, and a five-minute safety limit per tool.
+
 ## v0.2 — Native source editor
 
 - New source editor built on the Mac text system (TextKit 1 `NSTextView`), so Find and
