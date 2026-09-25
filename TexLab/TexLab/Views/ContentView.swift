@@ -69,11 +69,15 @@ struct ContentView: View {
         .sheet(isPresented: $session.isShowingTableSheet) {
             TableSheet(session: session)
         }
-        .fileImporter(isPresented: $session.isImportingImage, allowedContentTypes: [.image, .pdf]) { result in
-            if case .success(let url) = result {
-                session.insertFigure(for: url)
-            }
+        .sheet(isPresented: $session.isShowingGoToLine) {
+            GoToLineSheet(session: session)
         }
+        .fileExporter(
+            isPresented: $session.isExportingPDF,
+            document: session.isExportingPDF ? session.pdfExportDocument : nil,
+            contentType: .pdf,
+            defaultFilename: session.displayName
+        ) { _ in }
         .onAppear {
             session.isPreviewVisible = showsPreview
             session.start(text: document.text, encoding: document.encoding, fileURL: fileURL)
@@ -94,6 +98,12 @@ struct ContentView: View {
             SourceEditor(text: $document.text, configuration: editorConfiguration, session: session)
             if showsStatusBar {
                 StatusBar(session: session)
+            }
+        }
+        // Kept apart from the window's file exporter; SwiftUI presents one file panel per view.
+        .fileImporter(isPresented: $session.isImportingImage, allowedContentTypes: [.image, .pdf]) { result in
+            if case .success(let url) = result {
+                session.insertFigure(for: url)
             }
         }
     }

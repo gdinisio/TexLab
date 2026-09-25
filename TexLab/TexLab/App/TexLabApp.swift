@@ -19,24 +19,11 @@ struct TexLabApp: App {
         }
         .defaultSize(width: 1280, height: 820)
         .commands {
-            CommandGroup(after: .newItem) {
-                NewFromTemplateMenu()
-            }
+            TexLabCommands()
         }
-    }
-}
 
-/// File ▸ New from Template, listing every built-in template.
-struct NewFromTemplateMenu: View {
-    @Environment(\.newDocument) private var newDocument
-
-    var body: some View {
-        Menu("New from Template") {
-            ForEach(DocumentTemplate.allCases) { template in
-                Button(template.title, systemImage: template.systemImage) {
-                    newDocument(TexLabDocument(text: template.text))
-                }
-            }
+        Settings {
+            SettingsView()
         }
     }
 }

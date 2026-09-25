@@ -43,6 +43,31 @@ screen, and the system text system for editing, spelling and Find.
 - **Drag and drop** — drop images, `.tex` or `.bib` files on the editor to insert
   `\includegraphics`, `\input` or `\bibliography` with a path relative to the document.
 
+- **Export and print** — File ▸ Export PDF saves the PDF anywhere; ⌘P prints it.
+- **Settings** — editor appearance and behaviour, automatic typesetting, TeX location,
+  default engine, latexmk, shell escape and build files.
+
+## Keyboard shortcuts
+
+| Action | Shortcut |
+| --- | --- |
+| Typeset / Stop | ⌘R / ⌘. |
+| Show in PDF (forward search) | ⇧⌘J |
+| Show in Source (inverse search) | ⌘-click in the PDF |
+| Next / Previous Issue | ⌘' / ⇧⌘' |
+| Show Log | ⇧⌘L |
+| Clean Build Files | ⇧⌘K |
+| Bold / Italic / Underline | ⌘B / ⌘I / ⌘U |
+| Comment Selection | ⌘/ |
+| Shift Right / Left | ⌘] / ⌘[ or Tab / ⇧Tab |
+| Complete | Esc |
+| Go to Line | ⌘L |
+| Bigger / Smaller Text | ⌘+ (or ⌘=) / ⌘- |
+| Show/Hide Preview | ⌥⌘P |
+| Show/Hide Sidebar | ⌃⌘S |
+| PDF Zoom In / Out / Actual Size / Fit | ⌘> / ⌘< / ⌘0 / ⌘9 |
+| Export PDF / Print | ⇧⌘E / ⌘P |
+
 ## Requirements
 
 - macOS 27 or later, Xcode 27 or later.
@@ -122,6 +147,9 @@ TexLab/TexLab/
   issues) whose detail is an `HSplitView` of editor and preview, with a customizable
   toolbar (`DocumentToolbar.swift`). `OutlineParser` builds the outline tree;
   `SnippetCatalog`, `SymbolCatalog` and `FormatCommand` define insertable text.
+- Menus (`App/TexLabCommands.swift`) reach the focused window's `DocumentSession`
+  through `FocusedValues.documentSession`; each window publishes its session with
+  `focusedSceneValue`. Settings (`Views/SettingsView.swift`) are `@AppStorage` forms.
 - `DocumentSession+Typesetting` queues runs, applies results, maps issues to files and
   schedules automatic typesetting. `SourceNavigator` opens other files at a line.
 - The project builds with Swift's default `MainActor` isolation. Types that run off the

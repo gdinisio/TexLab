@@ -172,14 +172,15 @@ extension SourceTextView {
         return (line, location - lineIndex.startOfLine(line) + 1)
     }
 
-    /// Moves the insertion point to the start of `line`, scrolls it into the middle of the
-    /// editor and briefly highlights it so it's easy to spot.
-    func revealLine(_ line: Int, highlight: Bool = true) {
+    /// Moves the insertion point to `column` of `line`, scrolls the line into the middle of
+    /// the editor and briefly highlights it so it's easy to spot.
+    func revealLine(_ line: Int, column: Int = 1, highlight: Bool = true) {
         guard let text = textStorage?.mutableString else { return }
         let start = min(lineIndex.startOfLine(line), text.length)
         let paragraph = text.lineRange(for: NSRange(location: start, length: 0))
         let content = NSRange(location: paragraph.location, length: Self.contentLength(ofLine: paragraph, in: text))
-        reveal(content, selecting: NSRange(location: content.location, length: 0), highlight: highlight)
+        let caret = content.location + min(max(column - 1, 0), content.length)
+        reveal(content, selecting: NSRange(location: caret, length: 0), highlight: highlight)
     }
 
     /// Selects `selection`, centres `range` in the editor and optionally highlights it.

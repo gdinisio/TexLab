@@ -3,6 +3,7 @@
 //  TexLab
 //
 
+import AppKit
 import SwiftUI
 
 /// The preview column: the typeset PDF, or an explanation of why there isn't one yet and

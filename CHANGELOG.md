@@ -3,6 +3,30 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v0.6 — Menus, Settings, export and printing
+
+- Full menu bar, acting on the focused window:
+  - **File**: New from Template, Export PDF… (⇧⌘E, standard Save panel, the PDF exactly
+    as TeX wrote it), Print… (⌘P, prints the typeset PDF as a sheet).
+  - **Edit**: Find and Replace, spelling, substitutions and transformations from the
+    text system, plus Go to Line… (⌘L, accepts `line` or `line:column`).
+  - **View**: Show/Hide Sidebar, Preview (⌥⌘P) and Status Bar; Line Numbers and Wrap
+    Lines; PDF Zoom In (⌘>), Zoom Out (⌘<), Actual Size (⌘0), Zoom to Fit (⌘9) and Two
+    Pages; Customize Toolbar.
+  - **Insert**: the same items as the toolbar menu.
+  - **Format**: Bold (⌘B), Italic (⌘I), Underline (⌘U), Emphasis, Monospace, Small Caps
+    and Sans Serif wrap the selection in the LaTeX command and unwrap it when applied
+    again; Comment Selection (⌘/), Shift Right (⌘]) and Shift Left (⌘[); Text Size.
+  - **Typeset**: Typeset (⌘R), Stop (⌘.), Typeset Automatically, Engine, Show in PDF
+    (⇧⌘J), Next/Previous Issue (⌘' / ⇧⌘'), Show Log (⇧⌘L), Clean Build Files (⇧⌘K).
+  - **Help**: LaTeX documentation, the LaTeX Wikibook, CTAN package search and MacTeX.
+- Settings window (⌘,) with General, Editor and Typesetting tabs: automatic typesetting
+  and its delay, two-page preview, issue filters, font size with a live sample, line
+  numbers, current line, wrapping, status bar, indentation (spaces or tabs), bracket and
+  environment closing, completion, spelling, TeX location (detected automatically, with
+  the version shown, or chosen), default engine, latexmk, shell escape (off, with a
+  clear warning), and build folder management.
+
 ## v0.5 — Main window: sidebar, toolbar and palettes
 
 - The window now has a sidebar (NavigationSplitView) with two views, switched by a

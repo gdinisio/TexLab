@@ -70,6 +70,8 @@ final class DocumentSession {
     var isShowingSymbols = false
     var isImportingImage = false
     var isShowingTableSheet = false
+    var isShowingGoToLine = false
+    var isExportingPDF = false
 
     // MARK: Private
 
@@ -172,6 +174,23 @@ final class DocumentSession {
             before: "\\begin{figure}[htbp]\n\t\\centering\n\t\\includegraphics[width=0.8\\linewidth]{\(path)}\n\t\\caption{",
             after: "}\n\t\\label{fig:\(label)}\n\\end{figure}"
         ))
+    }
+
+    // MARK: - Output
+
+    /// The typeset PDF as TeX wrote it, for File ▸ Export PDF.
+    var pdfExportDocument: PDFFileDocument? {
+        guard let pdfFileURL, let data = try? Data(contentsOf: pdfFileURL) else { return nil }
+        return PDFFileDocument(data: data)
+    }
+
+    /// Prints the typeset PDF, as a sheet on the document window.
+    func printPDF() {
+        guard let pdfDocument else {
+            NSSound.beep()
+            return
+        }
+        PreviewController.print(pdfDocument, jobTitle: displayName, window: editor.textView?.window)
     }
 
     // MARK: - Outline

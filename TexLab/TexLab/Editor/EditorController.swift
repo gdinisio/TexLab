@@ -104,8 +104,8 @@ final class EditorController {
 
     // MARK: - Navigation
 
-    func revealLine(_ line: Int, highlight: Bool = true) {
-        textView?.revealLine(line, highlight: highlight)
+    func revealLine(_ line: Int, column: Int = 1, highlight: Bool = true) {
+        textView?.revealLine(line, column: column, highlight: highlight)
     }
 
     func reveal(location: Int, length: Int = 0) {
