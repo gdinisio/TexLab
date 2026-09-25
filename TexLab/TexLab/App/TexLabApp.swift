@@ -15,8 +15,9 @@ struct TexLabApp: App {
 
     var body: some Scene {
         DocumentGroup(newDocument: TexLabDocument()) { file in
-            ContentView(document: file.$document)
+            ContentView(document: file.$document, fileURL: file.fileURL)
         }
+        .defaultSize(width: 1280, height: 820)
         .commands {
             CommandGroup(after: .newItem) {
                 NewFromTemplateMenu()

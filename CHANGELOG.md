@@ -3,6 +3,30 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v0.2 — Native source editor
+
+- New source editor built on the Mac text system (TextKit 1 `NSTextView`), so Find and
+  Replace, spelling, dictation, services, Look Up and undo all work as in other Mac apps.
+- LaTeX syntax colouring for commands, environments, math, comments, keys and verbatim
+  text, using Xcode's default light and dark palettes. Section titles appear in bold.
+  Colouring is incremental — only the edited paragraph block is re-scanned.
+- Spelling is checked in prose and comments only; commands, math, labels and keys are
+  never marked as misspelled.
+- Line number gutter with the current line emphasised, issue markers, and click-to-select.
+- Subtle current line highlight.
+- Smart editing: automatic indentation, `\begin{…}` + Return closes the environment
+  (adding `\item` for lists), Return continues `\item` lists and leaves them on an empty
+  item, bracket and `$` pairing with step-over, wrap-selection when typing an opening
+  bracket, soft tabs with indent-aware delete, Tab/Shift-Tab to indent selected lines.
+- Completion (Esc, or automatically after `{`) for commands, environments, labels,
+  citation keys from `.bib` files and `\bibitem`s, macros defined in the document,
+  packages, document classes, and files next to the document.
+- Drag image, `.tex` or `.bib` files onto the editor to insert `\includegraphics`,
+  `\input` or `\bibliography` with a relative path.
+- Status bar showing line, column, selection length and a word count of the document
+  body (commands, math and the preamble are excluded).
+- Command-= also makes the editor text bigger.
+
 ## v0.1 — Document model, LaTeX file types and templates
 
 - `TexLabDocument` now opens and saves LaTeX (`.tex`, `.ltx`, `.latex`), BibTeX (`.bib`),
