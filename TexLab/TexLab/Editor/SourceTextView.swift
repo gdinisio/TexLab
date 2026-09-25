@@ -55,7 +55,7 @@ final class SourceTextView: NSTextView {
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
 
-        let scrollView = NSScrollView()
+        let scrollView = EditorScrollView()
         scrollView.borderType = .noBorder
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
@@ -141,7 +141,6 @@ final class SourceTextView: NSTextView {
             autoresizingMask = [.width]
             container.widthTracksTextView = true
             container.size = NSSize(width: scrollView.contentSize.width, height: unbounded)
-            setFrameSize(NSSize(width: scrollView.contentSize.width, height: frame.height))
         } else {
             scrollView.hasHorizontalScroller = true
             isHorizontallyResizable = true
@@ -149,6 +148,31 @@ final class SourceTextView: NSTextView {
             container.widthTracksTextView = false
             container.size = NSSize(width: unbounded, height: unbounded)
         }
+        fitToScrollView()
+    }
+
+    /// Sizes the editor to its scroll view. The text view is created before SwiftUI gives
+    /// the scroll view a size, and autoresizing doesn't reliably catch up, which would leave
+    /// the text laid out in a zero-width container — invisible. The scroll view calls this
+    /// whenever it lays out.
+    func fitToScrollView() {
+        guard let scrollView = enclosingScrollView else { return }
+        let visible = scrollView.contentSize
+        guard visible.width > 0, visible.height > 0 else { return }
+        // Fill the visible area, so clicking below the last line still places the caret.
+        minSize = NSSize(width: configuration.wrapsLines ? 0 : visible.width, height: visible.height)
+        if configuration.wrapsLines {
+            if abs(frame.width - visible.width) > 0.5 {
+                setFrameSize(NSSize(width: visible.width, height: max(frame.height, visible.height)))
+            }
+        } else if frame.width < visible.width {
+            setFrameSize(NSSize(width: visible.width, height: max(frame.height, visible.height)))
+        }
+        if frame.height < visible.height {
+            setFrameSize(NSSize(width: frame.width, height: visible.height))
+        }
+        lineNumberRuler?.needsDisplay = true
+        refreshCurrentLineHighlight()
     }
 
     // MARK: - Text
@@ -573,6 +597,15 @@ nonisolated enum AutoPair {
     static func allowsPairing(before next: unichar) -> Bool {
         Char.isWhitespace(next) || isCloser(next)
             || next == Char.comma || next == 0x2E || next == 0x3B || next == 0x3A
+    }
+}
+
+/// The editor's scroll view. It keeps the text view as wide as the visible area (when
+/// wrapping) every time it lays out, including the first layout after SwiftUI sizes it.
+final class EditorScrollView: NSScrollView {
+    override func tile() {
+        super.tile()
+        (documentView as? SourceTextView)?.fitToScrollView()
     }
 }
 

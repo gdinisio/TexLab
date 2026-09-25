@@ -3,6 +3,14 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.2 — Fix: editor text not visible
+
+- Fixed the editor showing no text. The text view was created before SwiftUI gave its
+  scroll view a size and relied on autoresizing to grow, which didn't happen, so the text
+  was laid out in a zero-width container. A new `EditorScrollView` now sizes the text
+  view to the visible area every time it lays out, and the text view always fills the
+  visible height so clicking below the last line places the insertion point.
+
 ## v1.1 — Build fix: explicit framework imports
 
 - Fixed the first Xcode build: with the `MemberImportVisibility` upcoming feature

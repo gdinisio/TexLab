@@ -141,7 +141,8 @@ TexLab/TexLab/
   Extensions add typesetting (`+Typesetting`) and SyncTeX navigation (`+Sync`). Menu
   commands reach the focused window's session through `FocusedValues.documentSession`.
 - **Editor** — `SourceTextView` is a TextKit 1 `NSTextView` subclass hosted by
-  `SourceEditor` (`NSViewRepresentable`). TextKit 1 gives precise line geometry for the
+  `SourceEditor` (`NSViewRepresentable`) inside `EditorScrollView`, which sizes the text
+  view to the visible area on every layout. TextKit 1 gives precise line geometry for the
   gutter (`LineNumberRulerView`) and current line highlight. `LaTeXTokenizer` is a
   single-pass scanner shared by colouring, spelling suppression and the word count;
   `SyntaxHighlighter` re-colours only the paragraph block around an edit (TeX resets math
