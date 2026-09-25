@@ -43,7 +43,6 @@ struct OutlineSidebar: View {
     var session: DocumentSession
 
     @State private var selection: OutlineItem.ID?
-    @State private var isFollowingInsertionPoint = false
 
     var body: some View {
         if session.outline.isEmpty {
@@ -64,11 +63,10 @@ struct OutlineSidebar: View {
                 follow(newValue)
             }
             .onChange(of: selection) { _, newValue in
-                if isFollowingInsertionPoint {
-                    isFollowingInsertionPoint = false
-                    return
-                }
-                guard let newValue, let item = session.outlineItem(withID: newValue) else { return }
+                // Following the insertion point selects its item; only picking a different
+                // item moves the editor.
+                guard let newValue, newValue != session.currentOutlineItemID,
+                      let item = session.outlineItem(withID: newValue) else { return }
                 session.revealOutlineItem(item)
             }
         }
@@ -77,7 +75,6 @@ struct OutlineSidebar: View {
     /// Selects the item containing the insertion point without jumping to it.
     private func follow(_ id: OutlineItem.ID?) {
         guard selection != id else { return }
-        isFollowingInsertionPoint = true
         selection = id
     }
 }

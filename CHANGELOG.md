@@ -3,6 +3,21 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.8 — Fix: the insertion point jumping while typing
+
+- Fixed the insertion point moving to the next row, or the one after, after every typed
+  character. Syntax colouring recoloured the whole paragraph inside the same edit that
+  inserted the character, so NSTextView treated the paragraph as replaced and put the
+  insertion point at its end. Colouring now runs as its own attribute-only edit straight
+  after the change (and restores the selection if anything moved it), and waits while an
+  input method is composing text.
+- Text changed outside the editor (Revert To, undo through the document) is applied as a
+  minimal replacement, so the insertion point and scroll position are kept.
+- Inline predictive text is turned off in the editor; it inserts suggestions as marked
+  text, which conflicts with LaTeX completion.
+- The outline only moves the editor when you pick a different item, never while it
+  follows the insertion point.
+
 ## v1.7 — Visual preview, a native divider and reliable fold controls
 
 - Visual preview, modelled on Overleaf's Visual Editor: headings as large titles, the

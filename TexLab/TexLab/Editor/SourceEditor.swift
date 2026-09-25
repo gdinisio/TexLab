@@ -52,13 +52,19 @@ struct SourceEditor: NSViewRepresentable {
         textView.configuration = configuration
         if text != coordinator.lastSyncedText {
             // The document changed outside the editor, for example by Revert To. Apply it
-            // after this update, since replacing the text moves the insertion point, which
-            // updates observed state.
-            coordinator.lastSyncedText = text
+            // after this update, since changing the text updates observed state. Only the
+            // difference is applied, and only if the editor doesn't already show it, so a
+            // value that lags behind typing can't move the insertion point.
             let newText = text
             let session = session
-            DispatchQueue.main.async { [weak textView] in
-                textView?.setText(newText)
+            DispatchQueue.main.async { [weak textView, weak coordinator] in
+                guard let textView, let coordinator, !textView.hasMarkedText() else { return }
+                guard textView.string != newText else {
+                    coordinator.lastSyncedText = newText
+                    return
+                }
+                coordinator.lastSyncedText = newText
+                textView.applyExternalText(newText)
                 session.sourceDidChange(newText)
             }
         }

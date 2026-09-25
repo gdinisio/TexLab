@@ -118,7 +118,8 @@ final class SyntaxHighlighter {
         storage.endEditing()
     }
 
-    /// Colours the text affected by an edit. Called while the storage processes editing.
+    /// Colours the text affected by an edit, as its own attribute-only edit once the
+    /// character change has been processed.
     func highlight(_ storage: NSTextStorage, editedRange: NSRange) {
         let region = Self.region(in: storage.mutableString, around: editedRange)
         apply(to: storage, in: region)

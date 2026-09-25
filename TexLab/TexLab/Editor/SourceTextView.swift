@@ -33,6 +33,9 @@ final class SourceTextView: NSTextView {
     var hasCompletions: ((NSRange) -> Bool)?
 
     private var currentLineRect: NSRect?
+    /// Text to recolour once the current edit has finished, in the text's current offsets.
+    private var pendingHighlight: NSRange?
+    private var isHighlightFlushScheduled = false
 
     // MARK: Presentation (rendered math and folding)
 
@@ -128,6 +131,9 @@ final class SourceTextView: NSTextView {
         isAutomaticDataDetectionEnabled = false
         isAutomaticTextCompletionEnabled = false
         isGrammarCheckingEnabled = false
+        // Inline predictive text inserts suggestions as marked text as you type, which a
+        // source editor with its own completion doesn't want.
+        inlinePredictionType = .no
         drawsBackground = true
         backgroundColor = .textBackgroundColor
         textContainerInset = NSSize(width: 6, height: 10)
@@ -236,9 +242,37 @@ final class SourceTextView: NSTextView {
         storage.beginEditing()
         storage.replaceCharacters(in: NSRange(location: 0, length: storage.length), with: text)
         storage.endEditing()
+        flushHighlighting()
         presentationLayoutManager?.flushPendingInvalidation()
         let length = storage.length
         setSelectedRange(NSRange(location: min(selection.location, length), length: 0))
+        updatePresentation()
+        lineNumberRuler?.textDidChange()
+    }
+
+    /// Brings the editor in line with text changed elsewhere (Revert To, an undo made
+    /// through the document) by replacing only the part that differs, so the insertion
+    /// point and scroll position stay where they are. Not undoable, like `setText`.
+    func applyExternalText(_ text: String) {
+        guard let storage = textStorage, storage.string != text else { return }
+        let old = storage.mutableString
+        let new = text as NSString
+        var prefix = 0
+        let limit = min(old.length, new.length)
+        while prefix < limit && old.character(at: prefix) == new.character(at: prefix) {
+            prefix += 1
+        }
+        var suffix = 0
+        while suffix < limit - prefix && old.character(at: old.length - 1 - suffix) == new.character(at: new.length - 1 - suffix) {
+            suffix += 1
+        }
+        let replaced = NSRange(location: prefix, length: old.length - prefix - suffix)
+        let replacement = new.substring(with: NSRange(location: prefix, length: new.length - prefix - suffix))
+        storage.beginEditing()
+        storage.replaceCharacters(in: replaced, with: replacement)
+        storage.endEditing()
+        flushHighlighting()
+        presentationLayoutManager?.flushPendingInvalidation()
         updatePresentation()
         lineNumberRuler?.textDidChange()
     }
@@ -261,6 +295,7 @@ final class SourceTextView: NSTextView {
 
     override func didChangeText() {
         super.didChangeText()
+        flushHighlighting()
         presentationLayoutManager?.flushPendingInvalidation()
         updatePresentation()
         lineNumberRuler?.textDidChange()
@@ -271,7 +306,56 @@ final class SourceTextView: NSTextView {
         guard editedMask.contains(.editedCharacters) else { return }
         lineIndex.update(from: storage.mutableString, editedRange: range, changeInLength: delta)
         presentationTextWillChange(editedRange: range, changeInLength: delta)
-        highlighter.highlight(storage, editedRange: range)
+        // Colouring is applied afterwards as its own edit. Changing attributes beyond the
+        // typed characters inside this edit would widen the range NSTextView treats as
+        // replaced, and it would move the insertion point to the end of that range — the
+        // end of the paragraph — after every keystroke.
+        noteNeedsHighlighting(editedRange: range, changeInLength: delta)
+    }
+
+    // MARK: - Syntax colouring
+
+    private func noteNeedsHighlighting(editedRange range: NSRange, changeInLength delta: Int) {
+        if let pending = pendingHighlight {
+            let oldEnd = NSMaxRange(range) - delta
+            var shifted = pending
+            if pending.location >= oldEnd {
+                shifted.location += delta
+            } else if NSMaxRange(pending) > range.location {
+                shifted.length = max(NSMaxRange(pending) + delta, NSMaxRange(range)) - pending.location
+            }
+            pendingHighlight = NSUnionRange(shifted, range)
+        } else {
+            pendingHighlight = range
+        }
+        // Edits that don't end with didChangeText still get coloured.
+        guard !isHighlightFlushScheduled else { return }
+        isHighlightFlushScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.isHighlightFlushScheduled = false
+            self.flushHighlighting()
+        }
+    }
+
+    /// Recolours the text changed by recent edits, as an attribute-only edit that leaves the
+    /// selection alone.
+    func flushHighlighting() {
+        guard let range = pendingHighlight, let storage = textStorage else { return }
+        // Wait for the current edit, and for text being composed with an input method, whose
+        // attributes belong to the input method until it's committed.
+        guard storage.editedMask.isEmpty, !hasMarkedText() else { return }
+        pendingHighlight = nil
+        let length = storage.length
+        let location = min(range.location, length)
+        let clamped = NSRange(location: location, length: min(range.length, length - location))
+        let selection = selectedRanges
+        storage.beginEditing()
+        highlighter.highlight(storage, editedRange: clamped)
+        storage.endEditing()
+        if selectedRanges != selection {
+            selectedRanges = selection
+        }
     }
 
     // MARK: - Current line
