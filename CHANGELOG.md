@@ -3,6 +3,26 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.0 — Review and polish
+
+- Full review of every source file for correctness, concurrency isolation and Apple API
+  usage, with a mechanical syntax check of all Swift files.
+- Fixed: typesetting twice without changes (latexmk has nothing to do) was reported as
+  "Typesetting Failed"; an up-to-date PDF now counts as success.
+- Fixed: shifting or commenting a selection of whole lines also changed the line after it.
+- Documents saved as UTF-16 are typeset from a UTF-8 copy, since not every TeX engine
+  reads UTF-16.
+- Untitled documents that reference files by relative path now get a clear hint to save
+  the document, instead of only "file not found" errors.
+- Text replaced outside the editor (Revert To, versions) is applied after the SwiftUI
+  update that delivered it, avoiding state changes during a view update.
+- Menu commands are split so no builder has more than ten children, and nested menu
+  content is grouped.
+- Value types used as SwiftUI selections are `nonisolated`; explicit optional patterns
+  when switching on optional enums.
+- README rewritten: features, shortcuts, setup, manual Xcode steps (App Sandbox, app
+  icon, localization, tests), architecture and implementation notes.
+
 ## v0.6 — Menus, Settings, export and printing
 
 - Full menu bar, acting on the focused window:

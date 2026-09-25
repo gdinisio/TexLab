@@ -139,7 +139,12 @@ extension SourceTextView {
     private func editSelectedLines(actionName: (Bool) -> String, transform: ([String]) -> ([String], Bool)?) {
         guard let text = textStorage?.mutableString else { return }
         let selection = selectedRange()
-        let block = text.lineRange(for: selection)
+        // A selection of whole lines ends just after a line break; the next line isn't part of it.
+        var lineSelection = selection
+        if selection.length > 0, text.character(at: NSMaxRange(selection) - 1) == Char.newline {
+            lineSelection.length -= 1
+        }
+        let block = text.lineRange(for: lineSelection)
         let original = text.substring(with: block)
         let endsWithNewline = original.hasSuffix("\n")
         var lines = original.components(separatedBy: "\n")

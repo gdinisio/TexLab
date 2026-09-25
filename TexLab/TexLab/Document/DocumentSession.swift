@@ -10,7 +10,7 @@ import PDFKit
 import SwiftUI
 
 /// The views the sidebar can show.
-enum SidebarTab: String, CaseIterable, Identifiable {
+nonisolated enum SidebarTab: String, CaseIterable, Identifiable {
     case outline
     case issues
 

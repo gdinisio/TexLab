@@ -204,10 +204,13 @@ nonisolated enum Typesetter {
         let log = String(decoding: logData, as: UTF8.self)
         var entries = LaTeXLogParser.parse(log)
 
+        // Use the PDF if this run wrote it, or if the run succeeded without needing to
+        // (latexmk does nothing when no source has changed since the last run).
         let pdfURL = build.appending(path: "\(job).pdf")
         let pdfDate = (try? fileManager.attributesOfItem(atPath: pdfURL.filePath)[.modificationDate]) as? Date
         let isNewPDF = pdfDate.map { $0 >= start.addingTimeInterval(-1) } ?? false
-        let pdfData: Data? = isNewPDF ? (try? Data(contentsOf: pdfURL)) : nil
+        let isCurrentPDF = pdfDate != nil && (isNewPDF || run.succeeded)
+        let pdfData: Data? = isCurrentPDF ? (try? Data(contentsOf: pdfURL)) : nil
 
         if run.timedOut {
             entries.insert(LogEntry(severity: .error, message: String(localized: "Typesetting took too long and was stopped"), file: nil, line: nil), at: 0)
@@ -233,8 +236,12 @@ nonisolated enum Typesetter {
         )
     }
 
+    /// The source in the document's own encoding, so `inputenc` declarations still match.
+    /// TeX engines can't all read UTF-16, so such documents are typeset from UTF-8.
     private static func encodedSource(_ request: TypesetRequest) -> Data {
-        request.source.data(using: request.encoding) ?? Data(request.source.utf8)
+        let texReadableEncodings: [String.Encoding] = [.utf8, .isoLatin1, .windowsCP1252, .macOSRoman]
+        guard texReadableEncodings.contains(request.encoding) else { return Data(request.source.utf8) }
+        return request.source.data(using: request.encoding) ?? Data(request.source.utf8)
     }
 }
 

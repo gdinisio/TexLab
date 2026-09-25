@@ -16,8 +16,8 @@ nonisolated struct Issue: Identifiable, Hashable, Sendable {
     /// The file name shown next to the message.
     var fileName: String? {
         switch source {
-        case .file(let url): url.lastPathComponent
-        case .currentDocument, nil: nil
+        case .file(let url)?: url.lastPathComponent
+        case .currentDocument?, nil: nil
         }
     }
 

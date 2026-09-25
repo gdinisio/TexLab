@@ -162,6 +162,16 @@ extension DocumentSession {
         case .succeeded, .failed, .timedOut:
             sourceMap = result.sourceMap
             issues = makeIssues(from: result.entries, sourceMap: result.sourceMap)
+            if fileURL == nil, issues.contains(where: { $0.severity == .error && $0.message.contains("not found") }) {
+                // Untitled documents have no folder, so relative files can't be found yet.
+                issues.insert(Issue(
+                    id: -1,
+                    severity: .warning,
+                    message: String(localized: "Save the document so TeX can find the files next to it"),
+                    source: nil,
+                    line: nil
+                ), at: 0)
+            }
             issueCursor = -1
             if let data = result.pdfData, let document = PDFDocument(data: data) {
                 pdfDocument = document

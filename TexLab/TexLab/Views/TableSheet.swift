@@ -6,7 +6,7 @@
 import SwiftUI
 
 /// Column alignment for a generated table.
-enum TableColumnAlignment: String, CaseIterable, Identifiable {
+nonisolated enum TableColumnAlignment: String, CaseIterable, Identifiable {
     case left = "l"
     case center = "c"
     case right = "r"

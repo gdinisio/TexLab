@@ -20,24 +20,7 @@ struct TexLabCommands: Commands {
         ToolbarCommands()
         TextEditingCommands()
 
-        // File
-        CommandGroup(after: .newItem) {
-            NewFromTemplateMenu()
-        }
-        CommandGroup(after: .importExport) {
-            Button("Export PDF…") {
-                session?.isExportingPDF = true
-            }
-            .keyboardShortcut("e", modifiers: [.command, .shift])
-            .disabled(session?.pdfFileURL == nil)
-        }
-        CommandGroup(replacing: .printItem) {
-            Button("Print…") {
-                session?.printPDF()
-            }
-            .keyboardShortcut("p")
-            .disabled(session?.pdfDocument == nil)
-        }
+        FileAndHelpCommands()
 
         // Edit
         CommandGroup(after: .textEditing) {
@@ -50,38 +33,21 @@ struct TexLabCommands: Commands {
 
         // View
         CommandGroup(after: .sidebar) {
-            Button(session?.isPreviewVisible == false ? "Show Preview" : "Hide Preview") {
-                session?.isPreviewVisible.toggle()
-            }
-            .keyboardShortcut("p", modifiers: [.command, .option])
-            .disabled(session == nil)
-            Button(showsStatusBar ? "Hide Status Bar" : "Show Status Bar") {
-                showsStatusBar.toggle()
+            Group {
+                Button(session?.isPreviewVisible == false ? "Show Preview" : "Hide Preview") {
+                    session?.isPreviewVisible.toggle()
+                }
+                .keyboardShortcut("p", modifiers: [.command, .option])
+                .disabled(session == nil)
+                Button(showsStatusBar ? "Hide Status Bar" : "Show Status Bar") {
+                    showsStatusBar.toggle()
+                }
+                Divider()
+                Toggle("Line Numbers", isOn: $showsLineNumbers)
+                Toggle("Wrap Lines", isOn: $wrapsLines)
             }
             Divider()
-            Toggle("Line Numbers", isOn: $showsLineNumbers)
-            Toggle("Wrap Lines", isOn: $wrapsLines)
-            Divider()
-            Button("Zoom In") {
-                session?.preview.zoomIn()
-            }
-            .keyboardShortcut(">", modifiers: .command)
-            .disabled(session?.pdfDocument == nil)
-            Button("Zoom Out") {
-                session?.preview.zoomOut()
-            }
-            .keyboardShortcut("<", modifiers: .command)
-            .disabled(session?.pdfDocument == nil)
-            Button("Actual Size") {
-                session?.preview.zoomToActualSize()
-            }
-            .keyboardShortcut("0")
-            .disabled(session?.pdfDocument == nil)
-            Button("Zoom to Fit") {
-                session?.preview.zoomToFit()
-            }
-            .keyboardShortcut("9")
-            .disabled(session?.pdfDocument == nil)
+            previewZoomCommands
             Toggle("Two Pages", isOn: $previewShowsTwoPages)
             Divider()
         }
@@ -103,7 +69,10 @@ struct TexLabCommands: Commands {
                 formatButton(.monospace)
                 formatButton(.smallCaps)
                 formatButton(.sansSerif)
-                Divider()
+            }
+            .disabled(session == nil)
+            Divider()
+            Group {
                 Button("Comment Selection") {
                     session?.editor.toggleComment()
                 }
@@ -135,24 +104,7 @@ struct TexLabCommands: Commands {
         }
 
         CommandMenu("Typeset") {
-            Button("Typeset") {
-                session?.typeset()
-            }
-            .keyboardShortcut("r")
-            .disabled(session == nil)
-            Button("Stop Typesetting") {
-                session?.stopTypesetting()
-            }
-            .keyboardShortcut(".")
-            .disabled(session?.isTypesetting != true)
-            Toggle("Typeset Automatically", isOn: $typesetsAutomatically)
-            Divider()
-            Menu("Engine") {
-                if let session {
-                    EnginePicker(session: session)
-                }
-            }
-            .disabled(session == nil)
+            typesetCommands
             Divider()
             Button("Show in PDF") {
                 session?.revealSelectionInPreview()
@@ -182,19 +134,91 @@ struct TexLabCommands: Commands {
             .keyboardShortcut("k", modifiers: [.command, .shift])
             .disabled(session == nil)
         }
+    }
 
+    /// Typeset, Stop, Typeset Automatically and Engine.
+    @ViewBuilder
+    private var typesetCommands: some View {
+        Button("Typeset") {
+            session?.typeset()
+        }
+        .keyboardShortcut("r")
+        .disabled(session == nil)
+        Button("Stop Typesetting") {
+            session?.stopTypesetting()
+        }
+        .keyboardShortcut(".")
+        .disabled(session?.isTypesetting != true)
+        Toggle("Typeset Automatically", isOn: $typesetsAutomatically)
+        Divider()
+        Menu("Engine") {
+            if let session {
+                EnginePicker(session: session)
+            }
+        }
+        .disabled(session == nil)
+    }
+
+    /// Zoom In, Zoom Out, Actual Size and Zoom to Fit for the PDF preview.
+    @ViewBuilder
+    private var previewZoomCommands: some View {
+        Button("Zoom In") {
+            session?.preview.zoomIn()
+        }
+        .keyboardShortcut(">", modifiers: .command)
+        .disabled(session?.pdfDocument == nil)
+        Button("Zoom Out") {
+            session?.preview.zoomOut()
+        }
+        .keyboardShortcut("<", modifiers: .command)
+        .disabled(session?.pdfDocument == nil)
+        Button("Actual Size") {
+            session?.preview.zoomToActualSize()
+        }
+        .keyboardShortcut("0")
+        .disabled(session?.pdfDocument == nil)
+        Button("Zoom to Fit") {
+            session?.preview.zoomToFit()
+        }
+        .keyboardShortcut("9")
+        .disabled(session?.pdfDocument == nil)
+    }
+
+    private func formatButton(_ format: FormatCommand) -> some View {
+        Button(format.title) {
+            session?.editor.toggleWrap(prefix: format.prefix, suffix: format.suffix, actionName: format.title)
+        }
+    }
+}
+
+/// The File and Help menu additions.
+struct FileAndHelpCommands: Commands {
+    @FocusedValue(\.documentSession) private var session
+
+    var body: some Commands {
+        CommandGroup(after: .newItem) {
+            NewFromTemplateMenu()
+        }
+        CommandGroup(after: .importExport) {
+            Button("Export PDF…") {
+                session?.isExportingPDF = true
+            }
+            .keyboardShortcut("e", modifiers: [.command, .shift])
+            .disabled(session?.pdfFileURL == nil)
+        }
+        CommandGroup(replacing: .printItem) {
+            Button("Print…") {
+                session?.printPDF()
+            }
+            .keyboardShortcut("p")
+            .disabled(session?.pdfDocument == nil)
+        }
         CommandGroup(replacing: .help) {
             Link("LaTeX Documentation", destination: URL(string: "https://www.latex-project.org/help/documentation/")!)
             Link("LaTeX Wikibook", destination: URL(string: "https://en.wikibooks.org/wiki/LaTeX")!)
             Link("CTAN Package Search", destination: URL(string: "https://ctan.org/search")!)
             Divider()
             Link("Get MacTeX", destination: URL(string: "https://tug.org/mactex/")!)
-        }
-    }
-
-    private func formatButton(_ format: FormatCommand) -> some View {
-        Button(format.title) {
-            session?.editor.toggleWrap(prefix: format.prefix, suffix: format.suffix, actionName: format.title)
         }
     }
 }

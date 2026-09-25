@@ -1,51 +1,65 @@
 # TexLab
 
-TexLab is a native LaTeX editor for macOS. It is a document-based SwiftUI app that feels
-like it belongs on the Mac: every window is a `.tex` document with the standard File menu
-(New, Open Recent, Save, Duplicate, Rename, Revert To, versions and autosave), tabs, full
-screen, and the system text system for editing, spelling and Find.
+TexLab is a native LaTeX editor for macOS. It is a document-based SwiftUI app built on
+the Mac text system and PDFKit: every window is a `.tex` document with the standard File
+menu (New, Open Recent, Save, Duplicate, Rename, Move To, Revert To and versions,
+autosave), window tabs and full screen. You write on the left, the typeset PDF updates on
+the right, and the two are linked both ways with SyncTeX.
 
-> Status: in active development. See [CHANGELOG.md](CHANGELOG.md) for what has landed.
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 ## Features
 
-- **LaTeX documents** — opens and saves `.tex`, `.ltx`, `.bib`, `.sty`, `.cls` and plain
-  text files. The original text encoding (UTF-8, UTF-16, Windows-1252, Latin-1 or
-  Mac OS Roman) is detected on open and preserved on save.
-- **Templates** — File ▸ New from Template offers Article, Report, Book, Presentation
-  (Beamer), Letter and Blank documents. New documents start from the Article template.
-- **Source editor** — built on the Mac text system, with LaTeX syntax colouring (Xcode's
-  light and dark palettes), line numbers, current line highlight, spelling that ignores
-  markup, Find and Replace, and a status bar with line, column and word count.
+**Writing**
+
+- **Source editor** on the Mac text system: Find and Replace, spelling, dictation,
+  services, Look Up and undo behave as in every Mac app.
+- **LaTeX syntax colouring** in Xcode's light and dark palettes: commands, environments,
+  math, comments, keys and verbatim text; section titles in bold. Spelling ignores markup
+  and checks prose and comments only.
+- **Line numbers** with the current line emphasised and issue markers; click a number to
+  select the line. A subtle current line highlight.
 - **Smart editing** — automatic indentation; Return after `\begin{itemize}` closes the
   environment and starts an `\item`; Return continues a list and an empty item leaves it
-  (Option-Return inserts a plain line break); brackets and `$` pair automatically and
-  typing an opening bracket with a selection wraps it; Tab and Shift-Tab indent lines.
-- **Completion** — press Esc for commands, environments, labels, citation keys, packages,
-  classes and files. Completions appear automatically after `\begin{`, `\ref{`,
-  `\cite{`, `\usepackage{`, `\includegraphics{` and similar.
-- **Typesetting** — ⌘R typesets with pdfLaTeX, XeLaTeX or LuaLaTeX (`% !TEX program`
-  magic comment or the default engine), through latexmk when available. Typesetting also
-  runs automatically after a pause in typing. Unsaved changes are included, and
-  auxiliary files stay out of your folders. Multi-file projects work from any file with
-  `% !TEX root = main.tex`.
-- **Issue markers** — errors and warnings are marked in the editor's gutter.
-- **Outline** — a sidebar tree of parts, chapters, sections, Beamer frames, figures and
-  tables that follows the insertion point; select an item to jump to it.
-- **Issues** — a sidebar list of errors, warnings and bad boxes; click to see the source.
-- **Insert and Symbols** — toolbar menus for headings, lists, figures (from an image
-  file), tables (any size), math, references and environments, plus a searchable symbol
-  palette that adds `$…$` when needed.
-- **Share** — share the typeset PDF, named after the document.
-- **Live preview** — the PDF appears beside the editor and keeps its place as you type.
-- **SyncTeX** — ⌘-click the PDF (or Show in Source) to jump to the source line, even in
-  another file of the project; Show in PDF in the editor highlights the matching text.
-- **Drag and drop** — drop images, `.tex` or `.bib` files on the editor to insert
+  (Option-Return inserts a plain line break); brackets and `$` pair automatically, and
+  typing an opening bracket with a selection wraps it; Tab and Shift-Tab indent lines;
+  ⌘/ comments lines.
+- **Completion** — press Esc for commands, environments, labels, citation keys (from
+  `.bib` files and `\bibitem`), macros defined in the document, packages, document classes
+  and files beside the document. Completions appear automatically after `\begin{`,
+  `\ref{`, `\cite{`, `\usepackage{`, `\includegraphics{` and similar.
+- **Insert menu and toolbar** — headings, lists, figures (from an image file), tables of
+  any size, math, references, environments, spacing and breaks, fitted to the current
+  indentation.
+- **Format menu** — ⌘B, ⌘I and ⌘U wrap the selection in `\textbf`, `\textit` and
+  `\underline` (and unwrap it again), plus emphasis, monospace, small caps and sans serif.
+- **Symbols palette** — searchable Greek letters, relations, operators, arrows and text
+  symbols; math symbols get `$…$` when inserted outside math.
+- **Drag and drop** — drop images, `.tex` or `.bib` files onto the editor to insert
   `\includegraphics`, `\input` or `\bibliography` with a path relative to the document.
+- **Templates** — File ▸ New from Template: Article, Report, Book, Presentation (Beamer),
+  Letter and Blank.
 
-- **Export and print** — File ▸ Export PDF saves the PDF anywhere; ⌘P prints it.
-- **Settings** — editor appearance and behaviour, automatic typesetting, TeX location,
-  default engine, latexmk, shell escape and build files.
+**Typesetting and preview**
+
+- **Typeset** with ⌘R, or automatically after a pause in typing. Unsaved changes are
+  included, and auxiliary files stay out of your folders.
+- **Engines** — pdfLaTeX, XeLaTeX or LuaLaTeX, chosen per document with Typeset ▸ Engine
+  (which writes a `% !TEX program` comment other editors understand) or by default in
+  Settings. latexmk is used when installed; otherwise TexLab runs BibTeX/Biber, makeindex
+  and repeated passes itself.
+- **Multi-file projects** — add `% !TEX root = main.tex` to a chapter and typesetting it
+  typesets the whole project, including the chapter's unsaved text.
+- **Live preview** that keeps its place and zoom as the document changes.
+- **SyncTeX** — ⌘-click the PDF (or Show in Source) to jump to the source line, even in
+  another file; ⇧⌘J (or Show in PDF) highlights the text a line produced.
+- **Issues** — errors, warnings and bad boxes with file and line in the sidebar and the
+  gutter; ⌘' moves through them. The full log is one click away.
+- **Outline** — a sidebar tree of parts, chapters, sections, Beamer frames, figures and
+  tables that follows the insertion point.
+- **Share, export and print** the PDF, named after the document.
+- **Encodings** — UTF-8, UTF-16, Windows-1252, Latin-1 and Mac OS Roman files are opened
+  and saved in their own encoding.
 
 ## Keyboard shortcuts
 
@@ -61,7 +75,7 @@ screen, and the system text system for editing, spelling and Find.
 | Comment Selection | ⌘/ |
 | Shift Right / Left | ⌘] / ⌘[ or Tab / ⇧Tab |
 | Complete | Esc |
-| Go to Line | ⌘L |
+| Go to Line (`line` or `line:column`) | ⌘L |
 | Bigger / Smaller Text | ⌘+ (or ⌘=) / ⌘- |
 | Show/Hide Preview | ⌥⌘P |
 | Show/Hide Sidebar | ⌃⌘S |
@@ -71,89 +85,95 @@ screen, and the system text system for editing, spelling and Find.
 ## Requirements
 
 - macOS 27 or later, Xcode 27 or later.
-- A TeX distribution for typesetting, such as [MacTeX](https://tug.org/mactex/).
+- A TeX distribution — [MacTeX](https://tug.org/mactex/) is recommended; BasicTeX,
+  TeX Live, Homebrew and MacPorts installations are found too.
 
 ## Getting started
 
 1. Open `TexLab/TexLab.xcodeproj` in Xcode.
-2. Select the **TexLab** scheme and a signing team (Signing & Capabilities).
-3. **Turn off App Sandbox** for the TexLab target (see below).
+2. Choose your team under **Signing & Capabilities** for the TexLab target.
+3. **Remove the App Sandbox capability** (see below).
 4. Build and run (⌘R).
 
-### Why App Sandbox must be off
+### Manual steps in Xcode
 
-TexLab typesets with the TeX distribution installed on your Mac, like TeXShop and
-TeXstudio. A sandboxed app can't run programs from `/Library/TeX` or
-`/usr/local/texlive`, and anything it runs inherits the sandbox, so TeX couldn't read the
-chapters, images and bibliographies next to your document either. The Xcode template
-enables the sandbox, so disable it once, by hand:
+These are left to you on purpose, because Xcode owns them:
 
-> Xcode ▸ select the **TexLab** project ▸ **TexLab** target ▸ **Signing & Capabilities** ▸
-> **App Sandbox** ▸ click the trash button to remove the capability.
-
-Hardened Runtime can stay on. If the sandbox is left on, TexLab still runs and explains in
-the preview that TeX is unavailable.
-
-### TeX distribution
-
-Install [MacTeX](https://tug.org/mactex/) (recommended) or BasicTeX. TexLab looks in
-`/Library/TeX/texbin`, `/usr/local/texlive/*/bin/*`, Homebrew and MacPorts locations; a
-custom folder can be chosen in Settings. latexmk is used when it is installed (it is part
-of MacTeX); otherwise TexLab runs the engine, BibTeX/Biber and makeindex itself.
+- **App Sandbox (required).** TexLab typesets with the TeX distribution installed on
+  your Mac, like TeXShop and TeXstudio. A sandboxed app can't run programs from
+  `/Library/TeX` or `/usr/local/texlive`, and anything it runs inherits the sandbox, so TeX
+  couldn't read the chapters, images and bibliographies next to your documents either.
+  Select the **TexLab** target ▸ **Signing & Capabilities** ▸ **App Sandbox** ▸ click the
+  trash button. Hardened Runtime can stay on. If the sandbox is left on, TexLab still runs
+  and explains in the preview and in Settings that TeX is blocked.
+- **App icon (recommended).** `Assets.xcassets/AppIcon` is still empty; add your artwork
+  there (or with Icon Composer).
+- **Localization (optional).** All user-facing text uses `String(localized:)` or SwiftUI
+  string keys. Add a String Catalog (File ▸ New ▸ File ▸ String Catalog) and Xcode will
+  collect every string at build time.
+- **Tests (optional).** The project has no test target yet. The parsers
+  (`LaTeXTokenizer`, `LaTeXLogParser`, `SyncTeXData`, `OutlineParser`, `MagicComments`,
+  `WordCounter`) are pure, `nonisolated` code designed to be unit-tested once a test
+  target is added in Xcode.
 
 ## Architecture
 
-The Xcode project uses a synchronized folder group, so any Swift file added under
-`TexLab/TexLab/` is part of the app target automatically — no project file edits needed.
+The Xcode project uses a synchronized folder group, so every Swift file under
+`TexLab/TexLab/` belongs to the app target automatically — no project file edits needed.
 
 ```
 TexLab/TexLab/
 ├── App/            App entry point and menu commands
-├── Document/       FileDocument model, file types, templates
-├── Support/        Settings keys and defaults, shared helpers
-├── Views/          SwiftUI window content
-├── Editor/         Source editor (AppKit text system)
-├── Typesetting/    TeX distribution discovery, typesetting pipeline, log parsing
-└── Preview/        PDF preview and SyncTeX
+├── Document/       FileDocument, templates, per-window session, outline
+├── Editor/         Source editor (AppKit text system), syntax, completion, snippets
+├── Typesetting/    TeX discovery, typesetting pipeline, log parsing, SyncTeX
+├── Preview/        PDF preview and navigation
+├── Views/          Window layout, sidebar, toolbar, sheets, Settings
+└── Support/        Settings keys and defaults, paths, text statistics
 ```
 
-- `TexLabDocument` is a `FileDocument` value type holding the source text and its
-  encoding. File types are declared as imported UTIs in `Info.plist`
-  (`org.tug.tex`, `org.tug.bib`, `org.tug.sty`, `org.tug.cls`), the identifiers shared by
-  other TeX editors on macOS, so TexLab cooperates with them instead of claiming ownership.
-- Settings live in `UserDefaults`. `SettingsKey` names every key and `AppSettings` holds
-  the defaults, registered at launch so AppKit code and `@AppStorage` agree.
-- The editor (`Editor/`) is an `NSTextView` subclass, `SourceTextView`, hosted in SwiftUI
-  by `SourceEditor`. It uses TextKit 1 explicitly for precise line geometry (gutter and
-  current line highlight). `LaTeXTokenizer` is a single-pass scanner shared by syntax
-  colouring, spelling suppression and the word count; `SyntaxHighlighter` re-colours only
-  the paragraph block around an edit, since TeX resets math mode at blank lines.
-  `LineIndex` maps offsets to line numbers and is updated incrementally on every edit.
-- `DocumentSession` is the per-window model (`@Observable`): editor controller, caret
-  position and statistics. It grows with typesetting and preview state.
-- Typesetting (`Typesetting/`): `TeXDistribution` finds TeX; `Typesetter` writes the
-  editor text to a private build folder and runs latexmk or the engine directly through
-  `ProcessRunner` (async `Process` wrapper with cancellation and a time limit, output
-  written to a file so pipes can't stall); `LaTeXLogParser` turns the log into
-  `LogEntry` values; `SourceMap` maps the paths TeX reports (build copy, overlay,
-  relative paths) back to the files the user edits; `SyncTeXData` parses SyncTeX.
-  `MagicComments` reads `% !TEX program` and `% !TEX root`.
-- Preview (`Preview/`): `SyncPDFView` is a `PDFView` subclass that restores the clip
-  view origin when a new document arrives, handles ⌘-click inverse search and highlights
-  forward-search results; `PDFPreview` hosts it; `PreviewController` exposes zoom,
-  layout, reveal and printing to commands. `DocumentSession+Sync` converts between
-  editor lines and PDF positions through `SyncTeXData` and `SourceMap`.
-- Window (`Views/`): `ContentView` arranges a `NavigationSplitView` (sidebar: outline or
-  issues) whose detail is an `HSplitView` of editor and preview, with a customizable
-  toolbar (`DocumentToolbar.swift`). `OutlineParser` builds the outline tree;
-  `SnippetCatalog`, `SymbolCatalog` and `FormatCommand` define insertable text.
-- Menus (`App/TexLabCommands.swift`) reach the focused window's `DocumentSession`
-  through `FocusedValues.documentSession`; each window publishes its session with
-  `focusedSceneValue`. Settings (`Views/SettingsView.swift`) are `@AppStorage` forms.
-- `DocumentSession+Typesetting` queues runs, applies results, maps issues to files and
-  schedules automatic typesetting. `SourceNavigator` opens other files at a line.
-- The project builds with Swift's default `MainActor` isolation. Types that run off the
-  main thread (file decoding, typesetting, parsing) are explicitly `nonisolated`.
+- **Document** — `TexLabDocument` is a `FileDocument` holding the text and its encoding.
+  File types are imported UTIs in `Info.plist` (`org.tug.tex`, `.bib`, `.sty`, `.cls`),
+  the identifiers other Mac TeX editors use, so TexLab cooperates rather than claiming
+  ownership.
+- **Session** — `DocumentSession` (`@Observable`) is the per-window model: editor and
+  preview controllers, caret position, word count, outline, typesetting state and issues.
+  Extensions add typesetting (`+Typesetting`) and SyncTeX navigation (`+Sync`). Menu
+  commands reach the focused window's session through `FocusedValues.documentSession`.
+- **Editor** — `SourceTextView` is a TextKit 1 `NSTextView` subclass hosted by
+  `SourceEditor` (`NSViewRepresentable`). TextKit 1 gives precise line geometry for the
+  gutter (`LineNumberRulerView`) and current line highlight. `LaTeXTokenizer` is a
+  single-pass scanner shared by colouring, spelling suppression and the word count;
+  `SyntaxHighlighter` re-colours only the paragraph block around an edit (TeX resets math
+  mode at blank lines) from the text storage's `willProcessEditing`, so fonts are fixed
+  up afterwards. `LineIndex` maps offsets to lines incrementally.
+- **Typesetting** — `TeXDistribution` finds TeX without relying on the shell `PATH`.
+  `Typesetter` writes the editor text to a build folder in
+  `~/Library/Caches/com.gdinisio.TexLab/Typeset` and runs TeX in the document's folder
+  through `ProcessRunner` (async `Process` wrapper with cancellation, a time limit and
+  file-based output so pipes can't stall). `LaTeXLogParser` turns the log into issues;
+  `SourceMap` maps the paths TeX reports (build copy, overlay, relative paths) back to the
+  files you edit; `SyncTeXData` parses uncompressed SyncTeX with a byte-level parser.
+- **Preview** — `SyncPDFView` (`PDFView` subclass) restores the scroll position when a
+  new PDF arrives, handles ⌘-click and highlights forward-search results.
+- **Concurrency** — the project builds with Swift's default `MainActor` isolation. Code
+  that runs off the main thread (decoding, typesetting, parsing) is explicitly
+  `nonisolated` and `Sendable`; typesetting runs in a detached task and results are
+  applied on the main actor.
+
+## Implementation notes
+
+- The log parser and SyncTeX search were validated against real TeX Live 2023 output
+  (pdfTeX, XeTeX, LuaTeX logs; `synctex` command-line results).
+- Typesetting uses `-interaction=nonstopmode -file-line-error -synctex=-1` and sets
+  `max_print_line=10000` so log lines aren't wrapped.
+- `% !TEX root` projects: the edited file's unsaved text is written to an overlay folder
+  that TeX searches first (`TEXINPUTS`). Paths written as `./chapter` bypass TeX's search
+  path, so for those the saved file is used.
+- An untitled document is typeset in its build folder, so files it references by
+  relative path are found once the document is saved.
+- Shell escape is off by default and can be enabled in Settings for packages such as
+  minted.
 
 ## License
 

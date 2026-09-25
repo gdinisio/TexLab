@@ -69,23 +69,27 @@ struct InsertMenuContent: View {
     var session: DocumentSession?
 
     var body: some View {
-        snippetMenu("Heading", systemImage: "textformat.size", snippets: SnippetCatalog.headings)
-        snippetMenu("List", systemImage: "list.bullet", snippets: SnippetCatalog.lists)
+        Group {
+            snippetMenu("Heading", systemImage: "textformat.size", snippets: SnippetCatalog.headings)
+            snippetMenu("List", systemImage: "list.bullet", snippets: SnippetCatalog.lists)
+            Divider()
+            ForEach(SnippetCatalog.floats) { snippet in
+                snippetButton(snippet)
+            }
+            Button("Image…", systemImage: "photo.badge.plus") {
+                session?.isImportingImage = true
+            }
+            Button("Table…", systemImage: "tablecells.badge.ellipsis") {
+                session?.isShowingTableSheet = true
+            }
+        }
         Divider()
-        ForEach(SnippetCatalog.floats) { snippet in
-            snippetButton(snippet)
+        Group {
+            snippetMenu("Math", systemImage: "x.squareroot", snippets: SnippetCatalog.math)
+            snippetMenu("References", systemImage: "link", snippets: SnippetCatalog.references)
+            snippetMenu("Environment", systemImage: "curlybraces", snippets: SnippetCatalog.environments)
+            snippetMenu("Spacing and Breaks", systemImage: "arrow.down.to.line", snippets: SnippetCatalog.breaks)
         }
-        Button("Image…", systemImage: "photo.badge.plus") {
-            session?.isImportingImage = true
-        }
-        Button("Table…", systemImage: "tablecells.badge.ellipsis") {
-            session?.isShowingTableSheet = true
-        }
-        Divider()
-        snippetMenu("Math", systemImage: "x.squareroot", snippets: SnippetCatalog.math)
-        snippetMenu("References", systemImage: "link", snippets: SnippetCatalog.references)
-        snippetMenu("Environment", systemImage: "curlybraces", snippets: SnippetCatalog.environments)
-        snippetMenu("Spacing and Breaks", systemImage: "arrow.down.to.line", snippets: SnippetCatalog.breaks)
         Divider()
         Button("Symbol…", systemImage: "function") {
             session?.isShowingSymbols = true
