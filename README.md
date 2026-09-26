@@ -197,22 +197,25 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 1. Open `TexLab/TexLab.xcodeproj` in Xcode.
 2. Choose your team under **Signing & Capabilities** for the TexLab target.
-3. **Remove the App Sandbox capability** (see below).
+3. Check that App Sandbox is off (see below; the project already has it off).
 4. Build and run (⌘R).
 
 ### Manual steps in Xcode
 
 These are left to you on purpose, because Xcode owns them:
 
-- **App Sandbox (required).** TexLab typesets with the TeX distribution installed on
+- **App Sandbox (off — done).** TexLab typesets with the TeX distribution installed on
   your Mac, like TeXShop and TeXstudio. A sandboxed app can't run programs from
   `/Library/TeX` or `/usr/local/texlive`, and anything it runs inherits the sandbox, so TeX
   couldn't read the chapters, images and bibliographies next to your documents either.
   Select the **TexLab** target ▸ **Signing & Capabilities** ▸ **App Sandbox** ▸ click the
-  trash button. Hardened Runtime can stay on. If the sandbox is left on, TexLab still runs
-  and explains in the preview and in Settings that TeX is blocked.
-- **App icon (recommended).** `Assets.xcassets/AppIcon` is still empty; add your artwork
-  there (or with Icon Composer).
+  trash button. Hardened Runtime can stay on. If the sandbox is ever turned back on,
+  TexLab still runs and explains in the preview and in Settings that TeX is blocked.
+- **App icon (done).** The icon was drawn in Pixelmator Pro and assembled in Icon
+  Composer; its sources live in `icon/` (`TexLab.icon`, the layer SVGs and the Pixelmator
+  document), and the exported sizes, including dark and tinted variants, are in
+  `Assets.xcassets/AppIcon`. The Welcome window shows it too. Update it in those tools
+  rather than by editing the asset catalog by hand.
 - **Localization (optional).** All user-facing text uses `String(localized:)` or SwiftUI
   string keys. Add a String Catalog (File ▸ New ▸ File ▸ String Catalog) and Xcode will
   collect every string at build time.

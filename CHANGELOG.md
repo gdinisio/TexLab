@@ -3,6 +3,13 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.19 — App icon
+
+- The TexLab app icon, drawn in Pixelmator Pro and assembled in Icon Composer, with its
+  sources in `icon/` and the exported sizes (default, dark and tinted) in
+  `Assets.xcassets/AppIcon`. It also appears in the Welcome window.
+- App Sandbox is off in the project, as TeX needs; the shared Xcode scheme is committed.
+
 ## v1.18 — Fixes: crash opening a second file, preview divider, theorem labels
 
 - Fixed a crash when opening another file from the project navigator. The editor/preview
