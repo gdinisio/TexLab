@@ -20,7 +20,8 @@ enum VisualLabelRenderer {
         switch label.kind {
         case .inline(let bold):
             let text = inlineText(label.text, font: font, bold: bold)
-            return (CGSize(width: ceil(text.size().width), height: ceil(font.ascender - font.descender)), -font.descender)
+            // A little spare width, so rounding can never clip the last letter.
+            return (CGSize(width: ceil(text.size().width) + 2, height: ceil(font.ascender - font.descender)), -font.descender)
         case .chip:
             let text = chipText(label.text, font: font)
             let height = ceil(font.ascender - font.descender) + 2
@@ -30,7 +31,7 @@ enum VisualLabelRenderer {
             let headingFont = environmentFont(font, italic: italic)
             let text = NSAttributedString(string: label.text, attributes: [.font: headingFont])
             let height = ceil(headingFont.ascender - headingFont.descender) + 6
-            return (CGSize(width: ceil(text.size().width), height: height), -headingFont.descender + 2)
+            return (CGSize(width: ceil(text.size().width) + 2, height: height), environmentDescent(headingFont))
         case .titleBlock(let author):
             let title = titleText(label.text, font: font)
             var width = title.size().width
@@ -55,7 +56,8 @@ enum VisualLabelRenderer {
     static func draw(_ label: VisualLabel, image: NSImage?, in rect: NSRect, font: NSFont) {
         switch label.kind {
         case .inline(let bold):
-            inlineText(label.text, font: font, bold: bold).draw(with: rect, options: [.usesLineFragmentOrigin])
+            let text = inlineText(label.text, font: font, bold: bold)
+            drawOnBaseline(text, font: text.attribute(.font, at: 0, effectiveRange: nil) as? NSFont ?? font, in: rect, descent: -font.descender)
         case .chip(let systemImage):
             drawChip(label.text, systemImage: systemImage, in: rect, font: font)
         case .environment(_, let italic):
@@ -64,7 +66,7 @@ enum VisualLabelRenderer {
                 .font: headingFont,
                 .foregroundColor: NSColor.labelColor,
             ])
-            text.draw(with: rect.insetBy(dx: 0, dy: 3), options: [.usesLineFragmentOrigin])
+            drawOnBaseline(text, font: headingFont, in: rect, descent: environmentDescent(headingFont))
         case .titleBlock(let author):
             let title = titleText(label.text, font: font)
             let titleSize = title.size()
@@ -116,8 +118,21 @@ enum VisualLabelRenderer {
         ])
     }
 
+    /// Theorem-like headings in bold and Proof in italic, in the text's own typeface and
+    /// size, as LaTeX sets them.
     private static func environmentFont(_ font: NSFont, italic: Bool) -> NSFont {
-        italic ? variant(of: font, traits: .italic) : variant(of: font, traits: .bold, scale: 1.12)
+        italic ? variant(of: font, traits: .italic) : variant(of: font, traits: .bold)
+    }
+
+    private static func environmentDescent(_ font: NSFont) -> CGFloat {
+        -font.descender + 2
+    }
+
+    /// Draws one line of text with its baseline where the layout put the label's baseline,
+    /// without a width limit, so it's never wrapped or cut short.
+    private static func drawOnBaseline(_ text: NSAttributedString, font: NSFont, in rect: NSRect, descent: CGFloat) {
+        let baseline = rect.maxY - descent
+        text.draw(at: NSPoint(x: rect.minX, y: baseline - font.ascender))
     }
 
     private static func titleText(_ string: String, font: NSFont) -> NSAttributedString {

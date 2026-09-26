@@ -206,7 +206,13 @@ final class SourceTextView: NSTextView {
         if frame.height < visible.height {
             setFrameSize(NSSize(width: frame.width, height: visible.height))
         }
-        updateReadableWidthInset(visibleWidth: visible.width)
+        // The column is centred in a width that doesn't change when a scroll bar appears or
+        // disappears, so the two can't keep re-laying each other out.
+        var stableWidth = scrollView.frame.width
+        if scrollView.rulersVisible, let ruler = scrollView.verticalRulerView {
+            stableWidth -= ruler.ruleThickness
+        }
+        updateReadableWidthInset(visibleWidth: min(stableWidth, visible.width + 20))
         // Keep the text container exactly as wide as the text area. Tracking the text view's
         // width only happens when its frame changes, so a container that got out of step
         // (for example sized while the window was still being laid out) would stay wrong.
@@ -232,7 +238,7 @@ final class SourceTextView: NSTextView {
             let column = CGFloat(max(configuration.lineWidth, 320))
             horizontal = max((visibleWidth - column) / 2, Self.standardInset.width)
         }
-        if abs(textContainerInset.width - horizontal) > 0.5 {
+        if abs(textContainerInset.width - horizontal.rounded()) > 1 {
             textContainerInset = NSSize(width: horizontal.rounded(), height: Self.standardInset.height)
         }
     }

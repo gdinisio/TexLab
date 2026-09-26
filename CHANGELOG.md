@@ -3,6 +3,21 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.18 — Fixes: crash opening a second file, preview divider, theorem labels
+
+- Fixed a crash when opening another file from the project navigator. The editor/preview
+  split view replaced its panes' SwiftUI content while the new window was being laid out
+  and refreshed cursor areas from `layout()`, which could keep asking for another layout
+  pass until AppKit gave up. Content is now updated after layout, cursor areas after a
+  resize, and the Visual editor's centred column no longer depends on whether a scroll bar
+  is showing (another way two layouts could chase each other).
+- Hiding the preview now takes it out of the split view, so no divider line is left at the
+  edge of the editor; showing it again restores its width.
+- Visual editor: Definition, Proof and other environment headings no longer lose their
+  last letter. Labels are drawn on the text's baseline without a width limit, and theorem
+  headings use the text's typeface and size — bold, with Proof in italic, as LaTeX sets
+  them.
+
 ## v1.17 — Build fix
 
 - The line length slider's two value labels are the same view type, as `Slider` requires.

@@ -30,55 +30,103 @@ struct PaneSplitView<Leading: View, Trailing: View>: NSViewRepresentable {
         splitView.dividerStyle = .thin
         splitView.delegate = context.coordinator
 
+        let coordinator = context.coordinator
         let leadingHost = NSHostingView(rootView: AnyView(leading()))
         let trailingHost = NSHostingView(rootView: AnyView(trailing()))
         for host in [leadingHost, trailingHost] {
             host.sizingOptions = []
         }
-        context.coordinator.leadingHost = leadingHost
-        context.coordinator.trailingHost = trailingHost
+        coordinator.splitView = splitView
+        coordinator.leadingHost = leadingHost
+        coordinator.trailingHost = trailingHost
         splitView.addArrangedSubview(leadingHost)
-        splitView.addArrangedSubview(trailingHost)
         splitView.setHoldingPriority(.defaultLow - 1, forSubviewAt: 0)
-        splitView.setHoldingPriority(.defaultLow, forSubviewAt: 1)
+        if showsTrailing {
+            splitView.addArrangedSubview(trailingHost)
+            splitView.setHoldingPriority(.defaultLow, forSubviewAt: 1)
+        }
         splitView.autosaveName = autosaveName
-        trailingHost.isHidden = !showsTrailing
         // Without a remembered position, give the editor a little more than half.
         let key = "NSSplitView Subview Frames \(autosaveName)"
-        if UserDefaults.standard.object(forKey: key) == nil {
-            DispatchQueue.main.async { [weak splitView] in
-                guard let splitView, splitView.bounds.width > 0, !trailingHost.isHidden else { return }
-                splitView.setPosition((splitView.bounds.width * 0.52).rounded(), ofDividerAt: 0)
-            }
+        if showsTrailing, UserDefaults.standard.object(forKey: key) == nil {
+            coordinator.placeDivider(atFraction: 0.52)
         }
         return splitView
     }
 
     func updateNSView(_ splitView: NSSplitView, context: Context) {
         let coordinator = context.coordinator
-        coordinator.leadingHost?.rootView = AnyView(leading())
-        coordinator.trailingHost?.rootView = AnyView(trailing())
-        guard let trailingHost = coordinator.trailingHost, trailingHost.isHidden == showsTrailing else { return }
-        if showsTrailing {
-            trailingHost.isHidden = false
-            // Restore the width it had, or split the window evenly the first time.
-            let width = coordinator.trailingWidth ?? splitView.bounds.width / 2
-            splitView.adjustSubviews()
-            splitView.setPosition(max(splitView.bounds.width - width - splitView.dividerThickness, Coordinator.minimumLeadingWidth), ofDividerAt: 0)
-        } else {
-            coordinator.trailingWidth = trailingHost.frame.width
-            trailingHost.isHidden = true
-            splitView.adjustSubviews()
-        }
+        // Replacing the panes' content is deferred until after the current layout pass:
+        // SwiftUI can update this view while laying out the window, and changing a hosting
+        // view's content then would ask for layout again, over and over.
+        coordinator.pendingContent = (AnyView(leading()), AnyView(trailing()))
+        coordinator.scheduleContentUpdate()
+        coordinator.setTrailingVisible(showsTrailing)
     }
 
     final class Coordinator: NSObject, NSSplitViewDelegate {
         static var minimumLeadingWidth: CGFloat { 320 }
         static var minimumTrailingWidth: CGFloat { 280 }
 
+        weak var splitView: NSSplitView?
         var leadingHost: NSHostingView<AnyView>?
         var trailingHost: NSHostingView<AnyView>?
-        var trailingWidth: CGFloat?
+        var pendingContent: (AnyView, AnyView)?
+        private var isContentUpdateScheduled = false
+        /// The preview's width when it was hidden, to restore it.
+        private var trailingWidth: CGFloat?
+
+        func scheduleContentUpdate() {
+            guard !isContentUpdateScheduled else { return }
+            isContentUpdateScheduled = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.isContentUpdateScheduled = false
+                guard let content = self.pendingContent else { return }
+                self.pendingContent = nil
+                self.leadingHost?.rootView = content.0
+                self.trailingHost?.rootView = content.1
+            }
+        }
+
+        /// Shows or hides the preview. A hidden preview is taken out of the split view, so
+        /// no divider is left at the edge of the editor.
+        func setTrailingVisible(_ visible: Bool) {
+            guard let splitView, let trailingHost else { return }
+            let isShown = splitView.arrangedSubviews.contains(trailingHost)
+            guard visible != isShown else { return }
+            if visible {
+                splitView.addArrangedSubview(trailingHost)
+                splitView.setHoldingPriority(.defaultLow, forSubviewAt: 1)
+                let width = trailingWidth
+                DispatchQueue.main.async { [weak self, weak splitView] in
+                    guard let self, let splitView, splitView.bounds.width > 0 else { return }
+                    let trailing = width ?? splitView.bounds.width * 0.48
+                    let position = splitView.bounds.width - trailing - splitView.dividerThickness
+                    splitView.setPosition(max(position, Self.minimumLeadingWidth), ofDividerAt: 0)
+                    self.refreshCursorRects()
+                }
+            } else {
+                trailingWidth = trailingHost.frame.width > 0 ? trailingHost.frame.width : nil
+                splitView.removeArrangedSubview(trailingHost)
+                trailingHost.removeFromSuperview()
+                refreshCursorRects()
+            }
+        }
+
+        func placeDivider(atFraction fraction: CGFloat) {
+            DispatchQueue.main.async { [weak splitView] in
+                guard let splitView, splitView.bounds.width > 0, splitView.arrangedSubviews.count > 1 else { return }
+                splitView.setPosition((splitView.bounds.width * fraction).rounded(), ofDividerAt: 0)
+            }
+        }
+
+        private func refreshCursorRects() {
+            DispatchQueue.main.async { [weak splitView] in
+                guard let splitView else { return }
+                splitView.window?.invalidateCursorRects(for: splitView)
+            }
+        }
 
         func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposedMinimumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
             max(proposedMinimumPosition, Self.minimumLeadingWidth)
@@ -97,6 +145,10 @@ struct PaneSplitView<Leading: View, Trailing: View>: NSViewRepresentable {
             // When the window resizes, the editor takes up the change.
             view === leadingHost
         }
+
+        func splitViewDidResizeSubviews(_ notification: Notification) {
+            refreshCursorRects()
+        }
     }
 }
 
@@ -106,7 +158,7 @@ final class WideDividerSplitView: NSSplitView {
     private var dividerRects: [NSRect] {
         guard let delegate, arrangedSubviews.count > 1 else { return [] }
         var rects: [NSRect] = []
-        for index in 0..<(arrangedSubviews.count - 1) where !arrangedSubviews[index + 1].isHidden {
+        for index in 0..<(arrangedSubviews.count - 1) {
             let leading = arrangedSubviews[index].frame
             let drawn = NSRect(x: leading.maxX, y: 0, width: dividerThickness, height: bounds.height)
             let effective = delegate.splitView?(self, effectiveRect: drawn, forDrawnRect: drawn, ofDividerAt: index) ?? drawn
@@ -128,10 +180,5 @@ final class WideDividerSplitView: NSSplitView {
         for rect in dividerRects {
             addCursorRect(rect, cursor: .resizeLeftRight)
         }
-    }
-
-    override func layout() {
-        super.layout()
-        window?.invalidateCursorRects(for: self)
     }
 }
