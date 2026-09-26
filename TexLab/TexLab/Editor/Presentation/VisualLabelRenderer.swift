@@ -57,7 +57,7 @@ enum VisualLabelRenderer {
         switch label.kind {
         case .inline(let bold):
             let text = inlineText(label.text, font: font, bold: bold)
-            drawOnBaseline(text, font: text.attribute(.font, at: 0, effectiveRange: nil) as? NSFont ?? font, in: rect, descent: -font.descender)
+            drawOnBaseline(text, font: font, in: rect, descent: -font.descender)
         case .chip(let systemImage):
             drawChip(label.text, systemImage: systemImage, in: rect, font: font)
         case .environment(_, let italic):
