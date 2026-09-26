@@ -54,22 +54,8 @@ struct ContentView: View {
         }
         .frame(minWidth: 640, minHeight: 400)
         .navigationSubtitle(session.status.summary)
-        .toolbar(id: "TexLabDocument") {
-            ToolbarItem(id: "typeset", placement: .primaryAction) {
-                TypesetToolbarButton(session: session)
-            }
-            ToolbarItem(id: "insert") {
-                InsertToolbarMenu(session: session)
-            }
-            ToolbarItem(id: "symbols") {
-                SymbolsToolbarButton(session: session)
-            }
-            ToolbarItem(id: "preview") {
-                PreviewToolbarToggle(session: session)
-            }
-            ToolbarItem(id: "share") {
-                ShareToolbarButton(session: session)
-            }
+        .toolbar(id: "TexLabEditor") {
+            EditorToolbar(session: session)
         }
         .focusedSceneValue(\.documentSession, session)
         .sheet(isPresented: $session.isShowingLog) {
@@ -125,7 +111,7 @@ struct ContentView: View {
         // Kept apart from the window's file exporter; SwiftUI presents one file panel per view.
         .fileImporter(isPresented: $session.isImportingImage, allowedContentTypes: [.image, .pdf]) { result in
             if case .success(let url) = result {
-                session.insertFigure(for: url)
+                session.insertImportedImage(url)
             }
         }
     }

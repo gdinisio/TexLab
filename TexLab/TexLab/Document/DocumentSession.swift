@@ -101,6 +101,7 @@ final class DocumentSession {
     var isShowingLog = false
     var isShowingSymbols = false
     var isImportingImage = false
+    var imageImportPurpose: ImageImportPurpose = .figure
     var isShowingTableSheet = false
     var isShowingGoToLine = false
     var isExportingPDF = false
@@ -220,6 +221,7 @@ final class DocumentSession {
     /// Inserts a figure for an image file, with a path relative to the document and the
     /// insertion point in the caption.
     func insertFigure(for url: URL) {
+        ensurePackages(["graphicx"])
         let path = projectFolder.map { PathUtilities.relativePath(of: url, from: $0) } ?? url.filePath
         let label = BuildNaming.jobName(for: url.deletingPathExtension().lastPathComponent).lowercased()
         editor.insert(Snippet(

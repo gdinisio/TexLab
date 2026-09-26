@@ -145,10 +145,18 @@ nonisolated struct ProjectSnapshot: Sendable, Equatable {
     /// Whether the main file was found by looking for the file that includes the document,
     /// rather than named with `% !TEX root`.
     var mainFileIsDetected = false
-    /// `\label` keys from the project's other LaTeX files.
-    var labels: [String] = []
-    /// Entry keys from the project's bibliographies.
-    var citationKeys: [String] = []
+    /// `\label`s defined in the project's other LaTeX files.
+    var labels: [LabelDefinition] = []
+    /// The entries of the project's bibliographies.
+    var bibEntries: [BibEntry] = []
+
+    var labelKeys: [String] {
+        labels.map(\.key)
+    }
+
+    var citationKeys: [String] {
+        bibEntries.map(\.key)
+    }
 }
 
 /// Finds a document's project and main file.
@@ -157,7 +165,6 @@ nonisolated enum ProjectIndex {
     private static let inclusionPattern = try! NSRegularExpression(
         pattern: #"\\(?:input|include|subfile|includeonly)\s*\{([^{}]+)\}|\\(?:sub)?import\*?\s*\{([^{}]*)\}\s*\{([^{}]+)\}"#
     )
-    private static let labelPattern = try! NSRegularExpression(pattern: #"\\label\s*\{([^{}]+)\}"#)
     private static let maximumFileSize = 2_000_000
 
     /// Whether `text` is a complete document rather than a part of one.
@@ -181,17 +188,19 @@ nonisolated enum ProjectIndex {
         let folder = mainFile?.deletingLastPathComponent() ?? directory
         let tree = ProjectScanner.scan(folder)
 
-        var labels: [String] = []
-        var keys: [String] = []
+        var labels: [LabelDefinition] = []
+        var entries: [BibEntry] = []
         let current = SourceMap.canonicalPath(documentURL)
         for file in tree.files {
             switch file.kind {
             case .latex where SourceMap.canonicalPath(file.url) != current:
                 if let other = contents(of: file.url) {
-                    labels += matches(of: labelPattern, in: other)
+                    labels += ReferenceScanner.labels(in: other, file: file.url)
                 }
             case .bibliography:
-                keys += BibliographyScanner.keys(inFileAt: file.url)
+                if let database = contents(of: file.url) {
+                    entries += ReferenceScanner.bibEntries(in: database, file: file.url)
+                }
             default:
                 break
             }
@@ -204,8 +213,8 @@ nonisolated enum ProjectIndex {
             tree: tree,
             mainFile: mainFile,
             mainFileIsDetected: detected,
-            labels: Array(Set(labels)).sorted(),
-            citationKeys: Array(Set(keys)).sorted()
+            labels: labels.sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending },
+            bibEntries: entries.sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending }
         )
     }
 
@@ -269,13 +278,6 @@ nonisolated enum ProjectIndex {
               (values.fileSize ?? 0) <= maximumFileSize,
               let data = try? Data(contentsOf: url) else { return nil }
         return try? TextDecoding.decode(data).text
-    }
-
-    private static func matches(of pattern: NSRegularExpression, in text: String) -> [String] {
-        let string = text as NSString
-        return pattern.matches(in: text, range: NSRange(location: 0, length: string.length)).map {
-            string.substring(with: $0.range(at: 1)).trimmingCharacters(in: .whitespaces)
-        }
     }
 }
 

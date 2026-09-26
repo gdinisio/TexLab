@@ -83,7 +83,7 @@ struct SourceEditor: NSViewRepresentable {
         private var completionProvider: CompletionProvider {
             CompletionProvider(
                 documentDirectory: parent.session.projectFolder,
-                projectLabels: parent.session.project?.labels ?? [],
+                projectLabels: parent.session.project?.labelKeys ?? [],
                 projectCitationKeys: parent.session.project?.citationKeys ?? []
             )
         }

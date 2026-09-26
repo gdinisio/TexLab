@@ -58,6 +58,14 @@ final class EditorController {
         textView.replaceCharacters(in: range, with: text, selecting: NSRange(location: max(caret, 0), length: 0), actionName: actionName)
     }
 
+    /// Shows the find bar, like Edit ▸ Find ▸ Find….
+    func showFind() {
+        focus()
+        let item = NSMenuItem()
+        item.tag = NSTextFinder.Action.showFindInterface.rawValue
+        textView?.performTextFinderAction(item)
+    }
+
     func toggleComment() {
         focus()
         textView?.toggleComment()

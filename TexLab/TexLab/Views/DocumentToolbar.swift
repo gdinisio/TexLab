@@ -77,8 +77,11 @@ struct InsertMenuContent: View {
             ForEach(SnippetCatalog.floats) { snippet in
                 snippetButton(snippet)
             }
-            Button("Image…", systemImage: "photo.badge.plus") {
-                session?.isImportingImage = true
+            Button("Figure from Image…", systemImage: "photo.badge.plus") {
+                session?.importImage(as: .figure)
+            }
+            Button("Image…", systemImage: "photo") {
+                session?.importImage(as: .graphic)
             }
             Button("Table…", systemImage: "tablecells.badge.ellipsis") {
                 session?.isShowingTableSheet = true
@@ -87,8 +90,18 @@ struct InsertMenuContent: View {
         Divider()
         Group {
             snippetMenu("Math", systemImage: "x.squareroot", snippets: SnippetCatalog.math)
+            Menu {
+                ForEach(TheoremKind.allCases) { kind in
+                    Button(kind.title) {
+                        session?.insertTheorem(kind)
+                    }
+                }
+            } label: {
+                Label("Theorem", systemImage: "checkmark.seal")
+            }
             snippetMenu("References", systemImage: "link", snippets: SnippetCatalog.references)
             snippetMenu("Environment", systemImage: "curlybraces", snippets: SnippetCatalog.environments)
+            snippetMenu("Presentation", systemImage: "rectangle.on.rectangle", snippets: SnippetCatalog.presentation)
             snippetMenu("Spacing and Breaks", systemImage: "arrow.down.to.line", snippets: SnippetCatalog.breaks)
         }
         Divider()
@@ -111,13 +124,26 @@ struct InsertMenuContent: View {
     private func snippetButton(_ snippet: Snippet) -> some View {
         if let systemImage = snippet.systemImage {
             Button(snippet.title, systemImage: systemImage) {
-                session?.editor.insert(snippet)
+                insert(snippet)
             }
         } else {
             Button(snippet.title) {
-                session?.editor.insert(snippet)
+                insert(snippet)
             }
         }
+    }
+
+    /// Inserts a snippet with the packages it needs.
+    private func insert(_ snippet: Snippet) {
+        var packages = SnippetCatalog.packages(for: snippet)
+        if snippet.id == SnippetCatalog.figure.id {
+            packages.append("graphicx")
+        } else if snippet.id == SnippetCatalog.link.id || snippet.id == SnippetCatalog.url.id {
+            packages.append("hyperref")
+        } else if snippet.id == SnippetCatalog.codeListing.id {
+            packages.append("listings")
+        }
+        session?.insert(snippet, requiring: packages)
     }
 }
 

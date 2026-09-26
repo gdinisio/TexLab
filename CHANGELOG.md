@@ -3,6 +3,34 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.13 — A customisable toolbar
+
+- The toolbar is fully customisable with View ▸ Customize Toolbar: drag tools in and out,
+  reorder them, and choose icons with or without text.
+- Default set, for most writing: Code | Visual, Typeset, Heading, Figure, Table, Math,
+  Symbols, Cite, Reference, Preview and Share.
+- More than 40 further tools in the palette, so the toolbar can fit each way of working:
+  - Structure: Chapter, Section, Subsection, Subsubsection, Paragraph.
+  - Content: Image, bulleted, numbered and description lists, Footnote, Link, Quote, Code.
+  - Math: Inline, Display, Equation, Align, Matrix, Fraction, and a Theorem menu
+    (theorem, lemma, corollary, proposition, definition, remark, example, proof).
+  - References: Label and the full Insert menu.
+  - Formatting: a Bold/Italic/Underline group, Bold, Italic, Emphasis, Monospace, Small
+    Caps, Comment, Indentation.
+  - Presentations: Slide, Columns, Block, Pause.
+  - Typesetting and view: Stop, Auto Typeset, Engine, Issues, Log, Clean, Show in PDF,
+    Zoom, Fit, Two Pages, Folding, Find, Go to Line, Word Count.
+  - Document: Export, Print, New File, Show in Finder.
+- Cite opens a searchable list of the project's bibliography entries (key, authors, year,
+  title) and inserts `\cite`, `\citep`, `\autocite` or another command for one or more of
+  them. Reference lists every label in the project, grouped by figures, tables,
+  equations and sections, and inserts `\eqref` for equations and `\ref` otherwise.
+- Tools add what they depend on: inserting a figure loads graphicx, a link hyperref,
+  aligned equations amsmath, a code listing listings, `\cref` cleveref, and a theorem
+  loads amsthm and defines the environment with `\newtheorem` — so documents keep
+  typesetting.
+- The Insert menu gains Theorem and Presentation submenus and a plain Image item.
+
 ## v1.12 — Code and Visual editors, and customisation
 
 - Two editor modes per window, switched from the toolbar or with ⌃⌘1 / ⌃⌘2:
