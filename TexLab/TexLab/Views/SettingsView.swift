@@ -295,7 +295,9 @@ private struct VisualEditorSettings: View {
                         Image(systemName: "text.alignleft")
                             .imageScale(.small)
                     } maximumValueLabel: {
+                        // Both labels must be the same kind of view.
                         Image(systemName: "text.justify.left")
+                            .imageScale(.small)
                     }
                     .labelsHidden()
                 }

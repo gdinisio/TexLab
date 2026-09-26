@@ -3,6 +3,10 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.17 — Build fix
+
+- The line length slider's two value labels are the same view type, as `Slider` requires.
+
 ## v1.16 — Build fix
 
 - `DocumentSession+Navigators.swift` imports SwiftUI for `NavigationSplitViewVisibility`,
