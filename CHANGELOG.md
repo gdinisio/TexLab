@@ -3,6 +3,11 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.16 — Build fix
+
+- `DocumentSession+Navigators.swift` imports SwiftUI for `NavigationSplitViewVisibility`,
+  and `SettingsView.swift` imports CoreGraphics, as `MemberImportVisibility` requires.
+
 ## v1.15 — A Welcome window for projects
 
 - A Welcome window like Xcode's appears when TexLab opens: Create New Project, Open

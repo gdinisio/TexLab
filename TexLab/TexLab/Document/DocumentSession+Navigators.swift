@@ -5,6 +5,7 @@
 
 import AppKit
 import Foundation
+import SwiftUI
 
 /// The Find and References navigators.
 extension DocumentSession {
