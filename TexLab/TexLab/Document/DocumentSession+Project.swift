@@ -70,6 +70,12 @@ extension DocumentSession {
             if snapshot != self.project {
                 self.project = snapshot
             }
+            // Remember the project for the Welcome window, once per project.
+            let recentID = "\(snapshot.folder.path(percentEncoded: false))|\(snapshot.mainFile?.path(percentEncoded: false) ?? "")"
+            if recentID != self.recordedProjectID {
+                self.recordedProjectID = recentID
+                RecentProjects.shared.record(snapshot)
+            }
             self.watch(snapshot.tree)
         }
     }

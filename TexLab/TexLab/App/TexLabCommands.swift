@@ -271,6 +271,10 @@ struct FileAndHelpCommands: Commands {
                 ProjectCreator.createProject()
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
+            Button("Open Project…") {
+                ProjectOpener.chooseAndOpen()
+            }
+            .keyboardShortcut("o", modifiers: [.command, .shift])
             Button("New File in Project…") {
                 session?.newFileFolder = session?.projectFolder
                 session?.isShowingNewFileSheet = true

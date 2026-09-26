@@ -3,19 +3,39 @@
 TexLab is a native LaTeX editor for macOS. It is a document-based SwiftUI app built on
 the Mac text system and PDFKit: every window is a `.tex` document with the standard File
 menu (New, Open Recent, Save, Duplicate, Rename, Move To, Revert To and versions,
-autosave), window tabs and full screen. You write on the left, the typeset PDF updates on
-the right, and the two are linked both ways with SyncTeX.
+autosave), window tabs and full screen. Projects are plain folders, opened from a Welcome
+window like Xcode's. You write on the left — as code, or in a Visual editor close to the
+typeset document — the PDF updates on the right, and the two are linked both ways with
+SyncTeX.
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 ## Features
 
+**Getting started**
+
+- **Welcome window** — like Xcode's: Create New Project, Open Existing Project (a folder
+  or a single document), New Document, and your recent projects. It appears when TexLab
+  opens (Settings can turn that off), from Window ▸ Welcome to TexLab (⇧⌘1), and when
+  you click the Dock icon with no windows open. File ▸ Open Project (⇧⌘O) opens a folder
+  at its main file, and offers to create `main.tex` in a folder without one.
+
 **Writing**
 
+- **Code and Visual editors** — each window switches between them with the Code | Visual
+  control in the toolbar (⌃⌘1, ⌃⌘2), and Settings chooses which one documents open in.
+  - **Code** shows the LaTeX source in the code font, with colouring and folding.
+  - **Visual** is close to the typeset document, like Overleaf's Visual Editor: text in a
+    serif (or sans) typeface in a page-like column, large headings, rendered formulas
+    and images, lists and references as they will look, and the preamble collapsed.
+    Markup appears, in the code font, wherever the insertion point is.
+- **Customisation** — the code font (any installed monospaced font) and size, line
+  spacing, five colour themes (Xcode, Classic, Soft, High Contrast, Monochrome), and the
+  Visual editor's typeface, size and line length, in Settings.
 - **Source editor** on the Mac text system: Find and Replace, spelling, dictation,
   services, Look Up and undo behave as in every Mac app.
-- **LaTeX syntax colouring** in Xcode's light and dark palettes: commands, environments,
-  math, comments, keys and verbatim text; section titles in bold. Spelling ignores markup
+- **LaTeX syntax colouring** in light and dark variants of the chosen theme: commands,
+  environments, math, comments, keys and verbatim text; section titles in bold. Spelling ignores markup
   and checks prose and comments only.
 - **Line numbers** with the current line emphasised and issue markers; click a number to
   select the line. A subtle current line highlight.
@@ -30,9 +50,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   their source appears for editing. Click a formula to edit it. Display math is centred
   on its line like in the PDF. Formulas are drawn in the text colour, so they follow Dark
   Mode (colour set with `\color` inside a formula isn't shown).
-- **Visual preview**, in the spirit of Overleaf's Visual Editor — the source reads like
-  the typeset document while you write, and the markup comes back wherever the
-  insertion point is:
+- **What the Visual editor shows** — the markup comes back wherever the insertion point
+  is:
   - `\section{…}` and the other headings show as large bold titles, `\title` and
     `\author` as a title block, and `\maketitle` as the title and author centred.
   - `\begin{abstract}` shows a centred Abstract heading; theorem-like environments
@@ -45,8 +64,9 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
     `\url` and `\href` as links; footnotes in small grey text.
   - `\includegraphics` shows the image itself; `---`, `--`, ``` `` ```, `''`, `\ldots`,
     `\LaTeX` and escapes such as `\&` show as the characters they produce.
-- Rendered math and the visual preview together make up **Live Preview**, turned on
-  and off with View ▸ Live Preview (⌃⌘M); each part can be turned off in Settings.
+  - `\begin{document}` and `\end{document}` are hidden; `\tableofcontents`, lists of
+    figures and tables and the bibliography show as headings; page breaks and
+    `\appendix` as chips.
 - **Code folding** — collapse sections (the heading stays visible), the preamble, blocks
   of comments and any environment of two or more lines with the chevron beside a line
   number, or View ▸ Code Folding, which can also fold every section or the preamble at
@@ -59,8 +79,23 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   `.bib` files and `\bibitem`), macros defined in the document, packages, document classes
   and files beside the document. Completions appear automatically after `\begin{`,
   `\ref{`, `\cite{`, `\usepackage{`, `\includegraphics{` and similar.
-- **Insert menu and toolbar** — headings, lists, figures (from an image file), tables of
-  any size, math, references, environments, spacing and breaks, fitted to the current
+- **Customisable toolbar** — View ▸ Customize Toolbar offers more than 50 tools to drag
+  in, so each writer can lay it out their way. The default set covers most writing: Code
+  | Visual, Typeset, Heading, Figure, Table, Math, Symbols, Cite, Reference, Preview and
+  Share. The palette adds individual headings; images, lists, footnotes, links, quotes
+  and code listings; inline, display, numbered and aligned math, matrices, fractions and
+  theorems; text styles, comments and indentation; Beamer slides, columns and blocks;
+  typesetting, engine, issues, log, zoom, folding, find, go to line and word count; and
+  export, print and project files.
+- **Cite and Reference** — Cite searches the project's bibliographies by key, author,
+  title or year and inserts `\cite` (or `\citep`, `\autocite`, …) for one or more
+  entries; Reference lists every label by kind and inserts `\eqref` for equations and
+  `\ref` otherwise.
+- **Tools that keep documents working** — inserting a figure loads graphicx, a link
+  hyperref, aligned equations amsmath, a code listing listings, `\cref` cleveref, and a
+  theorem loads amsthm and adds its `\newtheorem` definition.
+- **Insert menu** — headings, lists, figures and images, tables of any size, math,
+  theorems, references, environments, slides, spacing and breaks, fitted to the current
   indentation.
 - **Format menu** — ⌘B, ⌘I and ⌘U wrap the selection in `\textbf`, `\textit` and
   `\underline` (and unwrap it again), plus emphasis, monospace, small caps and sans serif.
@@ -73,12 +108,21 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 **Projects**
 
+- **Navigators** — the sidebar has five, like Xcode's, on ⌘1–⌘5: Project, Outline, Find,
+  References and Issues.
+- **Find in Project** (⇧⌘F) searches every LaTeX file, bibliography and package as you
+  type, including unsaved changes, with Match Case and Whole Words; selecting a result
+  shows it.
+- **References navigator** — every label (by kind) and bibliography entry in the project;
+  double-click to refer to it, drag it into the text, or go to its definition.
 - **Project navigator** — the first sidebar tab lists the files of the document's folder,
   like Xcode's: LaTeX files, bibliographies, packages, images and subfolders, with the
   main file marked. Double-click a file to open it in a tab of the same window (images
   and PDFs open in their usual app), drag it into the editor to insert `\input`,
   `\includegraphics`, `\bibliography` or `\usepackage` with the right relative path, and
   use the context menu to open, reference, rename, show in Finder or move to the Trash.
+  Copy Path copies a file's path relative to the main file — what `\includegraphics`
+  and `\input` expect — and Copy LaTeX Reference the whole command.
   The list follows changes made in the Finder.
 - **New File in Project** (⌥⌘N, or + in the navigator) creates a section or chapter, a
   BibTeX bibliography, a package or a complete document in any folder of the project, and
@@ -129,7 +173,9 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 | Shift Right / Left | ⌘] / ⌘[ or Tab / ⇧Tab |
 | Complete | Esc |
 | Go to Line (`line` or `line:column`) | ⌘L |
-| Live Preview in the editor | ⌃⌘M |
+| Code / Visual editor | ⌃⌘1 / ⌃⌘2 |
+| Project, Outline, Find, References, Issues navigators | ⌘1 … ⌘5 |
+| Find in Project | ⇧⌘F |
 | Fold / Unfold | ⌥⌘← / ⌥⌘→ |
 | Fold Figures and Tables / Unfold All | ⌃⌥⌘← / ⌃⌥⌘→ |
 | Bigger / Smaller Text | ⌘+ (or ⌘=) / ⌘- |
@@ -137,7 +183,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 | Show/Hide Sidebar | ⌃⌘S |
 | PDF Zoom In / Out / Actual Size / Fit | ⌘> / ⌘< / ⌘0 / ⌘9 |
 | Export PDF / Print | ⇧⌘E / ⌘P |
-| New Project | ⇧⌘N |
+| New Project / Open Project | ⇧⌘N / ⇧⌘O |
+| Welcome window | ⇧⌘1 |
 | New File in Project | ⌥⌘N |
 
 ## Requirements
@@ -205,8 +252,10 @@ TexLab/TexLab/
   gutter (`LineNumberRulerView`) and current line highlight. `LaTeXTokenizer` is a
   single-pass scanner shared by colouring, spelling suppression and the word count;
   `SyntaxHighlighter` re-colours only the paragraph block around an edit (TeX resets math
-  mode at blank lines) from the text storage's `willProcessEditing`, so fonts are fixed
-  up afterwards. `LineIndex` maps offsets to lines incrementally.
+  mode at blank lines), as its own attribute-only edit straight after the change —
+  changing attributes inside the character edit would make NSTextView move the insertion
+  point to the end of the paragraph. `SyntaxTheme` builds fonts and colours from the
+  settings and the editor mode. `LineIndex` maps offsets to lines incrementally.
 - **Live preview in the editor** — `MathScanner`, `VisualScanner` and `FoldScanner` (in
   `Editor/Presentation/`) find formulas and foldable environments after each pause in
   typing. `PresentationLayoutManager` shows a range as a drawing without touching the
@@ -229,6 +278,15 @@ TexLab/TexLab/
   the other files); `DirectoryWatcher` (a dispatch source per folder) and app activation
   keep it current. Each file is still its own document, so saving, undo and versions
   work per file; the navigator opens files as native window tabs.
+- **Toolbar and navigators** — `EditorToolbar` is SwiftUI `CustomizableToolbarContent`,
+  split into groups of related tools so AppKit's customisation palette offers them all;
+  tools insert through `DocumentSession+Insert`, which adds the packages and definitions
+  they need. `ProjectSearch` and `ReferenceScanner` back the Find and References
+  navigators and the Cite and Reference pickers.
+- **Welcome window** — a SwiftUI `Window` scene presented at launch
+  (`defaultLaunchBehavior`); an `NSApplicationDelegate` stops the untitled document at
+  launch and reopens the window from the Dock. `RecentProjects` keeps recent folders in
+  the user defaults, and `ProjectOpener` finds a folder's main file.
 - **Preview** — `SyncPDFView` (`PDFView` subclass) restores the scroll position when a
   new PDF arrives, handles ⌘-click and highlights forward-search results.
 - **Imports** — the target enables `MemberImportVisibility`, so each file imports every

@@ -16,6 +16,8 @@ struct ContentView: View {
     var fileURL: URL?
 
     @State private var session = DocumentSession()
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
     @SceneStorage("showsPreview") private var showsPreview = true
     /// This window's editor mode, restored with the window.
     @SceneStorage("editorMode") private var storedEditorMode = ""
@@ -77,6 +79,9 @@ struct ContentView: View {
             defaultFilename: session.displayName
         ) { _ in }
         .onAppear {
+            // A document took over from the Welcome window, as in Xcode.
+            WelcomeWindow.opener = openWindow
+            dismissWindow(id: WelcomeWindow.id)
             session.isPreviewVisible = showsPreview
             if let mode = EditorMode(rawValue: storedEditorMode) {
                 session.setEditorMode(mode)

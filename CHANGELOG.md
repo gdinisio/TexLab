@@ -3,6 +3,21 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.15 — A Welcome window for projects
+
+- A Welcome window like Xcode's appears when TexLab opens: Create New Project, Open
+  Existing Project (a folder, or a single document), New Document, and recent projects
+  on the right (double-click to open; context menu to show in Finder or remove). A
+  checkbox, also in Settings ▸ General, turns it off at launch.
+- TexLab no longer opens an empty untitled document at launch. The Welcome window comes
+  back from Window ▸ Welcome to TexLab (⇧⌘1) and when the Dock icon is clicked with no
+  windows open, and closes when a document opens.
+- File ▸ Open Project (⇧⌘O) opens a whole folder at its main file — main.tex, the only
+  complete document, or the most recently changed one — and offers to create main.tex in
+  a folder without a LaTeX document.
+- Recent projects are remembered whenever a project or document opens.
+- README brought up to date with v1.12–v1.15.
+
 ## v1.14 — Find and References navigators, copying paths
 
 - The sidebar has five navigators, like Xcode's, on ⌘1–⌘5: Project, Outline, Find,

@@ -143,6 +143,7 @@ final class DocumentSession {
     @ObservationIgnored var projectObservers: [NSObjectProtocol] = []
     @ObservationIgnored var lastProjectKey = ""
     @ObservationIgnored var findTask: Task<Void, Never>?
+    @ObservationIgnored var recordedProjectID: String?
     /// Identifies an untitled document's build folder.
     let sessionID = UUID()
 

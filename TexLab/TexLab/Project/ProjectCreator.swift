@@ -66,6 +66,7 @@ enum ProjectCreator {
             }
             let mainURL = folder.appending(path: "main.tex")
             try Data(main.utf8).write(to: mainURL, options: .withoutOverwriting)
+            RecentProjects.shared.record(folder: folder, mainFile: mainURL, isFolderProject: true)
             Task {
                 _ = try? await NSDocumentController.shared.openDocument(withContentsOf: mainURL, display: true)
             }
