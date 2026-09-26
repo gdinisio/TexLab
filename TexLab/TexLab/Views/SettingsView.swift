@@ -4,6 +4,7 @@
 //
 
 import AppKit
+import CoreText
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -18,25 +19,34 @@ struct SettingsView: View {
             Tab("Editor", systemImage: "character.cursor.ibeam") {
                 EditorSettings()
             }
+            Tab("Visual Editor", systemImage: "eye") {
+                VisualEditorSettings()
+            }
             Tab("Typesetting", systemImage: "doc.richtext") {
                 TypesettingSettings()
             }
         }
-        .frame(width: 560)
+        .frame(width: 600)
     }
 }
 
 // MARK: - General
 
 private struct GeneralSettings: View {
+    @AppStorage(SettingsKey.showsWelcomeAtLaunch) private var showsWelcomeAtLaunch = AppSettings.showsWelcomeAtLaunch
     @AppStorage(SettingsKey.typesetsAutomatically) private var typesetsAutomatically = AppSettings.typesetsAutomatically
     @AppStorage(SettingsKey.autoTypesetDelay) private var autoTypesetDelay = AppSettings.autoTypesetDelay
     @AppStorage(SettingsKey.previewShowsTwoPages) private var previewShowsTwoPages = AppSettings.previewShowsTwoPages
     @AppStorage(SettingsKey.showsWarnings) private var showsWarnings = AppSettings.showsWarnings
     @AppStorage(SettingsKey.showsBadBoxes) private var showsBadBoxes = AppSettings.showsBadBoxes
+    @AppStorage(SettingsKey.showsStatusBar) private var showsStatusBar = AppSettings.showsStatusBar
 
     var body: some View {
         Form {
+            Section("Startup") {
+                Toggle("Show the Welcome window when TexLab opens", isOn: $showsWelcomeAtLaunch)
+            }
+
             Section {
                 Toggle("Typeset automatically while writing", isOn: $typesetsAutomatically)
                 Picker("After a pause of", selection: $autoTypesetDelay) {
@@ -55,8 +65,9 @@ private struct GeneralSettings: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("Preview") {
-                Toggle("Show two pages side by side", isOn: $previewShowsTwoPages)
+            Section("Window") {
+                Toggle("Show two preview pages side by side", isOn: $previewShowsTwoPages)
+                Toggle("Show the status bar", isOn: $showsStatusBar)
             }
 
             Section("Issues") {
@@ -71,75 +82,71 @@ private struct GeneralSettings: View {
 // MARK: - Editor
 
 private struct EditorSettings: View {
+    @AppStorage(SettingsKey.editorFontName) private var fontName = AppSettings.editorFontName
     @AppStorage(SettingsKey.editorFontSize) private var fontSize = AppSettings.editorFontSize
+    @AppStorage(SettingsKey.editorLineSpacing) private var lineSpacing = AppSettings.editorLineSpacing
+    @AppStorage(SettingsKey.syntaxTheme) private var themeName = AppSettings.syntaxTheme
     @AppStorage(SettingsKey.showsLineNumbers) private var showsLineNumbers = AppSettings.showsLineNumbers
     @AppStorage(SettingsKey.highlightsCurrentLine) private var highlightsCurrentLine = AppSettings.highlightsCurrentLine
     @AppStorage(SettingsKey.wrapsLines) private var wrapsLines = AppSettings.wrapsLines
-    @AppStorage(SettingsKey.showsStatusBar) private var showsStatusBar = AppSettings.showsStatusBar
     @AppStorage(SettingsKey.autoPairsBrackets) private var autoPairsBrackets = AppSettings.autoPairsBrackets
     @AppStorage(SettingsKey.autoClosesEnvironments) private var autoClosesEnvironments = AppSettings.autoClosesEnvironments
     @AppStorage(SettingsKey.indentWidth) private var indentWidth = AppSettings.indentWidth
     @AppStorage(SettingsKey.indentsWithSpaces) private var indentsWithSpaces = AppSettings.indentsWithSpaces
     @AppStorage(SettingsKey.checksSpelling) private var checksSpelling = AppSettings.checksSpelling
     @AppStorage(SettingsKey.suggestsCompletions) private var suggestsCompletions = AppSettings.suggestsCompletions
-    @AppStorage(SettingsKey.showsLivePreview) private var showsLivePreview = AppSettings.showsLivePreview
-    @AppStorage(SettingsKey.rendersMathInEditor) private var rendersMath = AppSettings.rendersMathInEditor
-    @AppStorage(SettingsKey.hidesFormattingCommands) private var hidesFormatting = AppSettings.hidesFormattingCommands
     @AppStorage(SettingsKey.foldsFloatsOnOpen) private var foldsFloatsOnOpen = AppSettings.foldsFloatsOnOpen
     @AppStorage(SettingsKey.foldsPreambleOnOpen) private var foldsPreambleOnOpen = AppSettings.foldsPreambleOnOpen
-    @AppStorage(SettingsKey.texBinPath) private var texBinPath = AppSettings.texBinPath
-    /// Whether formulas can be rendered with the TeX distribution; nil while checking.
-    @State private var canRenderMath: Bool?
+
+    /// Installed monospaced font families, loaded when the pane appears.
+    @State private var fontFamilies: [String] = []
 
     var body: some View {
         Form {
-            Section("Font") {
+            Section {
+                Picker("Font", selection: $fontName) {
+                    Text("SF Mono (System)").tag("")
+                    if !fontFamilies.isEmpty {
+                        Divider()
+                    }
+                    ForEach(fontFamilies, id: \.self) { family in
+                        Text(family).tag(family)
+                    }
+                    // Keep a font that is no longer installed selectable.
+                    if !fontName.isEmpty && !fontFamilies.isEmpty && !fontFamilies.contains(fontName) {
+                        Text(fontName).tag(fontName)
+                    }
+                }
                 Stepper(value: $fontSize, in: AppSettings.minimumFontSize...AppSettings.maximumFontSize, step: 1) {
                     LabeledContent("Size") {
                         Text("\(Int(fontSize)) pt")
                             .monospacedDigit()
                     }
                 }
-                Text(verbatim: "\\section{Results} Let $x^2 + y^2 = r^2$. % note")
-                    .font(.system(size: fontSize, design: .monospaced))
+                Picker("Line spacing", selection: $lineSpacing) {
+                    Text("Tight").tag(1.0)
+                    Text("Normal").tag(1.15)
+                    Text("Relaxed").tag(1.3)
+                    Text("Loose").tag(1.5)
+                    Text("Double").tag(2.0)
+                }
+                Picker("Colours", selection: $themeName) {
+                    ForEach(SyntaxColorTheme.allCases) { theme in
+                        Text(theme.title).tag(theme.rawValue)
+                    }
+                }
+                ThemeSample(fontName: fontName, fontSize: fontSize, theme: SyntaxColorTheme(rawValue: themeName) ?? .standard)
+            } header: {
+                Text("Font and Colours")
+            } footer: {
+                Text("Used by the Code editor, and for markup in the Visual editor. ⌘+ and ⌘− change the size.")
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .accessibilityHidden(true)
             }
 
             Section("Display") {
                 Toggle("Show line numbers", isOn: $showsLineNumbers)
                 Toggle("Highlight the current line", isOn: $highlightsCurrentLine)
                 Toggle("Wrap lines to the editor width", isOn: $wrapsLines)
-                Toggle("Show status bar", isOn: $showsStatusBar)
-            }
-
-            Section {
-                Toggle("Live preview", isOn: $showsLivePreview)
-                Toggle("Show formulas rendered", isOn: $rendersMath)
-                    .disabled(!showsLivePreview)
-                Toggle("Show headings, lists, formatting, references and figures as in the document", isOn: $hidesFormatting)
-                    .disabled(!showsLivePreview)
-                Toggle("Collapse the preamble when opening a document", isOn: $foldsPreambleOnOpen)
-                Toggle("Collapse figures and tables when opening a document", isOn: $foldsFloatsOnOpen)
-            } header: {
-                Text("Live Preview")
-            } footer: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Formulas and formatting show their source again while the insertion point is inside them. Click the chevron beside a line number to collapse a section, environment, the preamble or a block of comments.")
-                    if showsLivePreview && rendersMath && canRenderMath == false {
-                        Label("Rendering formulas needs a TeX distribution with the preview package, which MacTeX includes.", systemImage: "exclamationmark.triangle")
-                    }
-                }
-                .foregroundStyle(.secondary)
-            }
-            .task(id: texBinPath) {
-                canRenderMath = nil
-                guard let distribution = TeXDistribution.locate(customPath: texBinPath) else {
-                    canRenderMath = false
-                    return
-                }
-                canRenderMath = await MathRenderer.isAvailable(in: distribution)
             }
 
             Section {
@@ -159,8 +166,21 @@ private struct EditorSettings: View {
                 Text("Press Esc for completions at any time. Option-Return inserts a line break without continuing a list.")
                     .foregroundStyle(.secondary)
             }
+
+            Section {
+                Toggle("Collapse the preamble when opening a document", isOn: $foldsPreambleOnOpen)
+                Toggle("Collapse figures and tables when opening a document", isOn: $foldsFloatsOnOpen)
+            } header: {
+                Text("Folding")
+            } footer: {
+                Text("Click the chevron beside a line number to collapse a section, environment, the preamble or a block of comments.")
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
+        .task {
+            fontFamilies = FontCatalog.monospacedFamilies()
+        }
     }
 
     private var indentation: Binding<Int> {
@@ -175,6 +195,137 @@ private struct EditorSettings: View {
                 indentWidth = newValue
             }
         }
+    }
+}
+
+/// A line of LaTeX in the chosen font and colours.
+private struct ThemeSample: View {
+    var fontName: String
+    var fontSize: Double
+    var theme: SyntaxColorTheme
+
+    private static let parts: [(String, SyntaxKind?)] = [
+        ("\\section", .command), ("{", nil), ("Results", .sectionTitle), ("} Let ", nil),
+        ("$x^2 + y^2 = r^2$", .math), (" in ", nil), ("\\ref", .command), ("{", nil),
+        ("eq:circle", .reference), ("}. ", nil), ("% checked", .comment),
+    ]
+
+    var body: some View {
+        Self.parts.reduce(Text(verbatim: "")) { result, part in
+            Text("\(result)\(styled(part.0, kind: part.1))")
+        }
+        .lineLimit(1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityHidden(true)
+    }
+
+    private func styled(_ text: String, kind: SyntaxKind?) -> Text {
+        let font = SyntaxTheme.codeFont(named: fontName, size: CGFloat(fontSize))
+        let displayFont = kind == .sectionTitle
+            ? NSFont(descriptor: font.fontDescriptor.withSymbolicTraits(.bold), size: font.pointSize) ?? font
+            : font
+        return Text(verbatim: text)
+            .font(Font(displayFont as CTFont))
+            .foregroundStyle(Color(nsColor: kind.map { theme.color(for: $0) } ?? .textColor))
+    }
+}
+
+/// The fonts offered for the editor.
+enum FontCatalog {
+    /// Installed font families whose regular face is monospaced, as code fonts are.
+    static func monospacedFamilies() -> [String] {
+        let manager = NSFontManager.shared
+        return manager.availableFontFamilies.filter { family in
+            guard !family.hasPrefix("."),
+                  let members = manager.availableMembers(ofFontFamily: family),
+                  let first = members.first, let name = first.first as? String,
+                  let font = NSFont(name: name, size: 12) else { return false }
+            return font.isFixedPitch
+        }
+        .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+}
+
+// MARK: - Visual editor
+
+private struct VisualEditorSettings: View {
+    @AppStorage(SettingsKey.defaultEditorMode) private var defaultEditorMode = AppSettings.defaultEditorMode
+    @AppStorage(SettingsKey.visualTypeface) private var visualTypeface = AppSettings.visualTypeface
+    @AppStorage(SettingsKey.visualFontSize) private var visualFontSize = AppSettings.visualFontSize
+    @AppStorage(SettingsKey.visualLimitsLineWidth) private var limitsLineWidth = AppSettings.visualLimitsLineWidth
+    @AppStorage(SettingsKey.visualLineWidth) private var lineWidth = AppSettings.visualLineWidth
+    @AppStorage(SettingsKey.rendersMathInEditor) private var rendersMath = AppSettings.rendersMathInEditor
+    @AppStorage(SettingsKey.showsImagesInline) private var showsImages = AppSettings.showsImagesInline
+    @AppStorage(SettingsKey.collapsesPreambleInVisual) private var collapsesPreamble = AppSettings.collapsesPreambleInVisual
+    @AppStorage(SettingsKey.texBinPath) private var texBinPath = AppSettings.texBinPath
+    /// Whether formulas can be rendered with the TeX distribution; nil while checking.
+    @State private var canRenderMath: Bool?
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Open documents in", selection: $defaultEditorMode) {
+                    ForEach(EditorMode.allCases) { mode in
+                        Label(mode.title, systemImage: mode.systemImage).tag(mode.rawValue)
+                    }
+                }
+            } footer: {
+                Text("Each window remembers its own mode. Switch with the Code | Visual control in the toolbar, or ⌃⌘1 and ⌃⌘2. Bibliographies and packages always open as code.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Text") {
+                Picker("Typeface", selection: $visualTypeface) {
+                    ForEach(VisualTypeface.allCases) { typeface in
+                        Text(typeface.title).tag(typeface.rawValue)
+                    }
+                }
+                Stepper(value: $visualFontSize, in: AppSettings.minimumFontSize...AppSettings.maximumFontSize, step: 1) {
+                    LabeledContent("Size") {
+                        Text("\(Int(visualFontSize)) pt")
+                            .monospacedDigit()
+                    }
+                }
+                Toggle("Limit the line length, like a page", isOn: $limitsLineWidth)
+                LabeledContent("Line length") {
+                    Slider(value: $lineWidth, in: 480...1100, step: 20) {
+                        Text("Line length")
+                    } minimumValueLabel: {
+                        Image(systemName: "text.alignleft")
+                            .imageScale(.small)
+                    } maximumValueLabel: {
+                        Image(systemName: "text.justify.left")
+                    }
+                    .labelsHidden()
+                }
+                .disabled(!limitsLineWidth)
+            }
+
+            Section {
+                Toggle("Show formulas typeset", isOn: $rendersMath)
+                Toggle("Show images in place of \\includegraphics", isOn: $showsImages)
+                Toggle("Collapse the preamble", isOn: $collapsesPreamble)
+            } header: {
+                Text("Content")
+            } footer: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Headings, lists, formatting, references and figures appear as they will look. Markup shows again wherever the insertion point is, so it can be edited.")
+                    if rendersMath && canRenderMath == false {
+                        Label("Typesetting formulas needs a TeX distribution with the preview package, which MacTeX includes.", systemImage: "exclamationmark.triangle")
+                    }
+                }
+                .foregroundStyle(.secondary)
+            }
+            .task(id: texBinPath) {
+                canRenderMath = nil
+                guard let distribution = TeXDistribution.locate(customPath: texBinPath) else {
+                    canRenderMath = false
+                    return
+                }
+                canRenderMath = await MathRenderer.isAvailable(in: distribution)
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 

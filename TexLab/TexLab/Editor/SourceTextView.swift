@@ -23,7 +23,7 @@ final class SourceTextView: NSTextView {
     }
 
     let lineIndex = LineIndex()
-    private(set) var highlighter = SyntaxHighlighter(theme: SyntaxTheme(fontSize: AppSettings.editorFontSize, indentWidth: AppSettings.indentWidth))
+    private(set) var highlighter = SyntaxHighlighter(theme: SyntaxTheme(configuration: EditorConfiguration()))
     private let storageObserver = StorageObserver()
     weak var lineNumberRuler: LineNumberRulerView?
 
@@ -136,7 +136,7 @@ final class SourceTextView: NSTextView {
         inlinePredictionType = .no
         drawsBackground = true
         backgroundColor = .textBackgroundColor
-        textContainerInset = NSSize(width: 6, height: 10)
+        textContainerInset = Self.standardInset
         setAccessibilityLabel(String(localized: "LaTeX source"))
         updateDragTypeRegistration()
     }
@@ -144,8 +144,9 @@ final class SourceTextView: NSTextView {
     // MARK: - Configuration
 
     private func applyConfiguration(previous: EditorConfiguration?) {
-        if previous == nil || configuration.needsNewTheme(comparedTo: previous!) {
-            let theme = SyntaxTheme(fontSize: CGFloat(configuration.fontSize), indentWidth: configuration.indentWidth)
+        let needsNewTheme = previous.map { configuration.needsNewTheme(comparedTo: $0) } ?? true
+        if needsNewTheme {
+            let theme = SyntaxTheme(configuration: configuration)
             highlighter.theme = theme
             highlighter.stylesFormatting = configuration.stylesFormatting
             font = theme.font
@@ -157,15 +158,7 @@ final class SourceTextView: NSTextView {
             lineNumberRuler?.editorFontDidChange()
         }
         isContinuousSpellCheckingEnabled = configuration.checksSpelling
-        if let previous, previous.stylesFormatting != configuration.stylesFormatting, !configuration.needsNewTheme(comparedTo: previous) {
-            highlighter.stylesFormatting = configuration.stylesFormatting
-            if let storage = textStorage, storage.length > 0 {
-                highlighter.highlightAll(storage)
-            }
-        }
-        if previous == nil || previous?.rendersMath != configuration.rendersMath
-            || previous?.stylesFormatting != configuration.stylesFormatting
-            || configuration.needsNewTheme(comparedTo: previous!) {
+        if needsNewTheme || previous?.rendersMath != configuration.rendersMath || previous?.showsImages != configuration.showsImages {
             updatePresentation()
         }
         applyLineWrapping()
@@ -213,6 +206,7 @@ final class SourceTextView: NSTextView {
         if frame.height < visible.height {
             setFrameSize(NSSize(width: frame.width, height: visible.height))
         }
+        updateReadableWidthInset(visibleWidth: visible.width)
         // Keep the text container exactly as wide as the text area. Tracking the text view's
         // width only happens when its frame changes, so a container that got out of step
         // (for example sized while the window was still being laid out) would stay wrong.
@@ -229,6 +223,21 @@ final class SourceTextView: NSTextView {
             self?.refreshCurrentLineHighlight()
         }
     }
+
+    /// In the Visual editor, keeps the text in a centred column of readable width, like a
+    /// page; elsewhere uses the standard margin.
+    private func updateReadableWidthInset(visibleWidth: CGFloat) {
+        var horizontal = Self.standardInset.width
+        if configuration.isVisual && configuration.limitsLineWidth && configuration.wrapsLines {
+            let column = CGFloat(max(configuration.lineWidth, 320))
+            horizontal = max((visibleWidth - column) / 2, Self.standardInset.width)
+        }
+        if abs(textContainerInset.width - horizontal) > 0.5 {
+            textContainerInset = NSSize(width: horizontal.rounded(), height: Self.standardInset.height)
+        }
+    }
+
+    static let standardInset = NSSize(width: 6, height: 10)
 
     /// The narrowest width the editor lays text out in.
     static let minimumLayoutWidth: CGFloat = 60

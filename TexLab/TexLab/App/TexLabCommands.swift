@@ -15,7 +15,6 @@ struct TexLabCommands: Commands {
     @AppStorage(SettingsKey.showsStatusBar) private var showsStatusBar = AppSettings.showsStatusBar
     @AppStorage(SettingsKey.previewShowsTwoPages) private var previewShowsTwoPages = AppSettings.previewShowsTwoPages
     @AppStorage(SettingsKey.typesetsAutomatically) private var typesetsAutomatically = AppSettings.typesetsAutomatically
-    @AppStorage(SettingsKey.showsLivePreview) private var showsLivePreview = AppSettings.showsLivePreview
 
     var body: some Commands {
         SidebarCommands()
@@ -162,11 +161,15 @@ struct TexLabCommands: Commands {
         .disabled(session == nil)
     }
 
-    /// Live Preview and Code Folding.
+    /// The editor mode and Code Folding.
     @ViewBuilder
     private var liveSourceCommands: some View {
-        Toggle("Live Preview", isOn: $showsLivePreview)
-            .keyboardShortcut("m", modifiers: [.command, .control])
+        Toggle("Code Editor", isOn: modeBinding(.code))
+            .keyboardShortcut("1", modifiers: [.command, .control])
+            .disabled(session == nil)
+        Toggle("Visual Editor", isOn: modeBinding(.visual))
+            .keyboardShortcut("2", modifiers: [.command, .control])
+            .disabled(session?.supportsVisualEditor != true)
         Menu("Code Folding") {
             Button("Fold") {
                 session?.editor.foldAtSelection()
@@ -193,6 +196,16 @@ struct TexLabCommands: Commands {
             .keyboardShortcut(.rightArrow, modifiers: [.command, .option, .control])
         }
         .disabled(session == nil)
+    }
+
+    private func modeBinding(_ mode: EditorMode) -> Binding<Bool> {
+        Binding {
+            session?.effectiveEditorMode == mode
+        } set: { isOn in
+            if isOn {
+                session?.setEditorMode(mode)
+            }
+        }
     }
 
     /// Zoom In, Zoom Out, Actual Size and Zoom to Fit for the PDF preview.

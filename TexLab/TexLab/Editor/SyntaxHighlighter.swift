@@ -14,22 +14,81 @@ extension NSAttributedString.Key {
     nonisolated static let texLabSyntax = NSAttributedString.Key("TexLabSyntax")
 }
 
-/// Colours for LaTeX source that follow Xcode's default light and dark themes, so the
-/// editor feels at home next to other Mac developer tools and stays legible in both
-/// appearances.
-nonisolated enum SyntaxPalette {
-    static func color(for kind: SyntaxKind) -> NSColor {
-        switch kind {
-        case .command: dynamicColor(light: 0x9B2393, dark: 0xFC5FA3)
-        case .environment: dynamicColor(light: 0x0B4F79, dark: 0x5DD8FF)
-        case .math: dynamicColor(light: 0x1C00CF, dark: 0xD0BF69)
-        case .comment: dynamicColor(light: 0x5D6C79, dark: 0x7F8C98)
-        case .reference, .verbatim: dynamicColor(light: 0xC41A16, dark: 0xFC6A5D)
-        case .special: dynamicColor(light: 0x643820, dark: 0xFD8F3F)
-        case .sectionTitle: NSColor.textColor
+/// The colour schemes for LaTeX source. Each has light and dark variants, so the editor
+/// follows the system appearance.
+nonisolated enum SyntaxColorTheme: String, CaseIterable, Identifiable, Sendable {
+    /// Xcode's default colours.
+    case standard
+    /// Blue commands and red comments, as in classic Mac TeX editors.
+    case classic
+    /// Muted colours for long writing sessions.
+    case soft
+    /// Stronger colours for legibility.
+    case highContrast
+    /// Shades of grey, so the text stands out rather than the markup.
+    case monochrome
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .standard: String(localized: "Xcode")
+        case .classic: String(localized: "Classic")
+        case .soft: String(localized: "Soft")
+        case .highContrast: String(localized: "High Contrast")
+        case .monochrome: String(localized: "Monochrome")
         }
     }
 
+    func color(for kind: SyntaxKind) -> NSColor {
+        if kind == .sectionTitle {
+            return .textColor
+        }
+        if self == .monochrome {
+            switch kind {
+            case .comment: return .tertiaryLabelColor
+            case .math, .verbatim, .reference: return .secondaryLabelColor
+            default: return NSColor.labelColor.withAlphaComponent(0.72)
+            }
+        }
+        let (light, dark) = hexColors(for: kind)
+        return SyntaxPalette.dynamicColor(light: light, dark: dark)
+    }
+
+    private func hexColors(for kind: SyntaxKind) -> (UInt32, UInt32) {
+        switch (self, kind) {
+        case (.classic, .command), (.classic, .special): (0x0433FF, 0x6E9CFF)
+        case (.classic, .environment): (0x7A1FA2, 0xC792EA)
+        case (.classic, .math): (0x007A3D, 0x7FD88F)
+        case (.classic, .comment): (0xB22222, 0xFF7B72)
+        case (.classic, _): (0x8B4513, 0xE0A96D)
+
+        case (.soft, .command): (0x8E5B9E, 0xC8A2D6)
+        case (.soft, .environment): (0x4A7A94, 0x8FC1D9)
+        case (.soft, .math): (0x5A6BB5, 0xA9B4E8)
+        case (.soft, .comment): (0x8A939C, 0x7D858E)
+        case (.soft, .special): (0x8C6A4F, 0xC9A889)
+        case (.soft, _): (0xB0625A, 0xE0998F)
+
+        case (.highContrast, .command): (0x7D007D, 0xFF6AC1)
+        case (.highContrast, .environment): (0x00427A, 0x00D4FF)
+        case (.highContrast, .math): (0x0000C8, 0xFFE45C)
+        case (.highContrast, .comment): (0x3F4A54, 0xA8B3BD)
+        case (.highContrast, .special): (0x5A2E00, 0xFFA657)
+        case (.highContrast, _): (0xAE0000, 0xFF6159)
+
+        case (_, .command): (0x9B2393, 0xFC5FA3)
+        case (_, .environment): (0x0B4F79, 0x5DD8FF)
+        case (_, .math): (0x1C00CF, 0xD0BF69)
+        case (_, .comment): (0x5D6C79, 0x7F8C98)
+        case (_, .special): (0x643820, 0xFD8F3F)
+        case (_, _): (0xC41A16, 0xFC6A5D)
+        }
+    }
+}
+
+/// Colour helpers shared by the themes.
+nonisolated enum SyntaxPalette {
     /// A subtle band behind the line containing the insertion point.
     static var currentLine: NSColor {
         dynamicColor(light: 0xECF5FF, dark: 0x23252B)
@@ -55,28 +114,69 @@ nonisolated enum SyntaxPalette {
 
 /// Fonts, colours and paragraph style for the source editor.
 struct SyntaxTheme {
+    /// The font of ordinary text: the code font, or the Visual editor's typeface.
     let font: NSFont
     let boldFont: NSFont
+    /// The font of markup — commands, math source, comments. The code font, sized to sit
+    /// well beside `font`.
+    let markupFont: NSFont
+    let isVisual: Bool
+    /// The code font as configured: a family name, or empty for SF Mono.
+    let codeFontName: String
     let paragraphStyle: NSParagraphStyle
     private let colors: [SyntaxKind: NSColor]
 
-    init(fontSize: CGFloat, indentWidth: Int) {
-        font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        boldFont = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .bold)
+    init(configuration: EditorConfiguration) {
+        let codeSize = CGFloat(AppSettings.clampedFontSize(configuration.fontSize))
+        isVisual = configuration.isVisual
+        codeFontName = configuration.fontName
+        let visualSize = CGFloat(AppSettings.clampedFontSize(configuration.visualFontSize))
+
+        if isVisual {
+            let proseSize = visualSize
+            switch configuration.visualTypeface {
+            case .serif:
+                let system = NSFont.systemFont(ofSize: proseSize).fontDescriptor
+                font = NSFont(descriptor: system.withDesign(.serif) ?? system, size: proseSize) ?? .systemFont(ofSize: proseSize)
+            case .sans:
+                font = .systemFont(ofSize: proseSize)
+            case .code:
+                font = Self.codeFont(named: configuration.fontName, size: proseSize)
+            }
+            // Markup is set a little smaller than the text, as code often is in prose.
+            markupFont = Self.codeFont(named: configuration.fontName, size: (proseSize * 0.86).rounded())
+        } else {
+            font = Self.codeFont(named: configuration.fontName, size: codeSize)
+            markupFont = font
+        }
+        boldFont = NSFont(descriptor: font.fontDescriptor.withSymbolicTraits(.bold), size: font.pointSize) ?? font
 
         let style = NSMutableParagraphStyle()
-        style.lineHeightMultiple = 1.12
-        let spaceWidth = (" " as NSString).size(withAttributes: [.font: font]).width
-        style.defaultTabInterval = spaceWidth * CGFloat(max(indentWidth, 1))
+        let spacing = CGFloat(min(max(configuration.lineSpacing, 0.9), 2.5))
+        style.lineHeightMultiple = isVisual ? max(spacing, 1.3) : spacing
+        let spaceWidth = (" " as NSString).size(withAttributes: [.font: markupFont]).width
+        style.defaultTabInterval = spaceWidth * CGFloat(max(configuration.indentWidth, 1))
         style.tabStops = []
         paragraphStyle = style
 
+        let theme = configuration.colorTheme
         let kinds: [SyntaxKind] = [.command, .environment, .math, .comment, .reference, .special, .verbatim, .sectionTitle]
         var colors: [SyntaxKind: NSColor] = [:]
         for kind in kinds {
-            colors[kind] = SyntaxPalette.color(for: kind)
+            colors[kind] = theme.color(for: kind)
         }
         self.colors = colors
+    }
+
+    /// The chosen code font, or SF Mono when it isn't installed.
+    static func codeFont(named name: String, size: CGFloat) -> NSFont {
+        if !name.isEmpty, let font = NSFont(name: name, size: size) {
+            return font
+        }
+        if !name.isEmpty, let font = NSFontManager.shared.font(withFamily: name, traits: [], weight: 5, size: size) {
+            return font
+        }
+        return .monospacedSystemFont(ofSize: size, weight: .regular)
     }
 
     var baseAttributes: [NSAttributedString.Key: Any] {
@@ -105,6 +205,10 @@ final class SyntaxHighlighter {
     /// the live preview.
     var stylesFormatting = false
     private var styledFonts: [String: NSFont] = [:]
+    /// The code font's name, for `\texttt` in the Visual editor.
+    private var codeFontName: String {
+        theme.codeFontName
+    }
 
     init(theme: SyntaxTheme) {
         self.theme = theme
@@ -134,20 +238,31 @@ final class SyntaxHighlighter {
         storage.removeAttribute(.underlineStyle, range: region)
         storage.removeAttribute(.strikethroughStyle, range: region)
 
+        // In the Visual editor the text is set in its typeface and markup keeps the code
+        // font, so commands and formulas being edited read as source.
+        let markupFont = theme.isVisual ? theme.markupFont : nil
         for span in scan.regions {
-            storage.addAttributes([
+            var attributes: [NSAttributedString.Key: Any] = [
                 .foregroundColor: theme.color(for: .math),
                 .texLabSyntax: SyntaxKind.math.rawValue,
-            ], range: span.range)
+            ]
+            if let markupFont {
+                attributes[.font] = markupFont
+            }
+            storage.addAttributes(attributes, range: span.range)
         }
         for span in scan.tokens {
             if span.kind == .sectionTitle {
                 storage.addAttribute(.font, value: theme.boldFont, range: span.range)
             } else {
-                storage.addAttributes([
+                var attributes: [NSAttributedString.Key: Any] = [
                     .foregroundColor: theme.color(for: span.kind),
                     .texLabSyntax: span.kind.rawValue,
-                ], range: span.range)
+                ]
+                if let markupFont {
+                    attributes[.font] = markupFont
+                }
+                storage.addAttributes(attributes, range: span.range)
             }
         }
         if stylesFormatting {
@@ -199,13 +314,16 @@ final class SyntaxHighlighter {
         [1.8, 1.65, 1.4, 1.2, 1.08, 1, 1][min(max(level, 0), 6)]
     }
 
-    /// The system font at `size` times the editor font's, for headings and the title.
+    /// The text typeface at `size` times the text size, for headings and the title.
     private func roleFont(size: CGFloat, weight: NSFont.Weight) -> NSFont {
-        let key = "role|\(size)|\(weight.rawValue)|\(theme.font.pointSize)"
+        let key = "role|\(size)|\(weight.rawValue)|\(theme.font.fontName)|\(theme.font.pointSize)"
         if let cached = styledFonts[key] {
             return cached
         }
-        let font = NSFont.systemFont(ofSize: (theme.font.pointSize * size).rounded(), weight: weight)
+        let pointSize = (theme.font.pointSize * size).rounded()
+        let traits: NSFontDescriptor.SymbolicTraits = weight == .bold ? .bold : []
+        let font = NSFont(descriptor: theme.font.fontDescriptor.withSymbolicTraits(traits), size: pointSize)
+            ?? NSFont.systemFont(ofSize: pointSize, weight: weight)
         styledFonts[key] = font
         return font
     }
@@ -220,7 +338,7 @@ final class SyntaxHighlighter {
         var descriptor = font.fontDescriptor
         var traits = descriptor.symbolicTraits.intersection([.bold, .italic])
         if style.contains(.monospace) {
-            descriptor = NSFont.monospacedSystemFont(ofSize: size, weight: .regular).fontDescriptor
+            descriptor = SyntaxTheme.codeFont(named: codeFontName, size: size).fontDescriptor
         } else if style.contains(.sansSerif) {
             descriptor = NSFont.systemFont(ofSize: size).fontDescriptor
         } else if style.contains(.serif) {

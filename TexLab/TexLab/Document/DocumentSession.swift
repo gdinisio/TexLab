@@ -55,6 +55,29 @@ final class DocumentSession {
     var log = ""
     var console = ""
 
+    // MARK: Editor mode
+
+    /// Code or Visual, chosen per window. Change it with `setEditorMode(_:)`.
+    private(set) var editorMode: EditorMode = EditorMode(rawValue: UserDefaults.standard.string(forKey: SettingsKey.defaultEditorMode) ?? "") ?? .visual
+
+    func setEditorMode(_ mode: EditorMode) {
+        guard mode != editorMode else { return }
+        editorMode = mode
+        editorModeDidChange()
+    }
+
+    /// The mode the editor shows. Bibliographies, packages and other files that aren't
+    /// documents are always shown as code.
+    var effectiveEditorMode: EditorMode {
+        supportsVisualEditor ? editorMode : .code
+    }
+
+    /// Whether this file is a LaTeX document the Visual editor can present.
+    var supportsVisualEditor: Bool {
+        guard let fileURL else { return true }
+        return ProjectFileKind(url: fileURL, isDirectory: false) == .latex
+    }
+
     // MARK: Project
 
     /// The project this document belongs to, once it has been saved in a folder.

@@ -158,6 +158,10 @@ final class EditorController {
         textView?.foldPreamble(beepsIfMissing: beepsIfMissing)
     }
 
+    func unfoldPreamble() {
+        textView?.unfoldPreamble()
+    }
+
     func foldSections() {
         textView?.foldSections()
     }

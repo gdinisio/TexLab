@@ -3,6 +3,22 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.12 — Code and Visual editors, and customisation
+
+- Two editor modes per window, switched from the toolbar or with ⌃⌘1 / ⌃⌘2:
+  - **Code**: the source in the code font, with colouring and folding; no rendered
+    formulas or visual formatting.
+  - **Visual**: close to the typeset document, like Overleaf's Visual Editor — text in a
+    serif (or sans) typeface, large headings, rendered formulas and images, lists,
+    references and formatting shown as they will look, markup in the code font where you
+    edit it, the preamble collapsed, and an optional page-like line length.
+- Visual mode also hides `\begin{document}`/`\end{document}` and shows `\tableofcontents`,
+  lists of figures and tables, the bibliography, page breaks and `\appendix`.
+- Settings: editor font family (any installed monospaced font), line spacing, five colour
+  themes (Xcode, Classic, Soft, High Contrast, Monochrome) with a live sample, and a new
+  Visual Editor pane (default mode, typeface, text size, line length, formulas, images,
+  preamble). The status bar option moved to General.
+
 ## v1.11 — Fix: crash when opening a document with visual preview elements
 
 - Fixed a crash (`EXC_BREAKPOINT`) when a document with headings or `\maketitle` opened, for

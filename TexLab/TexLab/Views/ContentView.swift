@@ -17,6 +17,8 @@ struct ContentView: View {
 
     @State private var session = DocumentSession()
     @SceneStorage("showsPreview") private var showsPreview = true
+    /// This window's editor mode, restored with the window.
+    @SceneStorage("editorMode") private var storedEditorMode = ""
 
     @AppStorage(SettingsKey.editorFontSize) private var fontSize = AppSettings.editorFontSize
     @AppStorage(SettingsKey.showsLineNumbers) private var showsLineNumbers = AppSettings.showsLineNumbers
@@ -29,9 +31,15 @@ struct ContentView: View {
     @AppStorage(SettingsKey.checksSpelling) private var checksSpelling = AppSettings.checksSpelling
     @AppStorage(SettingsKey.suggestsCompletions) private var suggestsCompletions = AppSettings.suggestsCompletions
     @AppStorage(SettingsKey.showsStatusBar) private var showsStatusBar = AppSettings.showsStatusBar
-    @AppStorage(SettingsKey.showsLivePreview) private var showsLivePreview = AppSettings.showsLivePreview
+    @AppStorage(SettingsKey.editorFontName) private var fontName = AppSettings.editorFontName
+    @AppStorage(SettingsKey.editorLineSpacing) private var lineSpacing = AppSettings.editorLineSpacing
+    @AppStorage(SettingsKey.syntaxTheme) private var themeName = AppSettings.syntaxTheme
+    @AppStorage(SettingsKey.visualTypeface) private var visualTypeface = AppSettings.visualTypeface
+    @AppStorage(SettingsKey.visualFontSize) private var visualFontSize = AppSettings.visualFontSize
+    @AppStorage(SettingsKey.visualLimitsLineWidth) private var limitsLineWidth = AppSettings.visualLimitsLineWidth
+    @AppStorage(SettingsKey.visualLineWidth) private var lineWidth = AppSettings.visualLineWidth
     @AppStorage(SettingsKey.rendersMathInEditor) private var rendersMath = AppSettings.rendersMathInEditor
-    @AppStorage(SettingsKey.hidesFormattingCommands) private var hidesFormatting = AppSettings.hidesFormattingCommands
+    @AppStorage(SettingsKey.showsImagesInline) private var showsImages = AppSettings.showsImagesInline
 
     var body: some View {
         NavigationSplitView(columnVisibility: $session.columnVisibility) {
@@ -84,6 +92,9 @@ struct ContentView: View {
         ) { _ in }
         .onAppear {
             session.isPreviewVisible = showsPreview
+            if let mode = EditorMode(rawValue: storedEditorMode) {
+                session.setEditorMode(mode)
+            }
             session.start(text: document.text, encoding: document.encoding, fileURL: fileURL)
         }
         .onDisappear {
@@ -96,7 +107,10 @@ struct ContentView: View {
         .onChange(of: session.isPreviewVisible) { _, newValue in
             showsPreview = newValue
         }
-        .onChange(of: showsLivePreview && rendersMath) {
+        .onChange(of: session.editorMode) { _, newValue in
+            storedEditorMode = newValue.rawValue
+        }
+        .onChange(of: rendersMath) {
             session.livePreviewSettingDidChange()
         }
     }
@@ -119,6 +133,9 @@ struct ContentView: View {
     private var editorConfiguration: EditorConfiguration {
         EditorConfiguration(
             fontSize: AppSettings.clampedFontSize(fontSize),
+            fontName: fontName,
+            lineSpacing: lineSpacing,
+            themeName: themeName,
             showsLineNumbers: showsLineNumbers,
             highlightsCurrentLine: highlightsCurrentLine,
             wrapsLines: wrapsLines,
@@ -128,8 +145,13 @@ struct ContentView: View {
             indentsWithSpaces: indentsWithSpaces,
             checksSpelling: checksSpelling,
             suggestsCompletions: suggestsCompletions,
-            rendersMath: showsLivePreview && rendersMath,
-            stylesFormatting: showsLivePreview && hidesFormatting
+            mode: session.effectiveEditorMode,
+            visualTypeface: VisualTypeface(rawValue: visualTypeface) ?? .serif,
+            visualFontSize: visualFontSize,
+            limitsLineWidth: limitsLineWidth,
+            lineWidth: lineWidth,
+            rendersMath: rendersMath,
+            showsImages: showsImages
         )
     }
 }

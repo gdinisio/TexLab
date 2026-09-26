@@ -122,6 +122,10 @@ nonisolated enum VisualScanner {
     private static let typographyPattern = regex(#"---|--|``|''|\\(?:ldots|dots|textendash|textemdash|LaTeX|TeX)(?![A-Za-z])(?:\{\})?"#)
     private static let graphicsPattern = regex(#"\\includegraphics\*?\s*(?:\[[^\]]*\])?\s*\{([^{}]+)\}"#)
     private static let maketitlePattern = regex(#"\\maketitle(?![A-Za-z])"#)
+    private static let markerPattern = regex(
+        #"\\(tableofcontents|listoffigures|listoftables|newpage|clearpage|cleardoublepage|pagebreak|appendix|printbibliography)(?![A-Za-z])\*?(?:\[[^\]\n]*\])?"#
+    )
+    private static let bibliographyPattern = regex(#"\\(bibliography|bibliographystyle)\s*\{[^{}\n]*\}"#)
 
     private static func regex(_ pattern: String) -> NSRegularExpression {
         try! NSRegularExpression(pattern: pattern)
@@ -200,6 +204,7 @@ nonisolated enum VisualScanner {
         }
 
         if !stylesOnly && body.length > 0 {
+            elements += documentMarkers(in: string, range: body, bodyStart: bodyStart, exclusions: exclusions)
             elements += references(in: string, range: body, exclusions: exclusions)
             elements += structure(in: string, range: body, exclusions: exclusions)
             elements += symbols(in: string, range: body, exclusions: exclusions)
@@ -232,6 +237,46 @@ nonisolated enum VisualScanner {
                 NSRange(location: NSMaxRange(content), length: 1),
             ]
         )
+    }
+
+    // MARK: Document markers
+
+    /// `\begin{document}`, tables of contents, page breaks and the bibliography, shown the
+    /// way the typeset document shows them.
+    private static func documentMarkers(in string: NSString, range: NSRange, bodyStart: Int, exclusions: Exclusions) -> [VisualElement] {
+        var elements: [VisualElement] = []
+        let begin = string.range(of: "\\begin{document}")
+        if begin.location != NSNotFound, NSMaxRange(begin) == bodyStart, !exclusions.overlaps(begin) {
+            elements.append(hiddenLine(for: begin, in: string))
+        }
+        for match in markerPattern.matches(in: string as String, range: range) where !exclusions.overlaps(match.range) && !isEscaped(match.range.location, in: string) {
+            let label: VisualLabel
+            switch string.substring(with: match.range(at: 1)) {
+            case "tableofcontents":
+                label = VisualLabel(range: match.range, text: String(localized: "Contents"), kind: .environment(centred: false, italic: false))
+            case "listoffigures":
+                label = VisualLabel(range: match.range, text: String(localized: "List of Figures"), kind: .environment(centred: false, italic: false))
+            case "listoftables":
+                label = VisualLabel(range: match.range, text: String(localized: "List of Tables"), kind: .environment(centred: false, italic: false))
+            case "printbibliography":
+                label = VisualLabel(range: match.range, text: String(localized: "References"), kind: .environment(centred: false, italic: false))
+            case "appendix":
+                label = VisualLabel(range: match.range, text: String(localized: "Appendix"), kind: .chip(systemImage: "paperclip"))
+            default:
+                label = VisualLabel(range: match.range, text: String(localized: "Page Break"), kind: .chip(systemImage: "arrow.down.to.line"))
+            }
+            elements.append(VisualElement(range: match.range, label: label))
+        }
+        for match in bibliographyPattern.matches(in: string as String, range: range) where !exclusions.overlaps(match.range) && !isEscaped(match.range.location, in: string) {
+            if string.substring(with: match.range(at: 1)) == "bibliography" {
+                let label = VisualLabel(range: match.range, text: String(localized: "References"), kind: .environment(centred: false, italic: false))
+                elements.append(VisualElement(range: match.range, label: label))
+            } else {
+                // The style only matters to BibTeX.
+                elements.append(hiddenLine(for: match.range, in: string))
+            }
+        }
+        return elements
     }
 
     // MARK: References
@@ -312,7 +357,10 @@ nonisolated enum VisualScanner {
             let name = string.substring(with: match.range(at: 2)).trimmingCharacters(in: .whitespaces)
             let base = name.hasSuffix("*") ? String(name.dropLast()) : name
 
-            if listEnvironments.contains(base) {
+            if base == "document" {
+                // \end{document}: the document simply ends.
+                elements.append(hiddenLine(for: command, in: string))
+            } else if listEnvironments.contains(base) {
                 if isBegin {
                     lists.append(OpenList(name: base))
                 } else if let index = lists.lastIndex(where: { $0.name == base }) {

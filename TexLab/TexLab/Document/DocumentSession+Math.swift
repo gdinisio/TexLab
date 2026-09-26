@@ -38,7 +38,8 @@ extension DocumentSession {
         if !hasScannedFolds {
             hasScannedFolds = true
             let defaults = UserDefaults.standard
-            if defaults.bool(forKey: SettingsKey.foldsPreambleOnOpen) {
+            let visualCollapses = effectiveEditorMode == .visual && defaults.bool(forKey: SettingsKey.collapsesPreambleInVisual)
+            if defaults.bool(forKey: SettingsKey.foldsPreambleOnOpen) || visualCollapses {
                 editor.foldPreamble(beepsIfMissing: false)
             }
             if defaults.bool(forKey: SettingsKey.foldsFloatsOnOpen) {
@@ -50,7 +51,7 @@ extension DocumentSession {
 
     /// Called when Render Math is turned on or off.
     func livePreviewSettingDidChange() {
-        if AppSettings.rendersMathNow {
+        if rendersMathNow {
             renderMath(for: MathScanner.scan(text))
         } else {
             mathRenderTask?.cancel()
@@ -62,7 +63,7 @@ extension DocumentSession {
 
     private func renderMath(for regions: [MathRegion]) {
         let defaults = UserDefaults.standard
-        guard AppSettings.rendersMathNow, !regions.isEmpty,
+        guard rendersMathNow, !regions.isEmpty,
               let distribution = TeXDistribution.locate(customPath: defaults.string(forKey: SettingsKey.texBinPath) ?? "") else { return }
         guard mathRenderTask == nil else {
             needsAnotherMathRender = true
@@ -218,5 +219,33 @@ extension DocumentSession {
             ? ["pdf", "png", "jpg", "jpeg"].map { base.appendingPathExtension($0) }
             : [base]
         return candidates.first { FileManager.default.fileExists(atPath: $0.filePath) }
+    }
+}
+
+// MARK: - Editor mode
+
+extension DocumentSession {
+    /// Whether formulas are rendered in the editor: in the Visual editor, when Settings
+    /// allow it.
+    var rendersMathNow: Bool {
+        effectiveEditorMode == .visual && UserDefaults.standard.bool(forKey: SettingsKey.rendersMathInEditor)
+    }
+
+    /// Switches between the Code and Visual editors.
+    func toggleEditorMode() {
+        setEditorMode(editorMode == .code ? .visual : .code)
+    }
+
+    /// The Visual editor keeps the preamble out of the way, as Overleaf's does; the Code
+    /// editor shows everything.
+    func editorModeDidChange() {
+        if effectiveEditorMode == .visual {
+            if UserDefaults.standard.bool(forKey: SettingsKey.collapsesPreambleInVisual) {
+                editor.foldPreamble(beepsIfMissing: false)
+            }
+        } else {
+            editor.unfoldPreamble()
+        }
+        livePreviewSettingDidChange()
     }
 }

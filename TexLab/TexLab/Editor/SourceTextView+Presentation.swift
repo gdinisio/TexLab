@@ -59,6 +59,7 @@ extension SourceTextView {
                 guard let label = element.label else { continue }
                 var image: NSImage?
                 if case .picture(let path) = label.kind {
+                    guard configuration.showsImages else { continue }
                     image = thumbnail(for: path)
                     guard image != nil else { continue }
                 }
@@ -76,7 +77,7 @@ extension SourceTextView {
 
         let revealed = mathRegionsTouchingSelection()
         revealedMath = revealed
-        if configuration.rendersMath {
+        if configuration.showsRenderedMath {
             // Formulas are typeset at 10 pt; scale them to the editor's text.
             let scale = font.pointSize / 10
             for region in mathRegions where NSMaxRange(region.range) <= length && !revealed.contains(region.range.location) {
@@ -107,7 +108,7 @@ extension SourceTextView {
             }
             return
         }
-        let mathChanged = configuration.rendersMath && !mathRegions.isEmpty && mathRegionsTouchingSelection() != revealedMath
+        let mathChanged = configuration.showsRenderedMath && !mathRegions.isEmpty && mathRegionsTouchingSelection() != revealedMath
         let formattingChanged = configuration.stylesFormatting && !visualElements.isEmpty && visualElementsTouchingSelection() != revealedVisuals
         if mathChanged || formattingChanged {
             updatePresentation()
@@ -311,6 +312,12 @@ extension SourceTextView {
         for region in sections.sorted(by: { $0.range.length > $1.range.length }) {
             fold(region)
         }
+    }
+
+    /// Expands the preamble if it's collapsed.
+    func unfoldPreamble() {
+        guard let preamble = folds.first(where: { $0.kind == .preamble }) else { return }
+        unfold(preamble)
     }
 
     func unfoldAll() {

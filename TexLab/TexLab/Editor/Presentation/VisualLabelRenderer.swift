@@ -96,8 +96,16 @@ enum VisualLabelRenderer {
         font.pointSize - 1
     }
 
+    /// `font` with `traits`, in the same family, so labels match the Visual editor's text.
+    private static func variant(of font: NSFont, traits: NSFontDescriptor.SymbolicTraits, scale: CGFloat = 1) -> NSFont {
+        let size = (font.pointSize * scale).rounded()
+        return NSFont(descriptor: font.fontDescriptor.withSymbolicTraits(font.fontDescriptor.symbolicTraits.union(traits)), size: size)
+            ?? NSFont(descriptor: font.fontDescriptor, size: size)
+            ?? font
+    }
+
     private static func inlineText(_ string: String, font: NSFont, bold: Bool) -> NSAttributedString {
-        let displayFont = bold ? NSFont.systemFont(ofSize: font.pointSize, weight: .semibold) : font
+        let displayFont = bold ? variant(of: font, traits: .bold) : font
         return NSAttributedString(string: string, attributes: [.font: displayFont, .foregroundColor: NSColor.labelColor])
     }
 
@@ -109,22 +117,19 @@ enum VisualLabelRenderer {
     }
 
     private static func environmentFont(_ font: NSFont, italic: Bool) -> NSFont {
-        let size = font.pointSize * (italic ? 1 : 1.15)
-        let base = NSFont.systemFont(ofSize: size, weight: italic ? .regular : .bold)
-        guard italic else { return base }
-        return NSFont(descriptor: base.fontDescriptor.withSymbolicTraits(.italic), size: size) ?? base
+        italic ? variant(of: font, traits: .italic) : variant(of: font, traits: .bold, scale: 1.12)
     }
 
     private static func titleText(_ string: String, font: NSFont) -> NSAttributedString {
         NSAttributedString(string: string, attributes: [
-            .font: NSFont.systemFont(ofSize: font.pointSize * 1.8, weight: .bold),
+            .font: variant(of: font, traits: .bold, scale: 1.8),
             .foregroundColor: NSColor.labelColor,
         ])
     }
 
     private static func authorText(_ string: String, font: NSFont) -> NSAttributedString {
         NSAttributedString(string: string, attributes: [
-            .font: NSFont.systemFont(ofSize: font.pointSize * 1.1),
+            .font: variant(of: font, traits: [], scale: 1.1),
             .foregroundColor: NSColor.secondaryLabelColor,
         ])
     }
