@@ -30,6 +30,11 @@ struct TexLabCommands: Commands {
             }
             .keyboardShortcut("l")
             .disabled(session == nil)
+            Button("Find in Project…") {
+                session?.showFindInProject()
+            }
+            .keyboardShortcut("f", modifiers: [.command, .shift])
+            .disabled(session == nil)
         }
 
         // View
@@ -48,6 +53,14 @@ struct TexLabCommands: Commands {
                 Toggle("Wrap Lines", isOn: $wrapsLines)
             }
             liveSourceCommands
+            Menu("Navigators") {
+                navigatorButton("Project", tab: .project, key: "1")
+                navigatorButton("Outline", tab: .outline, key: "2")
+                navigatorButton("Find", tab: .find, key: "3")
+                navigatorButton("References", tab: .references, key: "4")
+                navigatorButton("Issues", tab: .issues, key: "5")
+            }
+            .disabled(session == nil)
             Divider()
             previewZoomCommands
             Toggle("Two Pages", isOn: $previewShowsTwoPages)
@@ -196,6 +209,13 @@ struct TexLabCommands: Commands {
             .keyboardShortcut(.rightArrow, modifiers: [.command, .option, .control])
         }
         .disabled(session == nil)
+    }
+
+    private func navigatorButton(_ title: LocalizedStringKey, tab: SidebarTab, key: KeyEquivalent) -> some View {
+        Button(title) {
+            session?.showNavigator(tab)
+        }
+        .keyboardShortcut(key)
     }
 
     private func modeBinding(_ mode: EditorMode) -> Binding<Bool> {

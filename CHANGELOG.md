@@ -3,6 +3,22 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.14 — Find and References navigators, copying paths
+
+- The sidebar has five navigators, like Xcode's, on ⌘1–⌘5: Project, Outline, Find,
+  References and Issues.
+- Find (⇧⌘F, Edit ▸ Find in Project) searches every LaTeX file, bibliography and package
+  in the project as you type, including unsaved changes to the open document, with Match
+  Case and Whole Words options. Results are grouped by file with the match in bold;
+  selecting one shows it in the editor or opens the file at that line.
+- References lists every label (grouped as figures, tables, equations, sections, …) and
+  bibliography entry (key, authors, year, title) of the project, with a filter.
+  Double-click inserts `\ref`/`\eqref` or `\cite` at the insertion point, drag inserts it
+  where you drop it, and the context menu offers `\cref`, `\pageref`, `\citep`, …, Show
+  Definition and Copy.
+- The project navigator can copy a file's path relative to the main file (what
+  `\includegraphics` and `\input` expect), its full path, or the LaTeX command that uses it.
+
 ## v1.13 — A customisable toolbar
 
 - The toolbar is fully customisable with View ▸ Customize Toolbar: drag tools in and out,

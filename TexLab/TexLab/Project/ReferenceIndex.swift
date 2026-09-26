@@ -79,6 +79,8 @@ nonisolated struct BibEntry: Identifiable, Hashable, Sendable {
     var authors: String
     var year: String
     var file: URL?
+    /// 1-based line where the entry starts.
+    var line: Int = 1
 
     var id: String { key + "@" + (file?.path(percentEncoded: false) ?? "") }
 
@@ -168,7 +170,11 @@ nonisolated enum ReferenceScanner {
     static func bibEntries(in text: String, file: URL?) -> [BibEntry] {
         let string = text as NSString
         var entries: [BibEntry] = []
+        var line = 1
+        var scanned = 0
         for match in entryStartPattern.matches(in: text, range: NSRange(location: 0, length: string.length)) {
+            line += LineIndex.lineBreaks(in: string, range: NSRange(location: scanned, length: match.range.location - scanned)).count
+            scanned = match.range.location
             let type = string.substring(with: match.range(at: 1)).lowercased()
             guard type != "comment", type != "string", type != "preamble" else { continue }
             let key = string.substring(with: match.range(at: 2))
@@ -180,7 +186,8 @@ nonisolated enum ReferenceScanner {
                 title: fields["title"] ?? fields["booktitle"] ?? "",
                 authors: fields["author"] ?? fields["editor"] ?? "",
                 year: fields["year"] ?? fields["date"].map { String($0.prefix(4)) } ?? "",
-                file: file
+                file: file,
+                line: line
             ))
         }
         return entries

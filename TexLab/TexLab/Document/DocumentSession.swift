@@ -13,6 +13,8 @@ import SwiftUI
 nonisolated enum SidebarTab: String, CaseIterable, Identifiable {
     case project
     case outline
+    case find
+    case references
     case issues
 
     var id: String { rawValue }
@@ -83,6 +85,15 @@ final class DocumentSession {
     /// The project this document belongs to, once it has been saved in a folder.
     var project: ProjectSnapshot?
     var isShowingNewFileSheet = false
+
+    // MARK: Find in project
+
+    var findQuery = ""
+    var findOptions = SearchOptions()
+    var findResults: [SearchFileResult] = []
+    var isSearchingProject = false
+    /// Incremented to move the focus to the Find navigator's search field.
+    var findFieldFocusRequest = 0
     /// The folder New File creates the file in.
     var newFileFolder: URL?
 
@@ -131,6 +142,7 @@ final class DocumentSession {
     @ObservationIgnored var watchedFolders: [URL] = []
     @ObservationIgnored var projectObservers: [NSObjectProtocol] = []
     @ObservationIgnored var lastProjectKey = ""
+    @ObservationIgnored var findTask: Task<Void, Never>?
     /// Identifies an untitled document's build folder.
     let sessionID = UUID()
 
@@ -364,18 +376,23 @@ enum SourceNavigator {
 
     /// Opens `url` in TexLab and moves its editor to `line`.
     static func open(_ url: URL, line: Int?) {
-        let path = SourceMap.canonicalPath(url)
         if let line {
-            pendingLines[path] = line
-            NotificationCenter.default.post(
-                name: revealLineNotification,
-                object: nil,
-                userInfo: [pathKey: path, lineKey: line]
-            )
+            requestReveal(of: line, in: url)
         }
         Task {
             _ = try? await NSDocumentController.shared.openDocument(withContentsOf: url, display: true)
         }
+    }
+
+    /// Asks the window showing `url` — open already or about to open — to reveal `line`.
+    static func requestReveal(of line: Int, in url: URL) {
+        let path = SourceMap.canonicalPath(url)
+        pendingLines[path] = line
+        NotificationCenter.default.post(
+            name: revealLineNotification,
+            object: nil,
+            userInfo: [pathKey: path, lineKey: line]
+        )
     }
 
     /// The line a newly opened window should reveal, if one was requested.

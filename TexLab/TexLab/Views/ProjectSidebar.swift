@@ -138,6 +138,21 @@ struct ProjectSidebar: View {
         }
         if !urls.isEmpty {
             Divider()
+            Button(urls.count == 1 ? "Copy Path" : "Copy Paths") {
+                Pasteboard.copy(urls.map { PathUtilities.relativePath(of: $0, from: project.folder) }.joined(separator: "\n"))
+            }
+            .help("The path from the main file’s folder, as \\includegraphics and \\input expect it")
+            Button(urls.count == 1 ? "Copy Full Path" : "Copy Full Paths") {
+                Pasteboard.copy(urls.map(\.filePath).joined(separator: "\n"))
+            }
+            let references = urls.compactMap { ProjectReferences.reference(to: $0, from: project.folder) }
+            if !references.isEmpty {
+                Button(references.count == 1 ? "Copy LaTeX Reference" : "Copy LaTeX References") {
+                    Pasteboard.copy(references.joined(separator: "\n"))
+                }
+                .help("The command that uses the file, such as \\includegraphics{…} or \\input{…}")
+            }
+            Divider()
             Button("Show in Finder") {
                 session.showInFinder(urls)
             }

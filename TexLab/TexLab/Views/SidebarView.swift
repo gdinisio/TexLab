@@ -17,12 +17,16 @@ struct SidebarView: View {
                 ProjectSidebar(session: session)
             case .outline:
                 OutlineSidebar(session: session)
+            case .find:
+                FindSidebar(session: session)
+            case .references:
+                ReferencesSidebar(session: session)
             case .issues:
                 IssuesSidebar(session: session)
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            // Icons, like Xcode's navigator bar, so three tabs fit a narrow sidebar.
+            // Icons, like Xcode's navigator bar, so the tabs fit a narrow sidebar.
             Picker("Sidebar", selection: $session.sidebarTab) {
                 Label("Project", systemImage: "folder")
                     .help("Project")
@@ -30,6 +34,12 @@ struct SidebarView: View {
                 Label("Outline", systemImage: "list.bullet.indent")
                     .help("Outline")
                     .tag(SidebarTab.outline)
+                Label("Find", systemImage: "magnifyingglass")
+                    .help("Find in Project")
+                    .tag(SidebarTab.find)
+                Label("References", systemImage: "books.vertical")
+                    .help("Labels and Bibliography")
+                    .tag(SidebarTab.references)
                 Label(issuesTitle, systemImage: issuesCount > 0 ? "exclamationmark.triangle.fill" : "exclamationmark.triangle")
                     .help(issuesTitle)
                     .tag(SidebarTab.issues)
