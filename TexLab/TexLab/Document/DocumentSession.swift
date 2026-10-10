@@ -48,7 +48,10 @@ final class DocumentSession {
     // MARK: Typesetting
 
     var status: TypesetStatus = .idle
+    /// Issues from the latest typesetting.
     var issues: [Issue] = []
+    /// Issues found while typing, before typesetting.
+    var liveIssues: [Issue] = []
     /// The engine used for the latest typesetting, from a magic comment or Settings.
     var engine: TypesettingEngine = .pdfLaTeX
     /// Whether the document chooses its engine with `% !TEX program`.
@@ -143,6 +146,7 @@ final class DocumentSession {
     @ObservationIgnored var projectObservers: [NSObjectProtocol] = []
     @ObservationIgnored var lastProjectKey = ""
     @ObservationIgnored var findTask: Task<Void, Never>?
+    @ObservationIgnored var liveIssuesTask: Task<Void, Never>?
     @ObservationIgnored var recordedProjectID: String?
     /// Identifies an untitled document's build folder.
     let sessionID = UUID()
@@ -160,12 +164,19 @@ final class DocumentSession {
         status == .running
     }
 
+    /// Errors from typesetting and found while typing.
     var errorCount: Int {
-        issues.filter { $0.severity == .error }.count
+        allIssues.filter { $0.severity == .error }.count
     }
 
+    /// Warnings from typesetting and found while typing.
     var warningCount: Int {
-        issues.filter { $0.severity == .warning }.count
+        allIssues.filter { $0.severity == .warning }.count
+    }
+
+    /// Live issues first, as they describe the text as it is now, then TeX's.
+    var allIssues: [Issue] {
+        liveIssues + issues
     }
 
     // MARK: - Lifecycle
@@ -196,6 +207,7 @@ final class DocumentSession {
     /// Called when the window closes.
     func stop() {
         analysisTask?.cancel()
+        liveIssuesTask?.cancel()
         mathRenderTask?.cancel()
         needsAnotherMathRender = false
         stopProject()
@@ -334,6 +346,7 @@ final class DocumentSession {
             updateCurrentOutlineItem()
         }
         updateLivePreview()
+        checkLiveIssues()
 
         // Whether this is a main file or a part of one decides the project's main file.
         let projectKey = "\(ProjectIndex.isMainDocument(text))|\(MagicComments(text: text).root ?? "")"

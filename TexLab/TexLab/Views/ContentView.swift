@@ -42,6 +42,7 @@ struct ContentView: View {
     @AppStorage(SettingsKey.visualLineWidth) private var lineWidth = AppSettings.visualLineWidth
     @AppStorage(SettingsKey.rendersMathInEditor) private var rendersMath = AppSettings.rendersMathInEditor
     @AppStorage(SettingsKey.showsImagesInline) private var showsImages = AppSettings.showsImagesInline
+    @AppStorage(SettingsKey.showsLiveIssues) private var showsLiveIssues = AppSettings.showsLiveIssues
 
     var body: some View {
         NavigationSplitView(columnVisibility: $session.columnVisibility) {
@@ -103,6 +104,9 @@ struct ContentView: View {
         }
         .onChange(of: rendersMath) {
             session.livePreviewSettingDidChange()
+        }
+        .onChange(of: showsLiveIssues) {
+            session.checkLiveIssues()
         }
     }
 

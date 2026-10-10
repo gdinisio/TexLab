@@ -5,13 +5,16 @@
 
 import Foundation
 
-/// A problem found while typesetting, attached to a source file and line when known.
+/// A problem found while typesetting, or while typing, attached to a source file and line
+/// when known.
 nonisolated struct Issue: Identifiable, Hashable, Sendable {
     let id: Int
     var severity: LogEntry.Severity
     var message: String
     var source: SourceFile?
     var line: Int?
+    /// Whether it was found while typing rather than by TeX.
+    var isLive = false
 
     /// The file name shown next to the message.
     var fileName: String? {

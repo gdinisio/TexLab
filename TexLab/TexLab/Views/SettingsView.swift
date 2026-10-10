@@ -40,6 +40,7 @@ private struct GeneralSettings: View {
     @AppStorage(SettingsKey.previewShowsTwoPages) private var previewShowsTwoPages = AppSettings.previewShowsTwoPages
     @AppStorage(SettingsKey.showsWarnings) private var showsWarnings = AppSettings.showsWarnings
     @AppStorage(SettingsKey.showsBadBoxes) private var showsBadBoxes = AppSettings.showsBadBoxes
+    @AppStorage(SettingsKey.showsLiveIssues) private var showsLiveIssues = AppSettings.showsLiveIssues
     @AppStorage(SettingsKey.showsStatusBar) private var showsStatusBar = AppSettings.showsStatusBar
 
     var body: some View {
@@ -71,9 +72,15 @@ private struct GeneralSettings: View {
                 Toggle("Show the status bar", isOn: $showsStatusBar)
             }
 
-            Section("Issues") {
+            Section {
+                Toggle("Show live issues", isOn: $showsLiveIssues)
                 Toggle("Show warnings", isOn: $showsWarnings)
                 Toggle("Show overfull and underfull boxes", isOn: $showsBadBoxes)
+            } header: {
+                Text("Issues")
+            } footer: {
+                Text("Live issues are found as you type, before typesetting: environments and braces that aren’t closed, references to missing labels, and citations missing from the bibliography.")
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

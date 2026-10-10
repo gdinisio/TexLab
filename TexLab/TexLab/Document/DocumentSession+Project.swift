@@ -69,6 +69,8 @@ extension DocumentSession {
             guard !Task.isCancelled, let self else { return }
             if snapshot != self.project {
                 self.project = snapshot
+                // Labels and bibliography entries elsewhere in the project may have changed.
+                self.checkLiveIssues()
             }
             // Remember the project for the Welcome window, once per project.
             let recentID = "\(snapshot.folder.path(percentEncoded: false))|\(snapshot.mainFile?.path(percentEncoded: false) ?? "")"

@@ -87,6 +87,7 @@ nonisolated enum SettingsKey {
     static let allowsShellEscape = "allowsShellEscape"
     static let showsWarnings = "showsWarnings"
     static let showsBadBoxes = "showsBadBoxes"
+    static let showsLiveIssues = "showsLiveIssues"
     static let previewShowsTwoPages = "previewShowsTwoPages"
 }
 
@@ -129,6 +130,7 @@ nonisolated enum AppSettings {
     static let allowsShellEscape = false
     static let showsWarnings = true
     static let showsBadBoxes = false
+    static let showsLiveIssues = true
     static let previewShowsTwoPages = false
 
     /// Registers the defaults so code that reads `UserDefaults` directly sees the same
@@ -168,6 +170,7 @@ nonisolated enum AppSettings {
             SettingsKey.allowsShellEscape: allowsShellEscape,
             SettingsKey.showsWarnings: showsWarnings,
             SettingsKey.showsBadBoxes: showsBadBoxes,
+            SettingsKey.showsLiveIssues: showsLiveIssues,
             SettingsKey.previewShowsTwoPages: previewShowsTwoPages,
         ])
     }

@@ -120,15 +120,15 @@ private struct OutlineRow: View {
     }
 }
 
-/// Problems reported by TeX. Clicking one shows its source.
+/// Problems found while typing and reported by TeX. Clicking one shows its source.
 struct IssuesSidebar: View {
     var session: DocumentSession
 
     @AppStorage(SettingsKey.showsWarnings) private var showsWarnings = AppSettings.showsWarnings
     @AppStorage(SettingsKey.showsBadBoxes) private var showsBadBoxes = AppSettings.showsBadBoxes
 
-    private var visibleIssues: [Issue] {
-        session.issues.filter { issue in
+    private func visible(_ issues: [Issue]) -> [Issue] {
+        issues.filter { issue in
             switch issue.severity {
             case .error: true
             case .warning: showsWarnings
@@ -138,17 +138,27 @@ struct IssuesSidebar: View {
     }
 
     var body: some View {
+        let live = visible(session.liveIssues)
+        let typeset = visible(session.issues)
         Group {
-            if visibleIssues.isEmpty {
+            if live.isEmpty && typeset.isEmpty {
                 emptyState
             } else {
-                List(visibleIssues) { issue in
-                    Button {
-                        session.reveal(issue)
-                    } label: {
-                        IssueRow(issue: issue, documentName: session.displayName)
+                List {
+                    if !live.isEmpty {
+                        Section("Found While Typing") {
+                            ForEach(live) { issue in
+                                issueButton(issue)
+                            }
+                        }
                     }
-                    .buttonStyle(.plain)
+                    if !typeset.isEmpty {
+                        Section("From Typesetting") {
+                            ForEach(typeset) { issue in
+                                issueButton(issue)
+                            }
+                        }
+                    }
                 }
                 .listStyle(.sidebar)
             }
@@ -184,19 +194,28 @@ struct IssuesSidebar: View {
         }
     }
 
+    private func issueButton(_ issue: Issue) -> some View {
+        Button {
+            session.reveal(issue)
+        } label: {
+            IssueRow(issue: issue, documentName: session.displayName)
+        }
+        .buttonStyle(.plain)
+    }
+
     @ViewBuilder
     private var emptyState: some View {
         if session.status == .idle || session.status == .running && session.lastTypesetDate == nil {
             ContentUnavailableView {
                 Label("Not Typeset Yet", systemImage: "doc.badge.gearshape")
             } description: {
-                Text("Problems TeX finds while typesetting appear here.")
+                Text("Problems found as you type and while typesetting appear here.")
             }
         } else {
             ContentUnavailableView {
                 Label("No Issues", systemImage: "checkmark.circle")
             } description: {
-                Text(session.issues.isEmpty ? "TeX found no problems." : "Hidden issues can be shown with the buttons below.")
+                Text(session.allIssues.isEmpty ? "TexLab and TeX found no problems." : "Hidden issues can be shown with the buttons below.")
             }
         }
     }

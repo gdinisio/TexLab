@@ -136,12 +136,12 @@ struct TexLabCommands: Commands {
                 session?.revealAdjacentIssue(forward: true)
             }
             .keyboardShortcut("'")
-            .disabled(session?.issues.isEmpty != false)
+            .disabled(session?.allIssues.isEmpty != false)
             Button("Previous Issue") {
                 session?.revealAdjacentIssue(forward: false)
             }
             .keyboardShortcut("'", modifiers: [.command, .shift])
-            .disabled(session?.issues.isEmpty != false)
+            .disabled(session?.allIssues.isEmpty != false)
             Button("Show Log") {
                 session?.isShowingLog = true
             }

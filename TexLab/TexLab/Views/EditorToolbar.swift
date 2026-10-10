@@ -75,7 +75,7 @@ private struct TypesettingToolbarItems: CustomizableToolbarContent {
             } label: {
                 Label("Issues", systemImage: "exclamationmark.triangle")
             }
-            .disabled(session.issues.isEmpty)
+            .disabled(session.allIssues.isEmpty)
             .help("Move through errors and warnings (⌘' and ⇧⌘')")
         }
         ToolbarItem(id: "log", showsByDefault: false) {

@@ -162,6 +162,11 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   another file; ⇧⌘J (or Show in PDF) highlights the text a line produced.
 - **Issues** — errors, warnings and bad boxes with file and line in the sidebar and the
   gutter; ⌘' moves through them. The full log is one click away.
+- **Live issues** — like Xcode's, found as you type, before typesetting: environments
+  and braces that aren't closed or don't match, references to labels nothing defines,
+  citations missing from the bibliography, and labels defined twice. They read the text
+  as TeX does (comments, `\verb`, verbatim environments, URLs, definitions and
+  conditionals) and stay quiet when they can't be sure. Settings can turn them off.
 - **Outline** — a sidebar tree of parts, chapters, sections, Beamer frames, figures and
   tables that follows the insertion point.
 - **Share, export and print** the PDF, named after the document.
@@ -283,6 +288,12 @@ TexLab/TexLab/
   one TeX run with the `preview` package, whose `auctex` option reports each formula's
   depth so it sits on the baseline; the session (`+Math`) caches images per formula and
   preamble and renders in the background.
+- **Live issues** — `LiveChecker` reads the text in one pass, as TeX does — comments,
+  control sequences, braces, `\if … \fi` and environments, skipping verbatim text —
+  off the main thread after each pause in typing; environments begun inside a brace
+  group or a conditional belong to it, so definitions don't look unbalanced. The session
+  (`+LiveIssues`) gives it what the project snapshot knows: labels in other files,
+  bibliography entries and verbatim environments defined in packages.
 - **Typesetting** — `TeXDistribution` finds TeX without relying on the shell `PATH`.
   `Typesetter` writes the editor text to a build folder in
   `~/Library/Caches/com.gdinisio.TexLab/Typeset` and runs TeX in the document's folder

@@ -151,6 +151,8 @@ nonisolated struct ProjectSnapshot: Sendable, Equatable {
     var bibEntries: [BibEntry] = []
     /// Commands defined in the project's other LaTeX files and packages.
     var commands: [CommandDefinition] = []
+    /// Verbatim environments the project's other files and packages define.
+    var verbatimEnvironments: Set<String> = []
 
     var labelKeys: [String] {
         labels.map(\.key)
@@ -193,6 +195,7 @@ nonisolated enum ProjectIndex {
         var labels: [LabelDefinition] = []
         var entries: [BibEntry] = []
         var commands: [CommandDefinition] = []
+        var verbatimEnvironments: Set<String> = []
         let current = SourceMap.canonicalPath(documentURL)
         for file in tree.files {
             switch file.kind {
@@ -200,10 +203,12 @@ nonisolated enum ProjectIndex {
                 if let other = contents(of: file.url) {
                     labels += ReferenceScanner.labels(in: other, file: file.url)
                     commands += DefinitionFinder.commandDefinitions(in: other, file: file.url)
+                    verbatimEnvironments.formUnion(LiveChecker.verbatimEnvironmentDefinitions(in: other))
                 }
             case .package where ["sty", "cls"].contains(file.url.pathExtension.lowercased()):
                 if let package = contents(of: file.url) {
                     commands += DefinitionFinder.commandDefinitions(in: package, file: file.url)
+                    verbatimEnvironments.formUnion(LiveChecker.verbatimEnvironmentDefinitions(in: package))
                 }
             case .bibliography:
                 if let database = contents(of: file.url) {
@@ -223,7 +228,8 @@ nonisolated enum ProjectIndex {
             mainFileIsDetected: detected,
             labels: labels.sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending },
             bibEntries: entries.sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending },
-            commands: commands
+            commands: commands,
+            verbatimEnvironments: verbatimEnvironments
         )
     }
 

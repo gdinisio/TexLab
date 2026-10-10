@@ -3,6 +3,32 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.22 — Live issues
+
+- Like Xcode's live issues, TexLab now finds problems as you type, a moment after you
+  pause, without typesetting. They appear in the Issues navigator under Found While
+  Typing, in the gutter and in the status bar, and ⌘' moves through them:
+  - an environment that isn't closed, is closed by the wrong `\end`, or has an `\end`
+    without a `\begin`;
+  - a `{` that isn't closed, or a `}` without a `{`;
+  - a reference to a label nothing in the project defines (as a warning);
+  - a citation missing from the bibliography (as a warning);
+  - a label defined twice in the file (as a warning).
+- The checks read the text the way TeX does, and stay quiet when they can't be sure:
+  - Comments, `\{` and `\}`, `\verb`, `\lstinline`, `\url` and `\href` addresses,
+    `\iffalse … \fi` and verbatim environments are understood. That includes verbatim
+    environments the document or project defines with `\lstnewenvironment`,
+    `\DefineVerbatimEnvironment`, `\newminted` or tcolorbox listings.
+  - Environments inside a definition, such as the arguments of `\newenvironment`, and
+    inside `\if … \fi` branches are left alone.
+  - References aren't checked until the project has been scanned, nor in documents that
+    use `xr` to refer to others.
+  - Citations are only checked when every bibliography the document names is in the
+    project.
+- Settings ▸ General ▸ Show live issues turns them off.
+- The status bar and the Issues tab count live issues with TeX's; the window subtitle
+  still summarises the latest typesetting.
+
 ## v1.21 — Jump to Definition
 
 - ⌘-click, Edit ▸ Jump to Definition (⌃⌘J) or the editor's context menu go from what is

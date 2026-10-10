@@ -191,7 +191,8 @@ extension DocumentSession {
             } else if result.status == .timedOut {
                 status = .timedOut
             } else {
-                status = .failed(errors: max(errorCount, 1), producedPDF: result.pdfData != nil)
+                let errors = issues.filter { $0.severity == .error }.count
+                status = .failed(errors: max(errors, 1), producedPDF: result.pdfData != nil)
             }
             updateIssueMarkers()
         }
@@ -229,7 +230,7 @@ extension DocumentSession {
 
     func updateIssueMarkers() {
         var markers: [Int: IssueMarker] = [:]
-        for issue in issues where issue.source == .currentDocument {
+        for issue in allIssues where issue.source == .currentDocument {
             guard let line = issue.line else { continue }
             let marker: IssueMarker
             switch issue.severity {
@@ -262,7 +263,7 @@ extension DocumentSession {
     /// Moves through the issues in order, like Xcode's Jump to Next Issue.
     func revealAdjacentIssue(forward: Bool) {
         let showsBadBoxes = UserDefaults.standard.bool(forKey: SettingsKey.showsBadBoxes)
-        let navigable = issues.filter { showsBadBoxes || $0.severity != .badBox }
+        let navigable = allIssues.filter { showsBadBoxes || $0.severity != .badBox }
         guard !navigable.isEmpty else {
             NSSound.beep()
             return
