@@ -35,6 +35,11 @@ struct TexLabCommands: Commands {
             }
             .keyboardShortcut("f", modifiers: [.command, .shift])
             .disabled(session == nil)
+            Button("Jump to Definition") {
+                session?.jumpToDefinitionAtSelection()
+            }
+            .keyboardShortcut("j", modifiers: [.command, .control])
+            .disabled(session == nil)
         }
 
         // View

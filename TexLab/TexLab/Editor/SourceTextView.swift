@@ -31,6 +31,9 @@ final class SourceTextView: NSTextView {
     var droppedFilesFormatter: (([URL]) -> String)?
     /// Asks whether completions exist before the editor offers them automatically.
     var hasCompletions: ((NSRange) -> Bool)?
+    /// Jumps to the definition of what is at a location, for Command-click. Returns false
+    /// if there's nothing there with a definition.
+    var jumpToDefinition: ((Int) -> Bool)?
 
     private var currentLineRect: NSRect?
     /// Text to recolour once the current edit has finished, in the text's current offsets.
@@ -597,6 +600,16 @@ final class SourceTextView: NSTextView {
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        // Command-click jumps to a definition, as in Xcode; elsewhere it selects as usual.
+        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           event.clickCount == 1, let jumpToDefinition {
+            // A reference shown as a chip is one drawing for all of its text; use its name.
+            let location = presentationLayoutManager?.replacement(at: point).map { $0.range.location + 1 }
+                ?? characterIndexForInsertion(at: point)
+            if jumpToDefinition(location) {
+                return
+            }
+        }
         if let replacement = presentationLayoutManager?.replacement(at: point) {
             window?.makeFirstResponder(self)
             switch replacement.kind {

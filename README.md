@@ -116,6 +116,10 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 - **Navigators** — the sidebar has five, like Xcode's, on ⌘1–⌘5: Project, Outline, Find,
   References and Issues.
+- **Jump to Definition** — ⌘-click (or ⌃⌘J, or the context menu) goes from a reference
+  to its `\label`, from a citation to its bibliography entry, from `\input`,
+  `\includegraphics` or `\bibliography` to the file, from a command to its
+  `\newcommand`, and from `\begin{…}` to its `\end{…}` — in any file of the project.
 - **Find in Project** (⇧⌘F) searches every LaTeX file, bibliography and package as you
   type, including unsaved changes, with Match Case and Whole Words; selecting a result
   shows it.
@@ -183,6 +187,7 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 | Code / Visual editor | ⌃⌘1 / ⌃⌘2 |
 | Project, Outline, Find, References, Issues navigators | ⌘1 … ⌘5 |
 | Find in Project | ⇧⌘F |
+| Jump to Definition | ⌘-click or ⌃⌘J |
 | Fold / Unfold | ⌥⌘← / ⌥⌘→ |
 | Fold Figures and Tables / Unfold All | ⌃⌥⌘← / ⌃⌥⌘→ |
 | Bigger / Smaller Text | ⌘+ (or ⌘=) / ⌘- |
@@ -295,7 +300,9 @@ TexLab/TexLab/
   split into groups of related tools so AppKit's customisation palette offers them all;
   tools insert through `DocumentSession+Insert`, which adds the packages and definitions
   they need. `ProjectSearch` and `ReferenceScanner` back the Find and References
-  navigators and the Cite and Reference pickers.
+  navigators and the Cite and Reference pickers. `DefinitionFinder` reads what is under
+  the pointer for Jump to Definition, and the project snapshot also lists the commands
+  the project's other files and packages define.
 - **Welcome window** — a SwiftUI `Window` scene presented at launch
   (`defaultLaunchBehavior`); an `NSApplicationDelegate` stops the untitled document at
   launch and reopens the window from the Dock. `RecentProjects` keeps recent folders in

@@ -3,6 +3,25 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.21 — Jump to Definition
+
+- ⌘-click, Edit ▸ Jump to Definition (⌃⌘J) or the editor's context menu go from what is
+  under the pointer to where it is defined, as in Xcode:
+  - a reference (`\ref`, `\eqref`, `\cref`, …) goes to its `\label`, in this file or
+    another file of the project;
+  - a citation goes to its entry in the project's bibliography, or its `\bibitem`; with
+    several keys, to the one clicked;
+  - `\input`, `\include`, `\includegraphics`, `\bibliography`, `\addbibresource` and a
+    project's own `\usepackage` or `\documentclass` open the file, found relative to the
+    main file as TeX finds it;
+  - a command the document or project defines goes to its `\newcommand`, `\def`,
+    `\DeclareMathOperator` or `\NewDocumentCommand`, including those in the project's
+    `.sty` files;
+  - `\begin{…}` goes to its `\end{…}` and back, counting nested environments.
+- In the Visual editor, ⌘-clicking a reference chip jumps to its label.
+- The context menu names the jump: Jump to Definition, Open File, or Jump to `\end{…}`.
+- ⌘-click anywhere else still selects as usual, and commented-out text is ignored.
+
 ## v1.20 — Placeholders: Tab through what a snippet needs
 
 - Snippets now mark the places still to fill in, such as a figure's caption and label

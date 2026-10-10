@@ -33,6 +33,9 @@ struct SourceEditor: NSViewRepresentable {
         textView.hasCompletions = { [weak coordinator] range in
             coordinator?.hasCompletions(for: range) ?? false
         }
+        textView.jumpToDefinition = { [weak session] location in
+            session?.jumpToDefinition(at: location) ?? false
+        }
         session.editor.attach(textView)
 
         // Start typing straight away in a new window.
@@ -115,16 +118,36 @@ struct SourceEditor: NSViewRepresentable {
             return !completionProvider.completions(for: range, in: storage.mutableString, defaultWords: []).isEmpty
         }
 
-        /// Adds Show in PDF to the editor's context menu once there is a preview to show.
+        /// Adds Jump to Definition to the editor's context menu when the click is on a
+        /// reference, a citation, a file, a defined command or an environment, and Show in
+        /// PDF once there is a preview to show.
         func textView(_ view: NSTextView, menu: NSMenu, for event: NSEvent, at charIndex: Int) -> NSMenu? {
-            guard parent.session.canSynchronize, let sourceView = view as? SourceTextView else { return menu }
-            let item = NSMenuItem(title: String(localized: "Show in PDF"), action: #selector(showInPDF(_:)), keyEquivalent: "")
-            item.target = self
-            item.tag = sourceView.lineIndex.lineNumber(at: max(charIndex, 0))
-            item.image = NSImage(systemSymbolName: "doc.richtext", accessibilityDescription: nil)
-            menu.insertItem(item, at: 0)
-            menu.insertItem(.separator(), at: 1)
+            guard let sourceView = view as? SourceTextView else { return menu }
+            var items: [NSMenuItem] = []
+            if charIndex >= 0, let definition = parent.session.definition(at: charIndex) {
+                let item = NSMenuItem(title: definition.target.menuTitle, action: #selector(jumpToDefinition(_:)), keyEquivalent: "")
+                item.target = self
+                item.tag = charIndex
+                item.image = NSImage(systemSymbolName: "arrow.right.circle", accessibilityDescription: nil)
+                items.append(item)
+            }
+            if parent.session.canSynchronize {
+                let item = NSMenuItem(title: String(localized: "Show in PDF"), action: #selector(showInPDF(_:)), keyEquivalent: "")
+                item.target = self
+                item.tag = sourceView.lineIndex.lineNumber(at: max(charIndex, 0))
+                item.image = NSImage(systemSymbolName: "doc.richtext", accessibilityDescription: nil)
+                items.append(item)
+            }
+            guard !items.isEmpty else { return menu }
+            for (index, item) in items.enumerated() {
+                menu.insertItem(item, at: index)
+            }
+            menu.insertItem(.separator(), at: items.count)
             return menu
+        }
+
+        @objc private func jumpToDefinition(_ sender: NSMenuItem) {
+            parent.session.jumpToDefinition(at: sender.tag)
         }
 
         @objc private func showInPDF(_ sender: NSMenuItem) {
