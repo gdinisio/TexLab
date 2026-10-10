@@ -3,6 +3,20 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.20 — Placeholders: Tab through what a snippet needs
+
+- Snippets now mark the places still to fill in, such as a figure's caption and label
+  name, a fraction's denominator, a table's cells, a link's address and a frame's body.
+  Tab moves to the next place and Shift-Tab to the previous one. Each place still to fill
+  in shows as a faint insertion point. Tab at the last one moves past the snippet.
+- The text itself contains nothing extra; the editor only remembers the positions. They
+  are forgotten once the insertion point leaves the snippet, so Tab and Shift-Tab indent
+  as usual everywhere else.
+- Completing a command with several arguments inserts a pair of braces for each, with Tab
+  moving between them: `\frac`, `\binom`, `\textcolor`, `\href`, `\newcommand`,
+  `\newenvironment`, `\SI` and others.
+- Insert ▸ Table makes every cell a place to fill in, along with the caption and label.
+
 ## v1.19 — App icon
 
 - The TexLab app icon, drawn in Pixelmator Pro and assembled in Icon Composer, with its

@@ -58,6 +58,13 @@ final class SourceTextView: NSTextView {
     /// Locations of the visual elements currently showing their markup.
     var revealedVisuals: Set<Int> = []
 
+    // MARK: Placeholders
+
+    /// Places still to fill in an inserted snippet, in text order; the last is its end.
+    var placeholderStops: [Int] = []
+    /// The text the snippet occupies, while it has placeholders.
+    var placeholderSpan: NSRange?
+
     // MARK: - Creation
 
     /// Creates an editor inside a scroll view, with line numbers.
@@ -253,6 +260,7 @@ final class SourceTextView: NSTextView {
     /// Replaces the whole text without registering undo, for loading and reverting.
     func setText(_ text: String) {
         guard let storage = textStorage else { return }
+        endPlaceholders()
         let selection = selectedRange()
         storage.beginEditing()
         storage.replaceCharacters(in: NSRange(location: 0, length: storage.length), with: text)
@@ -270,6 +278,7 @@ final class SourceTextView: NSTextView {
     /// point and scroll position stay where they are. Not undoable, like `setText`.
     func applyExternalText(_ text: String) {
         guard let storage = textStorage, storage.string != text else { return }
+        endPlaceholders()
         let old = storage.mutableString
         let new = text as NSString
         var prefix = 0
@@ -321,6 +330,7 @@ final class SourceTextView: NSTextView {
         guard editedMask.contains(.editedCharacters) else { return }
         lineIndex.update(from: storage.mutableString, editedRange: range, changeInLength: delta)
         presentationTextWillChange(editedRange: range, changeInLength: delta)
+        placeholdersTextWillChange(editedRange: range, changeInLength: delta)
         // Colouring is applied afterwards as its own edit. Changing attributes beyond the
         // typed characters inside this edit would widen the range NSTextView treats as
         // replaced, and it would move the insertion point to the end of that range — the
@@ -377,15 +387,19 @@ final class SourceTextView: NSTextView {
 
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
-        guard configuration.highlightsCurrentLine, let lineRect = currentLineRect else { return }
-        let area = lineRect.intersection(rect).intersection(bounds)
-        guard !area.isEmpty else { return }
-        SyntaxPalette.currentLine.setFill()
-        area.fill()
+        if configuration.highlightsCurrentLine, let lineRect = currentLineRect {
+            let area = lineRect.intersection(rect).intersection(bounds)
+            if !area.isEmpty {
+                SyntaxPalette.currentLine.setFill()
+                area.fill()
+            }
+        }
+        drawPlaceholders(in: rect)
     }
 
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting stillSelectingFlag: Bool) {
         super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelectingFlag)
+        placeholdersSelectionDidChange()
         selectionDidChangeForPresentation()
         refreshCurrentLineHighlight()
         lineNumberRuler?.needsDisplay = true
@@ -677,6 +691,9 @@ final class SourceTextView: NSTextView {
             super.insertTab(sender)
             return
         }
+        if moveToPlaceholder(forward: true) {
+            return
+        }
         let selection = selectedRange()
         if selection.length > 0, text.substring(with: selection).contains("\n") {
             shiftSelectedLines(right: true)
@@ -693,6 +710,9 @@ final class SourceTextView: NSTextView {
     }
 
     override func insertBacktab(_ sender: Any?) {
+        if !hasMarkedText(), moveToPlaceholder(forward: false) {
+            return
+        }
         shiftSelectedLines(right: false)
     }
 
@@ -746,11 +766,19 @@ final class SourceTextView: NSTextView {
         let end = charRange.location + (word as NSString).length
 
         if word.hasPrefix("\\") {
-            // A command that takes an argument gets its braces, with the caret inside.
+            // A command that takes arguments gets their braces, with the caret in the first
+            // pair; Tab moves on to the others.
             let name = String(word.dropFirst())
             let hasBrace = end < text.length && text.character(at: end) == Char.openBrace
-            guard LaTeXCatalog.commandsTakingArgument.contains(name), !hasBrace else { return }
-            replaceCharacters(in: NSRange(location: end, length: 0), with: "{}", selecting: NSRange(location: end + 1, length: 0), actionName: nil)
+            let count = LaTeXCatalog.argumentCount(of: name)
+            guard count > 0, !hasBrace else { return }
+            let braces = String(repeating: "{}", count: count)
+            guard replaceCharacters(in: NSRange(location: end, length: 0), with: braces, selecting: NSRange(location: end + 1, length: 0), actionName: nil) else { return }
+            if count > 1 {
+                var stops: [Int] = (0..<count).map { end + 1 + 2 * $0 }
+                stops.append(end + 2 * count)
+                beginPlaceholders(stops, in: NSRange(location: end, length: 2 * count))
+            }
             suggestCompletionsIfUseful(afterTyping: "{")
             return
         }

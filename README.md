@@ -97,6 +97,12 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 - **Insert menu** — headings, lists, figures and images, tables of any size, math,
   theorems, references, environments, slides, spacing and breaks, fitted to the current
   indentation.
+- **Placeholders** — what you insert marks the places still to fill in: a figure's
+  caption and label, a fraction's denominator, a table's cells. Tab moves to the next
+  place and Shift-Tab to the previous one, and each place shows as a faint insertion
+  point. Completing `\frac`, `\href`, `\newcommand` and other commands with several
+  arguments works the same way. The text holds nothing extra, and Tab indents as usual
+  once you leave the snippet.
 - **Format menu** — ⌘B, ⌘I and ⌘U wrap the selection in `\textbf`, `\textit` and
   `\underline` (and unwrap it again), plus emphasis, monospace, small caps and sans serif.
 - **Symbols palette** — searchable Greek letters, relations, operators, arrows and text
@@ -171,6 +177,7 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 | Bold / Italic / Underline | ⌘B / ⌘I / ⌘U |
 | Comment Selection | ⌘/ |
 | Shift Right / Left | ⌘] / ⌘[ or Tab / ⇧Tab |
+| Next / Previous placeholder (in an inserted snippet) | Tab / ⇧Tab |
 | Complete | Esc |
 | Go to Line (`line` or `line:column`) | ⌘L |
 | Code / Visual editor | ⌃⌘1 / ⌃⌘2 |
@@ -259,6 +266,9 @@ TexLab/TexLab/
   changing attributes inside the character edit would make NSTextView move the insertion
   point to the end of the paragraph. `SyntaxTheme` builds fonts and colours from the
   settings and the editor mode. `LineIndex` maps offsets to lines incrementally.
+  Snippet placeholders (`SourceTextView+Placeholders`) are positions kept in step with
+  each edit, like the folds, never characters in the text, so a placeholder can't be
+  saved or typeset by mistake.
 - **Live preview in the editor** — `MathScanner`, `VisualScanner` and `FoldScanner` (in
   `Editor/Presentation/`) find formulas and foldable environments after each pause in
   typing. `PresentationLayoutManager` shows a range as a drawing without touching the

@@ -9,8 +9,11 @@ import Foundation
 ///
 /// In a snippet, a tab stands for one indent level and a line break keeps the current
 /// indentation. The selection, if any, goes between `before` and `after`; otherwise the
-/// insertion point does.
+/// insertion point does. `stop` marks further places to fill in, which Tab moves to.
 nonisolated enum SnippetCatalog {
+    /// A placeholder Tab moves to, after the insertion point's own place.
+    private static let stop = Snippet.stop
+
     // MARK: Headings
 
     static let part = Snippet("Part", systemImage: "books.vertical", before: "\\part{", after: "}\n")
@@ -26,7 +29,7 @@ nonisolated enum SnippetCatalog {
 
     static let bulletedList = Snippet("Bulleted List", systemImage: "list.bullet", before: "\\begin{itemize}\n\t\\item ", after: "\n\\end{itemize}")
     static let numberedList = Snippet("Numbered List", systemImage: "list.number", before: "\\begin{enumerate}\n\t\\item ", after: "\n\\end{enumerate}")
-    static let descriptionList = Snippet("Description List", systemImage: "list.bullet.rectangle", before: "\\begin{description}\n\t\\item[", after: "] \n\\end{description}")
+    static let descriptionList = Snippet("Description List", systemImage: "list.bullet.rectangle", before: "\\begin{description}\n\t\\item[", after: "] \(stop)\n\\end{description}")
 
     static let lists: [Snippet] = [bulletedList, numberedList, descriptionList]
 
@@ -36,13 +39,13 @@ nonisolated enum SnippetCatalog {
         "Figure",
         systemImage: "photo",
         before: "\\begin{figure}[htbp]\n\t\\centering\n\t\\includegraphics[width=0.8\\linewidth]{",
-        after: "}\n\t\\caption{}\n\t\\label{fig:}\n\\end{figure}"
+        after: "}\n\t\\caption{\(stop)}\n\t\\label{fig:\(stop)}\n\\end{figure}"
     )
     static let table = Snippet(
         "Table",
         systemImage: "tablecells",
-        before: "\\begin{table}[htbp]\n\t\\centering\n\t\\caption{}\n\t\\label{tab:}\n\t\\begin{tabular}{ll}\n\t\t\\hline\n\t\t",
-        after: " & \\\\\n\t\t\\hline\n\t\\end{tabular}\n\\end{table}"
+        before: "\\begin{table}[htbp]\n\t\\centering\n\t\\caption{\(stop)}\n\t\\label{tab:\(stop)}\n\t\\begin{tabular}{ll}\n\t\t\\hline\n\t\t",
+        after: " & \(stop)\\\\\n\t\t\\hline\n\t\\end{tabular}\n\\end{table}"
     )
 
     static let floats: [Snippet] = [figure, table]
@@ -51,11 +54,11 @@ nonisolated enum SnippetCatalog {
 
     static let inlineMath = Snippet("Inline Math", systemImage: "x.squareroot", before: "$", after: "$")
     static let displayMath = Snippet("Display Math", systemImage: "function", before: "\\[\n\t", after: "\n\\]")
-    static let equation = Snippet("Numbered Equation", systemImage: "number.square", before: "\\begin{equation}\n\t", after: "\n\t\\label{eq:}\n\\end{equation}")
-    static let align = Snippet("Aligned Equations", systemImage: "equal.square", before: "\\begin{align}\n\t", after: " &= \\\\\n\\end{align}")
-    static let fraction = Snippet("Fraction", systemImage: "divide", before: "\\frac{", after: "}{}")
-    static let matrix = Snippet("Matrix", systemImage: "square.grid.3x3", before: "\\begin{pmatrix}\n\t", after: " & \\\\\n\\end{pmatrix}")
-    static let cases = Snippet("Cases", systemImage: "curlybraces.square", before: "\\begin{cases}\n\t", after: " & \\text{if } \\\\\n\\end{cases}")
+    static let equation = Snippet("Numbered Equation", systemImage: "number.square", before: "\\begin{equation}\n\t", after: "\n\t\\label{eq:\(stop)}\n\\end{equation}")
+    static let align = Snippet("Aligned Equations", systemImage: "equal.square", before: "\\begin{align}\n\t", after: " &= \(stop)\\\\\n\\end{align}")
+    static let fraction = Snippet("Fraction", systemImage: "divide", before: "\\frac{", after: "}{\(stop)}")
+    static let matrix = Snippet("Matrix", systemImage: "square.grid.3x3", before: "\\begin{pmatrix}\n\t", after: " & \(stop)\\\\\n\\end{pmatrix}")
+    static let cases = Snippet("Cases", systemImage: "curlybraces.square", before: "\\begin{cases}\n\t", after: " & \\text{if \(stop)} \\\\\n\\end{cases}")
 
     static let math: [Snippet] = [
         inlineMath, displayMath, equation, align, fraction,
@@ -78,7 +81,7 @@ nonisolated enum SnippetCatalog {
 
     static let label = Snippet("Label", systemImage: "tag", before: "\\label{", after: "}")
     static let footnote = Snippet("Footnote", systemImage: "note.text", before: "\\footnote{", after: "}")
-    static let link = Snippet("Link", systemImage: "link", before: "\\href{https://}{", after: "}")
+    static let link = Snippet("Link", systemImage: "link", before: "\\href{https://\(stop)}{", after: "}")
     static let url = Snippet("URL", systemImage: "globe", before: "\\url{", after: "}")
 
     static let references: [Snippet] = [
@@ -106,14 +109,14 @@ nonisolated enum SnippetCatalog {
 
     // MARK: Presentations
 
-    static let frame = Snippet("Frame", systemImage: "rectangle.on.rectangle", before: "\\begin{frame}{", after: "}\n\t\n\\end{frame}")
+    static let frame = Snippet("Frame", systemImage: "rectangle.on.rectangle", before: "\\begin{frame}{", after: "}\n\t\(stop)\n\\end{frame}")
     static let columns = Snippet(
         "Columns",
         systemImage: "rectangle.split.2x1",
         before: "\\begin{columns}\n\t\\begin{column}{0.5\\textwidth}\n\t\t",
-        after: "\n\t\\end{column}\n\t\\begin{column}{0.5\\textwidth}\n\t\t\n\t\\end{column}\n\\end{columns}"
+        after: "\n\t\\end{column}\n\t\\begin{column}{0.5\\textwidth}\n\t\t\(stop)\n\t\\end{column}\n\\end{columns}"
     )
-    static let block = Snippet("Block", systemImage: "rectangle.grid.1x2", before: "\\begin{block}{", after: "}\n\t\n\\end{block}")
+    static let block = Snippet("Block", systemImage: "rectangle.grid.1x2", before: "\\begin{block}{", after: "}\n\t\(stop)\n\\end{block}")
     static let pause = Snippet("Pause", systemImage: "pause", before: "\\pause\n")
 
     static let presentation: [Snippet] = [frame, columns, block, pause]

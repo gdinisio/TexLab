@@ -41,6 +41,21 @@ nonisolated enum LaTeXCatalog {
         "usetheme", "usecolortheme", "institute",
     ]
 
+    /// Commands with more than one mandatory argument, and how many they take.
+    /// Completing one inserts a pair of braces for each, and Tab moves between them.
+    static let argumentCounts: [String: Int] = [
+        "frac": 2, "dfrac": 2, "tfrac": 2, "binom": 2, "textcolor": 2, "colorbox": 2,
+        "href": 2, "parbox": 2, "raisebox": 2, "setcounter": 2, "addtocounter": 2,
+        "setlength": 2, "addtolength": 2, "newcommand": 2, "renewcommand": 2,
+        "providecommand": 2, "DeclareMathOperator": 2, "newtheorem": 2,
+        "newenvironment": 3, "renewenvironment": 3, "SI": 2, "qty": 2,
+    ]
+
+    /// The number of mandatory arguments a command takes, if it takes any.
+    static func argumentCount(of command: String) -> Int {
+        argumentCounts[command] ?? (commandsTakingArgument.contains(command) ? 1 : 0)
+    }
+
     /// Commands used without arguments.
     static let commandsWithoutArgument: [String] = [
         "maketitle", "tableofcontents", "listoffigures", "listoftables", "printbibliography",

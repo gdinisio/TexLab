@@ -11,7 +11,8 @@ import Foundation
 ///
 /// `before` and `after` surround the selection (or the insertion point). In both, a tab
 /// stands for one level of indentation and a line break continues the current line's
-/// indentation, so snippets fit wherever they are inserted.
+/// indentation, so snippets fit wherever they are inserted. `Snippet.stop` marks a place
+/// still to fill in, which Tab moves to.
 nonisolated struct Snippet: Identifiable, Sendable {
     var id: String { title }
     let title: String
@@ -25,28 +26,61 @@ nonisolated struct Snippet: Identifiable, Sendable {
         self.before = before
         self.after = after
     }
+
+    /// Marks a placeholder in `before` or `after`. It is never inserted: the editor
+    /// remembers where it was instead. (A private-use character, so it can't clash with
+    /// anything a snippet means to insert.)
+    static let stop = "\u{E000}"
+
+    /// `text` without its placeholder marks, and where they were, in UTF-16 offsets.
+    static func removingStops(from text: String) -> (text: String, stops: [Int]) {
+        let marker = stop.utf16[stop.utf16.startIndex]
+        var units: [UInt16] = []
+        units.reserveCapacity(text.utf16.count)
+        var stops: [Int] = []
+        for unit in text.utf16 {
+            if unit == marker {
+                stops.append(units.count)
+            } else {
+                units.append(unit)
+            }
+        }
+        return (String(decoding: units, as: UTF16.self), stops)
+    }
 }
 
 extension SourceTextView {
     // MARK: - Insertion
 
     /// Inserts a snippet around the selection as one undoable step, named "Insert …" in
-    /// the Edit menu unless `actionName` says otherwise.
+    /// the Edit menu unless `actionName` says otherwise. If the snippet has placeholders,
+    /// Tab and Shift-Tab then move between them.
     func insert(_ snippet: Snippet, actionName: String? = nil) {
         guard let text = textStorage?.mutableString else { return }
         let selection = selectedRange()
         let selected = text.substring(with: selection)
+        let selectedLength = (selected as NSString).length
         let lineStart = text.lineRange(for: NSRange(location: selection.location, length: 0)).location
         let indent = Self.leadingWhitespace(of: text.substring(with: NSRange(location: lineStart, length: selection.location - lineStart)))
-        let before = expandSnippetText(snippet.before, indent: indent)
-        let after = expandSnippetText(snippet.after, indent: indent)
-        let innerStart = selection.location + (before as NSString).length
-        replaceCharacters(
+        let before = Snippet.removingStops(from: expandSnippetText(snippet.before, indent: indent))
+        let after = Snippet.removingStops(from: expandSnippetText(snippet.after, indent: indent))
+        let innerStart = selection.location + (before.text as NSString).length
+        let afterStart = innerStart + selectedLength
+        let inserted = replaceCharacters(
             in: selection,
-            with: before + selected + after,
-            selecting: NSRange(location: innerStart, length: (selected as NSString).length),
+            with: before.text + selected + after.text,
+            selecting: NSRange(location: innerStart, length: selectedLength),
             actionName: actionName ?? String(localized: "Insert \(snippet.title)")
         )
+        guard inserted, !before.stops.isEmpty || !after.stops.isEmpty else { return }
+        // The insertion point's place is a placeholder too, so Shift-Tab can come back to
+        // it, and the end of the snippet is the last one: Tab there leaves the snippet.
+        let end = afterStart + (after.text as NSString).length
+        var stops: [Int] = before.stops.map { selection.location + $0 }
+        stops.append(innerStart)
+        stops += after.stops.map { afterStart + $0 }
+        stops.append(end)
+        beginPlaceholders(stops, in: NSRange(location: selection.location, length: end - selection.location))
     }
 
     /// Wraps the selection in a command such as `\textbf{…}`, or unwraps it if it is

@@ -82,15 +82,16 @@ struct TableSheet: View {
         .navigationTitle("Insert Table")
     }
 
-    /// The table, with the insertion point in the first cell.
+    /// The table, with the insertion point in the first cell. Every cell, the caption and
+    /// the label are placeholders, so Tab moves through them.
     private var snippet: Snippet {
         let specification = String(repeating: alignment.rawValue, count: columns)
-        let emptyRow = Array(repeating: "", count: columns).joined(separator: " & ") + " \\\\"
+        let emptyRow = Array(repeating: Snippet.stop, count: columns).joined(separator: " & ") + " \\\\"
         let outer = isFloating ? "\t" : ""
         let inner = outer + "\t"
         let rule = hasRules ? inner + "\\hline\n" : ""
 
-        var before = isFloating ? "\\begin{table}[htbp]\n\t\\centering\n\t\\caption{}\n\t\\label{tab:}\n" : ""
+        var before = isFloating ? "\\begin{table}[htbp]\n\t\\centering\n\t\\caption{\(Snippet.stop)}\n\t\\label{tab:\(Snippet.stop)}\n" : ""
         before += outer + "\\begin{tabular}{\(specification)}\n" + rule + inner
 
         var after = emptyRow + "\n"
