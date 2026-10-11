@@ -153,6 +153,8 @@ nonisolated struct ProjectSnapshot: Sendable, Equatable {
     var commands: [CommandDefinition] = []
     /// Verbatim environments the project's other files and packages define.
     var verbatimEnvironments: Set<String> = []
+    /// The main file's `\title`, for the Welcome window.
+    var title: String?
 
     var labelKeys: [String] {
         labels.map(\.key)
@@ -166,6 +168,7 @@ nonisolated struct ProjectSnapshot: Sendable, Equatable {
 /// Finds a document's project and main file.
 nonisolated enum ProjectIndex {
     private static let documentClassPattern = try! NSRegularExpression(pattern: #"^[^%\n]*\\documentclass"#, options: [.anchorsMatchLines])
+    private static let titlePattern = try! NSRegularExpression(pattern: #"^[^%\n]*\\title\s*(?:\[[^\]\n]*\])?\s*\{(.+)\}"#, options: [.anchorsMatchLines])
     private static let inclusionPattern = try! NSRegularExpression(
         pattern: #"\\(?:input|include|subfile|includeonly)\s*\{([^{}]+)\}|\\(?:sub)?import\*?\s*\{([^{}]*)\}\s*\{([^{}]+)\}"#
     )
@@ -221,6 +224,9 @@ nonisolated enum ProjectIndex {
         if mainFile == nil, let candidate = defaultMainFile(in: tree) {
             mainFile = candidate
         }
+        let mainText = mainFile.flatMap { main in
+            SourceMap.canonicalPath(main) == current ? text : contents(of: main)
+        }
         return ProjectSnapshot(
             folder: folder,
             tree: tree,
@@ -229,8 +235,17 @@ nonisolated enum ProjectIndex {
             labels: labels.sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending },
             bibEntries: entries.sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending },
             commands: commands,
-            verbatimEnvironments: verbatimEnvironments
+            verbatimEnvironments: verbatimEnvironments,
+            title: mainText.flatMap(title(in:))
         )
+    }
+
+    /// A document's `\title`, as plain text, or nil if it has none.
+    static func title(in text: String) -> String? {
+        let string = text as NSString
+        guard let match = titlePattern.firstMatch(in: text, range: NSRange(location: 0, length: string.length)) else { return nil }
+        let title = OutlineParser.cleanTitle(string.substring(with: match.range(at: 1)))
+        return title.isEmpty ? nil : title
     }
 
     /// A complete document in the folder or its parents that includes `url` with `\input`,

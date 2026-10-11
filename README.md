@@ -15,10 +15,22 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 **Getting started**
 
 - **Welcome window** — like Xcode's: Create New Project, Open Existing Project (a folder
-  or a single document), New Document, and your recent projects. It appears when TexLab
-  opens (Settings can turn that off), from Window ▸ Welcome to TexLab (⇧⌘1), and when
-  you click the Dock icon with no windows open. File ▸ Open Project (⇧⌘O) opens a folder
-  at its main file, and offers to create `main.tex` in a folder without one.
+  or a single document), Clone Git Repository, New Document, and your recent projects.
+  It appears when TexLab opens (Settings can turn that off), from Window ▸ Welcome to
+  TexLab (⇧⌘1), and when you click the Dock icon with no windows open. Drop a project
+  folder or a document on it to open it.
+- **Recent projects** — each shows a thumbnail of its typeset first page, its title,
+  where it is and when you last opened it. Search them, pin the ones you use most to
+  the top, and find a project that was moved with Locate…; the context menu also shows
+  it in the Finder, copies its path and removes it. File ▸ Open Recent Project lists
+  them too.
+- **Opening a folder** — File ▸ Open Project (⇧⌘O) opens a folder at its main file:
+  `main.tex`, or its only complete document. When several documents could be the main
+  file, TexLab asks which one (showing their titles) and remembers the answer; a folder
+  without a document gets a `main.tex` if you like.
+- **Clone Git Repository** — clones a project from GitHub, GitLab or Overleaf (its Git
+  address) with the git from the Xcode command line tools, then opens it. Passwords come
+  from your keychain, and failures are explained in plain words.
 
 **Writing**
 
@@ -139,8 +151,12 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   can add it to the main file: `\input{…}` before `\end{document}`, the bibliography
   (`\bibliography` or `\addbibresource` for biblatex), or `\usepackage` in the preamble —
   in the main file's window if it's open, as an undoable edit.
-- **New Project** (⇧⌘N) creates a folder with `main.tex` from any template and, if you
-  like, a `references.bib` already wired up.
+- **New Project** (⇧⌘N) opens a template chooser like Xcode's: a gallery of Article,
+  Report, Book, Presentation, Letter and Blank, each with a sketch of its first page,
+  beside the project's name, title and author, the paper (A4 or US Letter, from your
+  region) and font size — or widescreen or standard slides — the engine, and a
+  `references.bib` already wired up. TexLab then asks where to save the folder, and
+  remembers your choices for the next project. Every combination typesets as created.
 - **Main file** — a part of a project is typeset through the file that includes it, found
   automatically when it has no `\documentclass`, or named with `% !TEX root` (the
   navigator's "Use as Main File for This Document" writes that comment). Completion
@@ -209,6 +225,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 - macOS 27 or later, Xcode 27 or later.
 - A TeX distribution — [MacTeX](https://tug.org/mactex/) is recommended; BasicTeX,
   TeX Live, Homebrew and MacPorts installations are found too.
+- Clone Git Repository uses git from Xcode or its command line tools
+  (`xcode-select --install`).
 
 ## Getting started
 
@@ -316,8 +334,12 @@ TexLab/TexLab/
   the project's other files and packages define.
 - **Welcome window** — a SwiftUI `Window` scene presented at launch
   (`defaultLaunchBehavior`); an `NSApplicationDelegate` stops the untitled document at
-  launch and reopens the window from the Dock. `RecentProjects` keeps recent folders in
-  the user defaults, and `ProjectOpener` finds a folder's main file.
+  launch and reopens the window from the Dock. `RecentProjects` keeps recent folders,
+  with their titles and pins, in the user defaults; `ProjectThumbnails` draws the first
+  page of the PDF in each project's build folder in the background. `ProjectOpener`
+  finds a folder's main file, `GitCloner` runs `git clone` through `ProcessRunner`
+  without ever waiting for a password prompt, and the New Project window
+  (`NewProjectView`, its own `Window` scene) turns a `ProjectSetup` into `main.tex`.
 - **Preview** — `SyncPDFView` (`PDFView` subclass) restores the scroll position when a
   new PDF arrives, handles ⌘-click and highlights forward-search results.
 - **Imports** — the target enables `MemberImportVisibility`, so each file imports every

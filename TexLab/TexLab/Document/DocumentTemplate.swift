@@ -30,6 +30,18 @@ nonisolated enum DocumentTemplate: String, CaseIterable, Identifiable {
         }
     }
 
+    /// What the template is for, shown in the New Project window.
+    var summary: String {
+        switch self {
+        case .article: String(localized: "Papers, essays and notes, divided into sections.")
+        case .report: String(localized: "Longer documents with chapters and a table of contents.")
+        case .book: String(localized: "Books and theses, with front matter, chapters and back matter.")
+        case .presentation: String(localized: "Slides made with Beamer.")
+        case .letter: String(localized: "A formal letter with addresses, opening and closing.")
+        case .minimal: String(localized: "An empty document, to start from scratch.")
+        }
+    }
+
     var systemImage: String {
         switch self {
         case .article: "doc.text"

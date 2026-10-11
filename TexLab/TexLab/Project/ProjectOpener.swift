@@ -48,18 +48,28 @@ enum ProjectOpener {
         }
     }
 
-    /// Opens a project folder at its main file, offering to create one if it has none.
+    /// Opens a project folder at its main file. If the folder has several complete
+    /// documents, asks which one is the main file; if it has none, offers to create one.
     static func openProject(at folder: URL, preferredMainFile: URL? = nil) {
         if let preferredMainFile, FileManager.default.fileExists(atPath: preferredMainFile.filePath) {
             RecentProjects.shared.record(folder: folder, mainFile: preferredMainFile, isFolderProject: true)
             openDocument(preferredMainFile)
             return
         }
-        if let main = mainFile(in: folder) {
+        switch mainFileChoice(in: folder) {
+        case .found(let main):
             RecentProjects.shared.record(folder: folder, mainFile: main, isFolderProject: true)
             openDocument(main)
-            return
+        case .several(let documents):
+            guard let main = askForMainFile(among: documents, in: folder) else { return }
+            RecentProjects.shared.record(folder: folder, mainFile: main, isFolderProject: true)
+            openDocument(main)
+        case .noDocuments:
+            offerToCreateMainFile(in: folder)
         }
+    }
+
+    private static func offerToCreateMainFile(in folder: URL) {
         let alert = NSAlert()
         alert.messageText = String(localized: "“\(folder.lastPathComponent)” has no LaTeX document")
         alert.informativeText = String(localized: "Create main.tex from the Article template to start a project in this folder?")
@@ -76,6 +86,28 @@ enum ProjectOpener {
         }
     }
 
+    /// Asks which of a folder's complete documents is its main file, listing each with its
+    /// title. The most recently changed one is chosen to begin with.
+    private static func askForMainFile(among documents: [URL], in folder: URL) -> URL? {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Which document is the main file of “\(folder.lastPathComponent)”?")
+        alert.informativeText = String(localized: "The folder has several complete LaTeX documents. TexLab typesets the project through its main file, and remembers your choice.")
+        let popUp = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 340, height: 26), pullsDown: false)
+        for document in documents {
+            var title = document.lastPathComponent
+            if let documentTitle = ProjectIndex.contents(of: document).flatMap(ProjectIndex.title(in:)) {
+                title += " — " + (documentTitle.count > 50 ? String(documentTitle.prefix(49)) + "…" : documentTitle)
+            }
+            popUp.menu?.addItem(NSMenuItem(title: title, action: nil, keyEquivalent: ""))
+        }
+        popUp.selectItem(at: 0)
+        alert.accessoryView = popUp
+        alert.addButton(withTitle: String(localized: "Open"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn, documents.indices.contains(popUp.indexOfSelectedItem) else { return nil }
+        return documents[popUp.indexOfSelectedItem]
+    }
+
     static func openDocument(_ url: URL) {
         Task {
             do {
@@ -86,22 +118,39 @@ enum ProjectOpener {
         }
     }
 
-    /// A folder's main file: main.tex, the only complete document, the most recently
-    /// changed complete document, or any LaTeX file.
-    static func mainFile(in folder: URL) -> URL? {
+    /// What a folder's main file is.
+    enum MainFileChoice {
+        /// main.tex, the only complete document, or the only LaTeX file.
+        case found(URL)
+        /// Several complete documents, most recently changed first.
+        case several([URL])
+        /// No LaTeX files at all.
+        case noDocuments
+    }
+
+    /// A folder's main file: main.tex, or its only complete document. Several complete
+    /// documents are for the user to choose between; without any, the first LaTeX file
+    /// (a part of a project whose main file is elsewhere) will do.
+    static func mainFileChoice(in folder: URL) -> MainFileChoice {
         let keys: [URLResourceKey] = [.contentModificationDateKey]
         let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles])) ?? []
-        let latex = files.filter { ProjectFileKind(url: $0, isDirectory: false) == .latex }
+        let latex = files
+            .filter { ProjectFileKind(url: $0, isDirectory: false) == .latex }
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
         if let main = latex.first(where: { $0.deletingPathExtension().lastPathComponent.lowercased() == "main" }) {
-            return main
+            return .found(main)
         }
         let documents = latex.filter { ProjectIndex.contents(of: $0).map(ProjectIndex.isMainDocument) ?? false }
         if documents.count == 1 {
-            return documents[0]
+            return .found(documents[0])
         }
-        func modified(_ url: URL) -> Date {
-            (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+        if documents.count > 1 {
+            func modified(_ url: URL) -> Date {
+                (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            }
+            return .several(documents.sorted { modified($0) > modified($1) })
         }
-        return documents.max { modified($0) < modified($1) } ?? latex.first
+        guard let first = latex.first else { return .noDocuments }
+        return .found(first)
     }
 }

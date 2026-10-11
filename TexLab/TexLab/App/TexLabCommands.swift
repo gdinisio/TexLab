@@ -268,18 +268,20 @@ struct TexLabCommands: Commands {
 /// The File and Help menu additions.
 struct FileAndHelpCommands: Commands {
     @FocusedValue(\.documentSession) private var session
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
         CommandGroup(after: .newItem) {
             NewFromTemplateMenu()
             Button("New Project…") {
-                ProjectCreator.createProject()
+                openWindow(id: NewProjectWindow.id)
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
             Button("Open Project…") {
                 ProjectOpener.chooseAndOpen()
             }
             .keyboardShortcut("o", modifiers: [.command, .shift])
+            OpenRecentProjectMenu()
             Button("New File in Project…") {
                 session?.newFileFolder = session?.projectFolder
                 session?.isShowingNewFileSheet = true
@@ -323,5 +325,28 @@ struct NewFromTemplateMenu: View {
                 }
             }
         }
+    }
+}
+
+/// File ▸ Open Recent Project, listing the Welcome window's recent projects.
+struct OpenRecentProjectMenu: View {
+    private let recents = RecentProjects.shared
+
+    var body: some View {
+        Menu("Open Recent Project") {
+            ForEach(recents.pinned + recents.unpinned.prefix(12)) { project in
+                Button {
+                    ProjectOpener.open(project)
+                } label: {
+                    Text(verbatim: project.name)
+                }
+                .disabled(!project.exists)
+            }
+            Divider()
+            Button("Clear Menu") {
+                recents.clear()
+            }
+        }
+        .disabled(recents.items.isEmpty)
     }
 }

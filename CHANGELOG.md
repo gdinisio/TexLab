@@ -3,6 +3,42 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.23 — A better Welcome window and New Project
+
+- **New Project** (⇧⌘N, or Create New Project in the Welcome window) is now a template
+  chooser like Xcode's:
+  - a gallery of the six templates, each with a sketch of its first page drawn in place;
+  - beside it, the project's name, title and author (your name to begin with);
+  - the paper (A4 or US Letter, from your region) and font size, or for slides
+    widescreen (16:9) or standard (4:3);
+  - the engine (XeLaTeX and LuaLaTeX get fontspec and a `% !TEX program` line);
+  - whether to add `references.bib`.
+  Create… then asks where to save the folder. Titles and names are escaped, so any
+  characters typeset as typed, and the choices are remembered for the next project.
+  Every template, engine and page set-up was typeset with TeX Live to check it works.
+- **Welcome window**
+  - Clone Git Repository… clones a project from GitHub, GitLab or Overleaf with git and
+    opens it. It never hangs on a password prompt: saved passwords come from the
+    keychain, and failures are explained (missing command line tools, a password or
+    token needed, an SSH key refused, a server that can't be reached, a repository
+    that doesn't exist). A half-finished clone is removed.
+  - Drop a project folder or a document on the window to open it.
+  - Actions show their keyboard shortcuts.
+- **Recent projects**
+  - Each shows a thumbnail of its typeset first page (when TexLab has typeset it), its
+    title, its location and when it was last opened.
+  - A search field filters them by name, title or location.
+  - Pin to Top keeps a project above the others, and pinned projects survive Clear
+    Recent Projects.
+  - A project that was moved or renamed can be found again with Locate…, starting in
+    the nearest folder that still exists; or removed, along with any others that can't
+    be found.
+  - Copy Path in the context menu.
+  - File ▸ Open Recent Project lists them in the menu bar too.
+- **Opening a folder** with several complete documents and no `main.tex` now asks which
+  one is the main file, listing each with its title, instead of guessing; the answer is
+  remembered with the recent project.
+
 ## v1.22 — Live issues
 
 - Like Xcode's live issues, TexLab now finds problems as you type, a moment after you

@@ -27,6 +27,15 @@ struct TexLabApp: App {
         .defaultLaunchBehavior(showsWelcomeAtLaunch ? .presented : .suppressed)
         .keyboardShortcut("1", modifiers: [.command, .shift])
 
+        Window("New Project", id: NewProjectWindow.id) {
+            NewProjectView()
+        }
+        .windowResizability(.contentSize)
+        .restorationBehavior(.disabled)
+        .defaultLaunchBehavior(.suppressed)
+        // File ▸ New Project opens it; it doesn't belong in the Window menu.
+        .commandsRemoved()
+
         DocumentGroup(newDocument: TexLabDocument()) { file in
             ContentView(document: file.$document, fileURL: file.fileURL)
         }
