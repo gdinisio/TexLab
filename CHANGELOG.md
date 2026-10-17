@@ -3,6 +3,42 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.26 — Completion as you type
+
+- A new completion list, like Xcode's, replaces the standard Mac completion window. It
+  appears under the insertion point as you type, without taking the keyboard from the
+  text, and refines with every key:
+  - **Commands** after `\` and a letter, with what common commands do or the braces they
+    take, and the commands the document and project define, with their argument counts.
+    `\begin` and `\end` are now offered too.
+  - **Labels** in `\ref`, `\eqref`, `\cref` (after each comma), `\autoref` and the others:
+    every label in the project, each with what it names — the caption of its figure or
+    table, the heading of its section, or Equation, Theorem, Item… — and the file it's
+    in; those of the file on screen come first.
+  - **Citations** in `\cite`, `\citep`, `\parencite`, `\autocite` and the others, after
+    each comma: the entries of the project's bibliographies (and of databases it names
+    outside the folder) and `\bibitem`s, matched by key, author, title or year, with
+    "Author Year · Title" beside each and in full at the bottom of the list.
+  - **Files** in `\input`, `\include`, `\subfile`, `\includegraphics`, `\includepdf`,
+    `\bibliography`, `\addbibresource` and `\lstinputlisting`: the project's files of the
+    right kind, as paths from the main file's folder, with or without the extension as
+    the command expects.
+  - **Environments** in `\begin{` (the project's own included) and `\end{`, where the
+    environment to close comes first; **packages** in `\usepackage{`, with what common
+    ones are for, and the project's `.sty` files; **classes** in `\documentclass{`.
+- Ranking: exact-case prefixes, then other prefixes, then the start of a word inside a
+  key (`res` finds `fig:results`), then any part of it, then its letters in order; for
+  citations and labels, words of the authors, title or caption as well.
+- ↑ and ↓ choose (Page Up and Page Down jump), Return or Tab accept, Esc dismisses, and
+  Esc (or F5) opens the list anywhere there's something to complete. A click accepts too.
+- Accepting a command adds its braces, with Tab moving between several; when its argument
+  completes too — `\ref`, `\cite`, `\begin`, `\input` — the list opens for it at once.
+  Accepting an environment adds the closing brace and, with Close environments on,
+  `\end{…}` and an indented line. Accepting a label or file moves past the closing brace;
+  a citation leaves the insertion point inside for another key.
+- Settings ▸ Editor's completion option now reads "Suggest completions as you type"; with
+  it off, Esc still shows the list.
+
 ## v1.25 — A better sidebar
 
 - The navigators are chosen from a row of icons like Xcode's navigator bar, instead of a

@@ -87,10 +87,22 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   Figures and Tables tidies a long document in one step, and Settings can do this for
   every document you open. Folding never changes the text: moving the insertion point
   into a collapsed environment, or deleting next to it, expands it.
-- **Completion** — press Esc for commands, environments, labels, citation keys (from
-  `.bib` files and `\bibitem`), macros defined in the document, packages, document classes
-  and files beside the document. Completions appear automatically after `\begin{`,
-  `\ref{`, `\cite{`, `\usepackage{`, `\includegraphics{` and similar.
+- **Completion as you type** — a list like Xcode's appears under the insertion point:
+  - `\` and a letter: commands, with what common ones do, and the ones your project
+    defines (with their arguments);
+  - `\ref{`, `\eqref{`, `\cref{` …: every label in the project, with the caption, heading
+    or kind of environment it names and the file it's in, those of the file on screen first;
+  - `\cite{` and its variants: the project's bibliography, matched by key, author, title or
+    year, with the entry shown in full at the bottom — and again after each comma;
+  - `\input{`, `\include{`, `\includegraphics{`, `\bibliography{` …: the project's files,
+    with the paths TeX expects;
+  - `\begin{` and `\end{`: environments, the one to close first; `\usepackage{` and
+    `\documentclass{`: packages and classes, the project's own included.
+  It refines as you type (prefixes first, then word starts such as `res` for
+  `fig:results`, then letters in order); ↑ ↓ choose, Return or Tab accepts, Esc
+  dismisses, and Esc opens it anywhere. Accepting a command adds its braces (Tab moves
+  between them), opens the list for its argument where that helps, and accepting an
+  environment closes it.
 - **Customisable toolbar** — View ▸ Customize Toolbar offers more than 50 tools to drag
   in, so each writer can lay it out their way. The default set covers most writing: Code
   | Visual, Typeset, Heading, Figure, Table, Math, Symbols, Cite, Reference, Preview and
@@ -223,7 +235,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 | Comment Selection | ⌘/ |
 | Shift Right / Left | ⌘] / ⌘[ or Tab / ⇧Tab |
 | Next / Previous placeholder (in an inserted snippet) | Tab / ⇧Tab |
-| Complete | Esc |
+| Show completions / dismiss | Esc |
+| Choose / accept a completion | ↑ ↓ / Return or Tab |
 | Go to Line (`line` or `line:column`) | ⌘L |
 | Code / Visual editor | ⌃⌘1 / ⌃⌘2 |
 | Project, Outline, Find, References, Issues navigators | ⌘1 … ⌘5 |
@@ -328,6 +341,12 @@ TexLab/TexLab/
   one TeX run with the `preview` package, whose `auctex` option reports each formula's
   depth so it sits on the baseline; the session (`+Math`) caches images per formula and
   preamble and renders in the background.
+- **Completion** — `CompletionEngine` (pure) decides what is being completed at the
+  insertion point and ranks candidates from `CompletionSources`, which the session gathers
+  from the file on screen and the project snapshot (labels with what they name, bibliography
+  entries, files, defined commands and environments). `CompletionPopup` is a borderless,
+  non-activating child panel with a SwiftUI list, so the keyboard stays with the text;
+  `SourceTextView+Completion` opens, refines and accepts.
 - **Live issues** — `LiveChecker` reads the text in one pass, as TeX does — comments,
   control sequences, braces, `\if … \fi` and environments, skipping verbatim text —
   off the main thread after each pause in typing; environments begun inside a brace

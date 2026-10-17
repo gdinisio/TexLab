@@ -29,8 +29,8 @@ final class SourceTextView: NSTextView {
 
     /// Provides the text inserted when files are dropped on the editor.
     var droppedFilesFormatter: (([URL]) -> String)?
-    /// Asks whether completions exist before the editor offers them automatically.
-    var hasCompletions: ((NSRange) -> Bool)?
+    /// What the project offers to complete, asked for when the completion list opens.
+    var completionSources: (() -> CompletionSources)?
     /// Jumps to the definition of what is at a location, for Command-click. Returns false
     /// if there's nothing there with a definition.
     var jumpToDefinition: ((Int) -> Bool)?
@@ -60,6 +60,15 @@ final class SourceTextView: NSTextView {
     var visualElements: [VisualElement] = []
     /// Locations of the visual elements currently showing their markup.
     var revealedVisuals: Set<Int> = []
+
+    // MARK: Completion
+
+    let completionPopup = CompletionPopup()
+    var cachedCompletionSources: CompletionSources?
+    var isCompletionUpdateScheduled = false
+    var isAcceptingCompletion = false
+    var completionScrollObserver: NSObjectProtocol?
+    var completionWindowObserver: NSObjectProtocol?
 
     // MARK: Placeholders
 
@@ -402,6 +411,9 @@ final class SourceTextView: NSTextView {
 
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting stillSelectingFlag: Bool) {
         super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelectingFlag)
+        if completionPopup.isVisible && !isAcceptingCompletion {
+            scheduleCompletionUpdate()
+        }
         placeholdersSelectionDidChange()
         selectionDidChangeForPresentation()
         refreshCurrentLineHighlight()
@@ -547,6 +559,11 @@ final class SourceTextView: NSTextView {
     }
 
     override func deleteBackward(_ sender: Any?) {
+        defer {
+            if completionPopup.isVisible {
+                scheduleCompletionUpdate()
+            }
+        }
         guard !hasMarkedText(), let text = textStorage?.mutableString else {
             super.deleteBackward(sender)
             return
@@ -756,66 +773,49 @@ final class SourceTextView: NSTextView {
 
     // MARK: - Completion
 
-    override var rangeForUserCompletion: NSRange {
-        let selection = selectedRange()
-        guard selection.length == 0, let text = textStorage?.mutableString else {
-            return super.rangeForUserCompletion
+    /// Esc (or F5) shows the completion list, or hides it.
+    override func complete(_ sender: Any?) {
+        if completionPopup.isVisible {
+            hideCompletion()
+        } else {
+            updateCompletion(explicit: true, typed: nil)
         }
-        let inArgument = CompletionContext.argumentCommand(at: selection.location, in: text) != nil
-        var start = selection.location
-        while start > 0, CompletionContext.isWordCharacter(text.character(at: start - 1), inArgument: inArgument) {
-            start -= 1
-        }
-        if start > 0, text.character(at: start - 1) == Char.backslash {
-            start -= 1
-        }
-        return NSRange(location: start, length: selection.location - start)
     }
 
-    override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange, movement: Int, isFinal flag: Bool) {
-        super.insertCompletion(word, forPartialWordRange: charRange, movement: movement, isFinal: flag)
-        let acceptedByKey = movement == NSTextMovement.return.rawValue || movement == NSTextMovement.tab.rawValue
-        guard flag, acceptedByKey, let text = textStorage?.mutableString else { return }
-        let end = charRange.location + (word as NSString).length
-
-        if word.hasPrefix("\\") {
-            // A command that takes arguments gets their braces, with the caret in the first
-            // pair; Tab moves on to the others.
-            let name = String(word.dropFirst())
-            let hasBrace = end < text.length && text.character(at: end) == Char.openBrace
-            let count = LaTeXCatalog.argumentCount(of: name)
-            guard count > 0, !hasBrace else { return }
-            let braces = String(repeating: "{}", count: count)
-            guard replaceCharacters(in: NSRange(location: end, length: 0), with: braces, selecting: NSRange(location: end + 1, length: 0), actionName: nil) else { return }
-            if count > 1 {
-                var stops: [Int] = (0..<count).map { end + 1 + 2 * $0 }
-                stops.append(end + 2 * count)
-                beginPlaceholders(stops, in: NSRange(location: end, length: 2 * count))
-            }
-            suggestCompletionsIfUseful(afterTyping: "{")
+    /// While the completion list is open, the arrow keys move through it, Return and Tab
+    /// accept and Esc dismisses; everything else edits as usual.
+    override func doCommand(by selector: Selector) {
+        if completionPopup.isVisible, handleCompletionCommand(selector) {
             return
         }
-
-        // An environment chosen inside \begin{…} is closed straight away.
-        guard configuration.autoClosesEnvironments,
-              CompletionContext.argumentCommand(at: charRange.location, in: text) == "begin",
-              end < text.length, text.character(at: end) == Char.closeBrace else { return }
-        setSelectedRange(NSRange(location: end + 1, length: 0))
-        insertNewline(nil)
+        super.doCommand(by: selector)
     }
 
-    /// Offers completions automatically after `{` where the choices are hard to remember:
-    /// environments, labels, citation keys, packages and files.
+    override func resignFirstResponder() -> Bool {
+        hideCompletion()
+        return super.resignFirstResponder()
+    }
+
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow == nil {
+            hideCompletion()
+        }
+        super.viewWillMove(toWindow: newWindow)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        followScrollingForCompletion()
+    }
+
+    /// Updates the completion list after typing: opens it where it helps, refines it
+    /// while it's open.
     private func suggestCompletionsIfUseful(afterTyping typed: String?) {
-        guard configuration.suggestsCompletions, typed == "{" else { return }
+        // What a completion inserts doesn't open the list again.
+        guard !isAcceptingCompletion else { return }
         DispatchQueue.main.async { [weak self] in
-            guard let self, self.window?.firstResponder === self, !self.hasMarkedText() else { return }
-            guard let text = self.textStorage?.mutableString else { return }
-            let caret = self.selectedRange().location
-            guard let command = CompletionContext.argumentCommand(at: caret, in: text),
-                  CompletionContext.suggestsAutomatically(forArgumentOf: command),
-                  self.hasCompletions?(self.rangeForUserCompletion) == true else { return }
-            self.complete(nil)
+            guard let self, self.window?.firstResponder === self else { return }
+            self.updateCompletion(explicit: false, typed: typed)
         }
     }
 }

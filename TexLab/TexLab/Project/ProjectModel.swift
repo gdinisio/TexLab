@@ -153,6 +153,8 @@ nonisolated struct ProjectSnapshot: Sendable, Equatable {
     var commands: [CommandDefinition] = []
     /// Verbatim environments the project's other files and packages define.
     var verbatimEnvironments: Set<String> = []
+    /// Environments the project's other files and packages define.
+    var environments: Set<String> = []
     /// The main file's `\title`, for the Welcome window.
     var title: String?
     /// The main file and the files it includes, in reading order, then its bibliographies.
@@ -213,6 +215,7 @@ nonisolated enum ProjectIndex {
         var entries: [BibEntry] = []
         var commands: [CommandDefinition] = []
         var verbatimEnvironments: Set<String> = []
+        var environments: Set<String> = []
         let current = SourceMap.canonicalPath(documentURL)
         for file in tree.files {
             switch file.kind {
@@ -220,11 +223,13 @@ nonisolated enum ProjectIndex {
                 if let other = read(file.url) {
                     labels += ReferenceScanner.labels(in: other, file: file.url)
                     commands += DefinitionFinder.commandDefinitions(in: other, file: file.url)
+                    environments.formUnion(DefinitionFinder.environmentDefinitions(in: other))
                     verbatimEnvironments.formUnion(LiveChecker.verbatimEnvironmentDefinitions(in: other))
                 }
             case .package where ["sty", "cls"].contains(file.url.pathExtension.lowercased()):
                 if let package = read(file.url) {
                     commands += DefinitionFinder.commandDefinitions(in: package, file: file.url)
+                    environments.formUnion(DefinitionFinder.environmentDefinitions(in: package))
                     verbatimEnvironments.formUnion(LiveChecker.verbatimEnvironmentDefinitions(in: package))
                 }
             case .bibliography:
@@ -255,6 +260,7 @@ nonisolated enum ProjectIndex {
             bibEntries: entries.sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending },
             commands: commands,
             verbatimEnvironments: verbatimEnvironments,
+            environments: environments,
             title: mainText.flatMap(title(in:)),
             parts: structure?.parts ?? [],
             outline: structure?.outline ?? []

@@ -45,6 +45,7 @@ final class EditorController {
     /// Not undoable: each file keeps its own undo history.
     func show(text: String, selection: NSRange, scrollOrigin: CGPoint?, folds: [FoldableRegion]) {
         guard let textView else { return }
+        textView.hideCompletion()
         textView.breakUndoCoalescing()
         textView.endPlaceholders()
         textView.folds = []

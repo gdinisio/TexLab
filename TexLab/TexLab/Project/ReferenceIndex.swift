@@ -44,6 +44,9 @@ nonisolated struct LabelDefinition: Identifiable, Hashable, Sendable {
     var file: URL?
     /// 1-based.
     var line: Int
+    /// What it labels, in words: the caption of its figure or table, the heading of its
+    /// section, or the kind of environment it's in.
+    var context: String?
 
     var id: String { "\(key)@\(file?.path(percentEncoded: false) ?? ""):\(line)" }
 
@@ -141,9 +144,96 @@ nonisolated enum ReferenceScanner {
             guard LaTeXText.stripComment(prefix) == prefix else { continue }
             let key = string.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespaces)
             guard !key.isEmpty, !key.contains("#") else { continue }
-            results.append(LabelDefinition(key: key, file: file, line: line))
+            results.append(LabelDefinition(key: key, file: file, line: line, context: context(ofLabelAt: match.range, in: string)))
         }
         return results
+    }
+
+    private static let describingPattern = try! NSRegularExpression(
+        pattern: #"\\(caption|part|chapter|section|subsection|subsubsection|paragraph|frametitle)\*?\s*(?:\[[^\]\n]*\])?\s*\{"#
+    )
+    private static let environmentPattern = try! NSRegularExpression(pattern: #"\\(begin|end)\s*\{([^{}\n]*)\}"#)
+
+    /// What the label at `range` names: the caption of the float it's in (before or after
+    /// it), the heading just before it, or else the environment around it.
+    static func context(ofLabelAt range: NSRange, in string: NSString) -> String? {
+        let windowStart = max(0, range.location - 800)
+        let before = NSRange(location: windowStart, length: range.location - windowStart)
+        let afterLength = min(400, string.length - NSMaxRange(range))
+        let after = NSRange(location: NSMaxRange(range), length: afterLength)
+
+        // The innermost environment open at the label, among the text just before it.
+        var open: [(name: String, location: Int)] = []
+        for match in environmentPattern.matches(in: string as String, range: before) {
+            let name = string.substring(with: match.range(at: 2))
+            if string.substring(with: match.range(at: 1)) == "begin" {
+                open.append((name, match.range.location))
+            } else if let index = open.lastIndex(where: { $0.name == name }) {
+                open.removeSubrange(index...)
+            }
+        }
+        let environment = open.last.flatMap { $0.name == "document" ? nil : $0 }
+        let floats: Set<String> = ["figure", "figure*", "table", "table*", "subfigure", "subtable", "wrapfigure", "listing", "algorithm"]
+        let matches = describingPattern.matches(in: string as String, range: before)
+
+        if let environment, floats.contains(environment.name) {
+            // A figure or table: its caption, which may come before or after the label.
+            if let caption = matches.last(where: { $0.range.location > environment.location && string.substring(with: $0.range(at: 1)) == "caption" }),
+               let text = braceGroup(in: string, openingAt: NSMaxRange(caption.range) - 1) {
+                return text
+            }
+            if let caption = describingPattern.firstMatch(in: string as String, range: after),
+               string.substring(with: caption.range(at: 1)) == "caption",
+               let text = braceGroup(in: string, openingAt: NSMaxRange(caption.range) - 1) {
+                return text
+            }
+            return environment.name.hasPrefix("table") ? String(localized: "Table") : String(localized: "Figure")
+        }
+        if let environment {
+            // An equation, theorem or list item.
+            let name = environment.name.replacingOccurrences(of: "*", with: "")
+            if ["itemize", "enumerate", "description"].contains(name) {
+                return String(localized: "Item")
+            }
+            if ["equation", "align", "gather", "multline", "flalign", "alignat", "eqnarray", "subequations", "split"].contains(name) {
+                return String(localized: "Equation")
+            }
+            return name.prefix(1).uppercased() + name.dropFirst()
+        }
+        // A heading the label follows.
+        if let heading = matches.last(where: { string.substring(with: $0.range(at: 1)) != "caption" }),
+           let text = braceGroup(in: string, openingAt: NSMaxRange(heading.range) - 1) {
+            return text
+        }
+        return nil
+    }
+
+    /// A brace group's text, cleaned for display and kept short.
+    private static func braceGroup(in string: NSString, openingAt openBrace: Int) -> String? {
+        guard openBrace >= 0, openBrace < string.length, string.character(at: openBrace) == Char.openBrace else { return nil }
+        var depth = 0
+        var index = openBrace
+        let limit = min(string.length, openBrace + 600)
+        while index < limit {
+            let character = string.character(at: index)
+            if character == Char.backslash {
+                index += 2
+                continue
+            }
+            if character == Char.openBrace {
+                depth += 1
+            } else if character == Char.closeBrace {
+                depth -= 1
+                if depth == 0 {
+                    let raw = string.substring(with: NSRange(location: openBrace + 1, length: index - openBrace - 1))
+                    let clean = OutlineParser.cleanTitle(raw.replacingOccurrences(of: "\n", with: " "))
+                    guard !clean.isEmpty else { return nil }
+                    return clean.count > 90 ? String(clean.prefix(89)) + "…" : clean
+                }
+            }
+            index += 1
+        }
+        return nil
     }
 
     /// The `\bibitem`s of a document's own bibliography.

@@ -32,8 +32,8 @@ struct SourceEditor: NSViewRepresentable {
         textView.droppedFilesFormatter = { [weak session] urls in
             session?.textForDroppedFiles(urls) ?? ""
         }
-        textView.hasCompletions = { [weak coordinator] range in
-            coordinator?.hasCompletions(for: range) ?? false
+        textView.completionSources = { [weak session] in
+            session?.completionSources() ?? CompletionSources()
         }
         textView.jumpToDefinition = { [weak session] location in
             session?.jumpToDefinition(at: location) ?? false
@@ -64,14 +64,6 @@ struct SourceEditor: NSViewRepresentable {
             self.parent = parent
         }
 
-        private var completionProvider: CompletionProvider {
-            CompletionProvider(
-                documentDirectory: parent.session.projectFolder,
-                projectLabels: parent.session.project?.labelKeys ?? [],
-                projectCitationKeys: parent.session.project?.citationKeys ?? []
-            )
-        }
-
         func textDidChange(_ notification: Notification) {
             guard let textView else { return }
             parent.session.sourceDidChange(textView.string)
@@ -85,21 +77,6 @@ struct SourceEditor: NSViewRepresentable {
 
         func textViewDidChangeSelection(_ notification: Notification) {
             parent.session.selectionDidChange()
-        }
-
-        func textView(
-            _ textView: NSTextView,
-            completions words: [String],
-            forPartialWordRange charRange: NSRange,
-            indexOfSelectedItem index: UnsafeMutablePointer<Int>?
-        ) -> [String] {
-            guard let storage = textView.textStorage else { return words }
-            return completionProvider.completions(for: charRange, in: storage.mutableString, defaultWords: words)
-        }
-
-        func hasCompletions(for range: NSRange) -> Bool {
-            guard let storage = textView?.textStorage else { return false }
-            return !completionProvider.completions(for: range, in: storage.mutableString, defaultWords: []).isEmpty
         }
 
         /// Adds Jump to Definition to the editor's context menu when the click is on a

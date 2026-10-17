@@ -41,6 +41,9 @@ nonisolated struct CommandDefinition: Hashable, Sendable {
     var file: URL?
     /// 1-based.
     var line: Int
+    /// How many arguments it takes, from `[2]` in `\newcommand{\name}[2]` or `#1#2` in
+    /// `\def`.
+    var argumentCount = 0
 }
 
 /// Finds what the text at a location refers to, and where things are defined in a text.
@@ -284,9 +287,53 @@ nonisolated enum DefinitionFinder {
             line += LineIndex.lineBreaks(in: string, range: NSRange(location: scanned, length: match.range.location - scanned)).count
             scanned = match.range.location
             guard !isInComment(match.range.location, in: string) else { continue }
-            results.append(CommandDefinition(name: string.substring(with: match.range(at: 1)), file: file, line: line))
+            results.append(CommandDefinition(
+                name: string.substring(with: match.range(at: 1)),
+                file: file,
+                line: line,
+                argumentCount: argumentCount(after: NSMaxRange(match.range), in: string)
+            ))
         }
         return results
+    }
+
+    /// The argument count after a defined command's name: `}[2]` or `#1#2{`.
+    private static func argumentCount(after index: Int, in string: NSString) -> Int {
+        var cursor = index
+        func skip(_ characters: Set<unichar>) {
+            while cursor < string.length && characters.contains(string.character(at: cursor)) {
+                cursor += 1
+            }
+        }
+        skip([Char.closeBrace, Char.space, Char.tab])
+        guard cursor < string.length else { return 0 }
+        if string.character(at: cursor) == Char.openBracket, cursor + 2 < string.length,
+           string.character(at: cursor + 2) == Char.closeBracket {
+            let digit = Int(string.character(at: cursor + 1)) - 0x30
+            return (0...9).contains(digit) ? digit : 0
+        }
+        // \def\name#1#2{…}
+        var count = 0
+        while cursor + 1 < string.length && string.character(at: cursor) == Char.hash {
+            count += 1
+            cursor += 2
+        }
+        return count
+    }
+
+    private static let environmentDefinitionPattern = try! NSRegularExpression(
+        pattern: #"\\(?:(?:re)?newenvironment|(?:New|Renew|Provide|Declare)DocumentEnvironment|newtheorem|declaretheorem|lstnewenvironment|DefineVerbatimEnvironment|newtcolorbox|newtcblisting)\*?\s*(?:\[[^\]\n]*\])?\s*\{([^{}\n]+)\}"#
+    )
+
+    /// The environments `text` defines, outside comments.
+    static func environmentDefinitions(in text: String) -> Set<String> {
+        let string = text as NSString
+        var names: Set<String> = []
+        for match in environmentDefinitionPattern.matches(in: text, range: NSRange(location: 0, length: string.length)) {
+            guard !isInComment(match.range.location, in: string) else { continue }
+            names.insert(string.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespaces))
+        }
+        return names
     }
 
     private static func firstArgumentRange(matching key: String, pattern: NSRegularExpression, in text: NSString) -> NSRange? {

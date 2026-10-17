@@ -166,7 +166,7 @@ private struct EditorSettings: View {
                 }
                 Toggle("Close brackets and dollar signs automatically", isOn: $autoPairsBrackets)
                 Toggle("Close environments automatically", isOn: $autoClosesEnvironments)
-                Toggle("Suggest completions after { in \\begin, \\ref, \\cite and more", isOn: $suggestsCompletions)
+                Toggle("Suggest completions as you type — commands, labels, citations and files", isOn: $suggestsCompletions)
                 Toggle("Check spelling while typing", isOn: $checksSpelling)
             } header: {
                 Text("Editing")
