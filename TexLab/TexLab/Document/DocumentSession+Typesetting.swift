@@ -71,16 +71,17 @@ extension DocumentSession {
                     return
                 }
                 rootURL = url
-                if let data = try? Data(contentsOf: url), let rootText = try? TextDecoding.decode(data).text {
+                if let rootText = textOfFile(url) {
                     rootEngine = MagicComments(text: rootText).program
                 }
             }
-        } else if let project, project.mainFileIsDetected, let main = project.mainFile,
+        } else if let project, let main = project.mainFile, !ProjectIndex.isMainDocument(text),
+                  fileURL.map(SourceMap.canonicalPath) != SourceMap.canonicalPath(main),
                   FileManager.default.fileExists(atPath: main.filePath) {
-            // A part of a project without a root comment is typeset through the file that
-            // includes it.
+            // A part of a project without a root comment — a chapter, or the bibliography —
+            // is typeset through the project's main file.
             rootURL = main
-            if let data = try? Data(contentsOf: main), let rootText = try? TextDecoding.decode(data).text {
+            if let rootText = textOfFile(main) {
                 rootEngine = MagicComments(text: rootText).program
             }
         }
@@ -108,7 +109,12 @@ extension DocumentSession {
             usesLatexmk: defaults.bool(forKey: SettingsKey.usesLatexmk),
             allowsShellEscape: defaults.bool(forKey: SettingsKey.allowsShellEscape),
             buildDirectory: buildDirectory,
-            jobName: BuildNaming.jobName(for: mainName)
+            jobName: BuildNaming.jobName(for: mainName),
+            // The window's other files are typeset as they are here, saved or not.
+            openFiles: openFiles.compactMap { file in
+                guard file !== currentFile, file.isWindowDocument || file.hasUnsavedChanges, let url = file.url else { return nil }
+                return OpenFileText(url: url, text: file.text, encoding: file.encoding)
+            }
         )
 
         status = .running
@@ -206,7 +212,13 @@ extension DocumentSession {
     private func makeIssues(from entries: [LogEntry], sourceMap: SourceMap) -> [Issue] {
         entries.enumerated()
             .map { index, entry in
-                Issue(id: index, severity: entry.severity, message: entry.message, source: entry.file.map(sourceMap.resolve), line: entry.line)
+                var source = entry.file.map(sourceMap.resolve)
+                // Name the file, since the editor may show another one by the time the
+                // issue is looked at.
+                if source == .currentDocument, let url = sourceMap.currentDocumentURL {
+                    source = .file(url)
+                }
+                return Issue(id: index, severity: entry.severity, message: entry.message, source: source, line: entry.line)
             }
             .sorted { lhs, rhs in
                 lhs.severity != rhs.severity ? lhs.severity > rhs.severity : lhs.id < rhs.id
@@ -230,7 +242,8 @@ extension DocumentSession {
 
     func updateIssueMarkers() {
         var markers: [Int: IssueMarker] = [:]
-        for issue in allIssues where issue.source == .currentDocument {
+        let shownPath = fileURL.map(SourceMap.canonicalPath)
+        for issue in allIssues where isInShownFile(issue.source, shownPath: shownPath) {
             guard let line = issue.line else { continue }
             let marker: IssueMarker
             switch issue.severity {
@@ -243,8 +256,21 @@ extension DocumentSession {
         editor.setIssueMarkers(markers)
     }
 
-    /// Shows the source of an issue: in this window, in the file's own window, or in the
-    /// log when TeX didn't say where it happened.
+    /// Whether an issue is in the file the editor shows.
+    private func isInShownFile(_ source: SourceFile?, shownPath: String?) -> Bool {
+        switch source {
+        case .currentDocument?:
+            // Only an untitled document's issues have no file.
+            shownPath == nil
+        case .file(let url)?:
+            shownPath == SourceMap.canonicalPath(url)
+        case nil:
+            false
+        }
+    }
+
+    /// Shows the source of an issue: in this window's editor, in another file's window, or
+    /// in the log when TeX didn't say where it happened.
     func reveal(_ issue: Issue) {
         switch issue.source {
         case .currentDocument?:
@@ -254,7 +280,7 @@ extension DocumentSession {
                 isShowingLog = true
             }
         case .file(let url)?:
-            SourceNavigator.open(url, line: issue.line)
+            open(url, line: issue.line)
         case nil:
             isShowingLog = true
         }

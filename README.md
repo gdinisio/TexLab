@@ -126,6 +126,18 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 **Projects**
 
+- **One window for the whole project** — like Xcode, a window shows any text file of its
+  project: click a chapter in the project navigator (or step through files with the
+  arrow keys) and the editor shows it, while the preview keeps showing the whole
+  document. Search results, issues, ⌘-clicks in the PDF and Jump to Definition open files
+  the same way. Each file keeps its own undo history, insertion point, scroll position
+  and folds. The bar above the editor goes back and forward through the files you've
+  shown (⌃⌘← and ⌃⌘→), lists the files open in the window, and returns to the main file
+  (⌃⌘↑). Files other than the window's own document are saved a moment after you stop
+  typing, when you switch away and when the window closes, and changes made by other
+  apps are picked up. Typesetting from a chapter typesets the whole document, with the
+  unsaved text of every open file. A file is only ever edited in one window: opening one
+  that another window shows brings that window forward.
 - **Navigators** — the sidebar has five, like Xcode's, on ⌘1–⌘5: Project, Outline, Find,
   References and Issues.
 - **Jump to Definition** — ⌘-click (or ⌃⌘J, or the context menu) goes from a reference
@@ -139,8 +151,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   double-click to refer to it, drag it into the text, or go to its definition.
 - **Project navigator** — the first sidebar tab lists the files of the document's folder,
   like Xcode's: LaTeX files, bibliographies, packages, images and subfolders, with the
-  main file marked. Double-click a file to open it in a tab of the same window (images
-  and PDFs open in their usual app), drag it into the editor to insert `\input`,
+  main file marked. Select a file to show it in the editor (double-click images and PDFs
+  to open them in their usual app, or use Open in New Window), drag it into the editor to insert `\input`,
   `\includegraphics`, `\bibliography` or `\usepackage` with the right relative path, and
   use the context menu to open, reference, rename, show in Finder or move to the Trash.
   Copy Path copies a file's path relative to the main file — what `\includegraphics`
@@ -208,6 +220,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 | Code / Visual editor | ⌃⌘1 / ⌃⌘2 |
 | Project, Outline, Find, References, Issues navigators | ⌘1 … ⌘5 |
 | Find in Project | ⇧⌘F |
+| Go Back / Go Forward (files shown) | ⌃⌘← / ⌃⌘→ |
+| Show Main File | ⌃⌘↑ |
 | Jump to Definition | ⌘-click or ⌃⌘J |
 | Fold / Unfold | ⌥⌘← / ⌥⌘→ |
 | Fold Figures and Tables / Unfold All | ⌃⌥⌘← / ⌃⌥⌘→ |
@@ -319,6 +333,16 @@ TexLab/TexLab/
   file-based output so pipes can't stall). `LaTeXLogParser` turns the log into issues;
   `SourceMap` maps the paths TeX reports (build copy, overlay, relative paths) back to the
   files you edit; `SyncTeXData` parses uncompressed SyncTeX with a byte-level parser.
+- **Files of a window** — `EditorFile` holds each file a window shows: the window's own
+  document, saved by the document system, and project files opened beside it, which the
+  window saves itself (coordinated, replacing the file safely). One `SourceTextView`
+  shows them in turn (`DocumentSession+Files`): switching stores the insertion point,
+  scroll position and folds, puts the other file's text in, and the text view takes its
+  undo manager from the file, so undo never reaches a file that isn't on screen.
+  `EditorFileRegistry` keeps each file to one window. The session's `fileURL` and `text`
+  describe the shown file, so the outline, live preview, live issues and Jump to
+  Definition follow it; typesetting overlays the unsaved text of the window's other files
+  for TeX.
 - **Projects** — a project is the main file's folder, not a new file format, so projects
   stay plain folders other TeX tools understand. `ProjectIndex` builds a
   `ProjectSnapshot` off the main thread (file tree, main file, labels and citation keys of

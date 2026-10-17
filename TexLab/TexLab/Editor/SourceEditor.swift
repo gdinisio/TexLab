@@ -7,9 +7,12 @@ import AppKit
 import Foundation
 import SwiftUI
 
-/// Hosts the AppKit source editor in SwiftUI and keeps it in sync with the document.
+/// Hosts the AppKit source editor in SwiftUI. The session decides which of the window's
+/// files the editor shows and receives every change; this reports edits and supplies each
+/// file's undo history.
 struct SourceEditor: NSViewRepresentable {
-    @Binding var text: String
+    /// The text shown before the session takes over: the window's document.
+    var initialText: String
     var configuration: EditorConfiguration
     var session: DocumentSession
 
@@ -21,11 +24,10 @@ struct SourceEditor: NSViewRepresentable {
         let (scrollView, textView) = SourceTextView.makeScrollableEditor()
         let coordinator = context.coordinator
         coordinator.textView = textView
-        coordinator.lastSyncedText = text
 
         textView.delegate = coordinator
         textView.configuration = configuration
-        textView.setText(text)
+        textView.setText(session.currentFile?.text ?? initialText)
         textView.setSelectedRange(NSRange(location: 0, length: 0))
         textView.droppedFilesFormatter = { [weak session] urls in
             session?.textForDroppedFiles(urls) ?? ""
@@ -51,36 +53,15 @@ struct SourceEditor: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
-        guard let textView = coordinator.textView else { return }
-        textView.configuration = configuration
-        if text != coordinator.lastSyncedText {
-            // The document changed outside the editor, for example by Revert To. Apply it
-            // after this update, since changing the text updates observed state. Only the
-            // difference is applied, and only if the editor doesn't already show it, so a
-            // value that lags behind typing can't move the insertion point.
-            let newText = text
-            let session = session
-            DispatchQueue.main.async { [weak textView, weak coordinator] in
-                guard let textView, let coordinator, !textView.hasMarkedText() else { return }
-                guard textView.string != newText else {
-                    coordinator.lastSyncedText = newText
-                    return
-                }
-                coordinator.lastSyncedText = newText
-                textView.applyExternalText(newText)
-                session.sourceDidChange(newText)
-            }
-        }
+        coordinator.textView?.configuration = configuration
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: SourceEditor
         weak var textView: SourceTextView?
-        var lastSyncedText: String
 
         init(parent: SourceEditor) {
             self.parent = parent
-            lastSyncedText = parent.text
         }
 
         private var completionProvider: CompletionProvider {
@@ -93,10 +74,13 @@ struct SourceEditor: NSViewRepresentable {
 
         func textDidChange(_ notification: Notification) {
             guard let textView else { return }
-            let text = textView.string
-            lastSyncedText = text
-            parent.text = text
-            parent.session.sourceDidChange(text)
+            parent.session.sourceDidChange(textView.string)
+        }
+
+        /// Each file has its own undo history, so undoing never changes a file that isn't on
+        /// screen.
+        func undoManager(for view: NSTextView) -> UndoManager? {
+            parent.session.currentFile?.undoManager ?? view.window?.undoManager
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {

@@ -18,10 +18,14 @@ extension DocumentSession {
         revealInPreview(line: editor.caretPosition.line)
     }
 
-    /// Shows the PDF text produced by `line` of this document.
+    /// Shows the PDF text produced by `line` of the file the editor shows.
     func revealInPreview(line: Int) {
-        guard let synctex, let sourceMap,
-              let location = synctex.location(forLine: line, inFileAt: sourceMap.texPaths(for: .currentDocument)) else {
+        guard let synctex, let sourceMap else {
+            NSSound.beep()
+            return
+        }
+        let paths = fileURL.map(sourceMap.texPaths(forFileAt:)) ?? sourceMap.texPaths(for: .currentDocument)
+        guard let location = synctex.location(forLine: line, inFileAt: paths) else {
             NSSound.beep()
             return
         }
@@ -38,9 +42,14 @@ extension DocumentSession {
         }
         switch sourceMap.resolve(hit.path) {
         case .currentDocument:
-            editor.revealLine(hit.line)
+            // The file that was shown when the document was typeset.
+            if let url = sourceMap.currentDocumentURL {
+                open(url, line: hit.line)
+            } else {
+                editor.revealLine(hit.line)
+            }
         case .file(let url):
-            SourceNavigator.open(url, line: hit.line)
+            open(url, line: hit.line)
         }
     }
 }

@@ -22,8 +22,9 @@ nonisolated struct SourceMap: Sendable {
     var mainInput: URL
     /// What the main input stands for.
     var mainSource: SourceFile
-    /// When typesetting a `% !TEX root` file, the folder holding a fresh copy of the
-    /// current document at its path relative to the root.
+    /// The folder holding fresh copies of the files open in the window — the current
+    /// document and any other with unsaved text — at their paths relative to the working
+    /// directory. TeX looks there first.
     var overlayDirectory: URL?
     /// The current document's file, if it has been saved.
     var currentDocumentURL: URL?
@@ -36,8 +37,16 @@ nonisolated struct SourceMap: Sendable {
         if path == Self.canonicalPath(mainInput) {
             return mainSource
         }
-        if let overlayDirectory, path.hasPrefix(Self.canonicalPath(overlayDirectory) + "/") {
-            return .currentDocument
+        if let overlayDirectory {
+            let overlay = Self.canonicalPath(overlayDirectory)
+            if path.hasPrefix(overlay + "/") {
+                // A copy of an open file stands for the file itself.
+                let original = workingDirectory.appending(path: String(path.dropFirst(overlay.count + 1)))
+                if let currentDocumentURL, Self.canonicalPath(original) == Self.canonicalPath(currentDocumentURL) {
+                    return .currentDocument
+                }
+                return .file(original.standardizedFileURL)
+            }
         }
         if let currentDocumentURL, path == Self.canonicalPath(currentDocumentURL) {
             return .currentDocument
@@ -63,6 +72,21 @@ nonisolated struct SourceMap: Sendable {
         case .file(let url):
             return [Self.canonicalPath(url)]
         }
+    }
+
+    /// The paths TeX may have used for the file at `url`: the file itself, its copy in the
+    /// overlay, or the build copy of the current document.
+    func texPaths(forFileAt url: URL) -> [String] {
+        let path = Self.canonicalPath(url)
+        var paths = [path]
+        if let currentDocumentURL, Self.canonicalPath(currentDocumentURL) == path {
+            paths += texPaths(for: .currentDocument)
+        }
+        if let overlayDirectory, let relative = Self.relativePath(of: url, inside: workingDirectory) {
+            paths.append(Self.canonicalPath(overlayDirectory.appending(path: relative)))
+        }
+        var seen: Set<String> = []
+        return paths.filter { seen.insert($0).inserted }
     }
 
     static func canonicalPath(_ url: URL) -> String {
@@ -93,6 +117,16 @@ nonisolated struct TypesetRequest: Sendable {
     var buildDirectory: URL
     /// The base name of TeX's output files.
     var jobName: String
+    /// Other files open in the window whose text may not be saved yet, such as the window's
+    /// document while a chapter is shown. TeX reads them as they are in the window.
+    var openFiles: [OpenFileText] = []
+}
+
+/// The text of a file open in a window, for TeX to read instead of the saved file.
+nonisolated struct OpenFileText: Sendable {
+    var url: URL
+    var text: String
+    var encoding: String.Encoding
 }
 
 /// The outcome of typesetting.
@@ -152,22 +186,31 @@ nonisolated enum Typesetter {
 
         do {
             try fileManager.createDirectory(at: build, withIntermediateDirectories: true)
+            var overlaid = request.openFiles
             if let root = request.rootURL {
                 sourceMap.workingDirectory = root.deletingLastPathComponent()
                 sourceMap.mainInput = root
                 sourceMap.mainSource = .file(root)
-                // Put the unsaved text where TeX will find it before the saved file.
-                if let documentURL = request.documentURL,
-                   let relative = SourceMap.relativePath(of: documentURL, inside: sourceMap.workingDirectory) {
-                    let overlay = build.appending(path: "Overlay", directoryHint: .isDirectory)
-                    try? fileManager.removeItem(at: overlay)
-                    let copy = overlay.appending(path: relative)
-                    try fileManager.createDirectory(at: copy.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    try encodedSource(request).write(to: copy)
-                    sourceMap.overlayDirectory = overlay
+                if let documentURL = request.documentURL {
+                    overlaid.append(OpenFileText(url: documentURL, text: request.source, encoding: request.encoding))
                 }
             } else {
-                try encodedSource(request).write(to: sourceMap.mainInput)
+                try encoded(request.source, in: request.encoding).write(to: sourceMap.mainInput)
+            }
+            // Put unsaved text where TeX will find it before the saved files.
+            let overlay = build.appending(path: "Overlay", directoryHint: .isDirectory)
+            try? fileManager.removeItem(at: overlay)
+            for file in overlaid {
+                guard let relative = SourceMap.relativePath(of: file.url, inside: sourceMap.workingDirectory) else { continue }
+                let copy = overlay.appending(path: relative)
+                try fileManager.createDirectory(at: copy.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try encoded(file.text, in: file.encoding).write(to: copy)
+                sourceMap.overlayDirectory = overlay
+                // A main file with unsaved text is typeset from its copy; TeX still runs in
+                // its folder, so its relative paths work.
+                if let root = request.rootURL, SourceMap.canonicalPath(file.url) == SourceMap.canonicalPath(root) {
+                    sourceMap.mainInput = copy
+                }
             }
         } catch {
             return failure(.couldNotStart(error.localizedDescription))
@@ -236,12 +279,12 @@ nonisolated enum Typesetter {
         )
     }
 
-    /// The source in the document's own encoding, so `inputenc` declarations still match.
-    /// TeX engines can't all read UTF-16, so such documents are typeset from UTF-8.
-    private static func encodedSource(_ request: TypesetRequest) -> Data {
+    /// Text in its file's own encoding, so `inputenc` declarations still match. TeX
+    /// engines can't all read UTF-16, so such files are typeset from UTF-8.
+    private static func encoded(_ text: String, in encoding: String.Encoding) -> Data {
         let texReadableEncodings: [String.Encoding] = [.utf8, .isoLatin1, .windowsCP1252, .macOSRoman]
-        guard texReadableEncodings.contains(request.encoding) else { return Data(request.source.utf8) }
-        return request.source.data(using: request.encoding) ?? Data(request.source.utf8)
+        guard texReadableEncodings.contains(encoding) else { return Data(text.utf8) }
+        return text.data(using: encoding) ?? Data(text.utf8)
     }
 }
 

@@ -114,38 +114,62 @@ extension DocumentSession {
     // MARK: - Preamble
 
     /// Adds `\usepackage` lines for `packages` the document doesn't load, after its last
-    /// `\usepackage`. Only a document with its own preamble is changed; a part of a project
-    /// relies on its main file.
+    /// `\usepackage`. A part of a project — a chapter without a preamble — has them added
+    /// to its main file instead, wherever that is open.
     func ensurePackages(_ packages: [String]) {
         guard !packages.isEmpty else { return }
-        let string = text as NSString
-        let begin = string.range(of: "\\begin{document}")
-        guard begin.location != NSNotFound else { return }
-        let preamble = string.substring(to: begin.location)
-        let loaded = Self.loadedPackages(in: preamble)
-        let missing = packages.filter { !loaded.contains($0) }
-        guard !missing.isEmpty else { return }
-        let insertion = missing.map { "\\usepackage{\($0)}\n" }.joined()
-        editor.replace(NSRange(location: preambleInsertionPoint(before: begin.location), length: 0), with: insertion, actionName: String(localized: "Add Package"))
+        editPreamble(actionName: String(localized: "Add Package")) { text in
+            Self.packageInsertion(packages, in: text)
+        }
     }
 
     private func ensureTheoremDefinition(_ kind: TheoremKind) {
+        editPreamble(actionName: String(localized: "Define \(kind.title)")) { text in
+            Self.theoremDefinitionInsertion(kind, in: text)
+        }
+    }
+
+    /// Applies a preamble edit to the shown file if it has a preamble, or else to the
+    /// project's main file.
+    private func editPreamble(actionName: String, _ change: @escaping (String) -> (range: NSRange, text: String)?) {
+        if (text as NSString).range(of: "\\begin{document}").location != NSNotFound {
+            if let edit = change(text) {
+                editor.replace(edit.range, with: edit.text, actionName: actionName)
+            }
+        } else if let main = project?.mainFile, fileURL.map(SourceMap.canonicalPath) != SourceMap.canonicalPath(main) {
+            modifyFile(at: main, actionName: actionName, change)
+        }
+    }
+
+    /// The `\usepackage` lines a document needs for `packages`, and where they go.
+    static func packageInsertion(_ packages: [String], in text: String) -> (range: NSRange, text: String)? {
         let string = text as NSString
         let begin = string.range(of: "\\begin{document}")
-        guard begin.location != NSNotFound else { return }
+        guard begin.location != NSNotFound else { return nil }
+        let loaded = loadedPackages(in: string.substring(to: begin.location))
+        let missing = packages.filter { !loaded.contains($0) }
+        guard !missing.isEmpty else { return nil }
+        let insertion = missing.map { "\\usepackage{\($0)}\n" }.joined()
+        return (NSRange(location: preambleInsertionPoint(in: string, before: begin.location), length: 0), insertion)
+    }
+
+    /// The `\newtheorem` a document needs for `kind`, and where it goes.
+    static func theoremDefinitionInsertion(_ kind: TheoremKind, in text: String) -> (range: NSRange, text: String)? {
+        let string = text as NSString
+        let begin = string.range(of: "\\begin{document}")
+        guard begin.location != NSNotFound else { return nil }
         let preamble = string.substring(to: begin.location)
-        guard !preamble.contains("\\newtheorem{\(kind.rawValue)}"), !preamble.contains("\\newtheorem*{\(kind.rawValue)}") else { return }
+        guard !preamble.contains("\\newtheorem{\(kind.rawValue)}"), !preamble.contains("\\newtheorem*{\(kind.rawValue)}") else { return nil }
         let definition = "\\newtheorem{\(kind.rawValue)}{\(kind.heading)}\n"
-        let location = preambleInsertionPoint(before: begin.location, after: ["\\usepackage", "\\newtheorem"])
-        editor.replace(NSRange(location: location, length: 0), with: definition, actionName: String(localized: "Define \(kind.title)"))
+        let location = preambleInsertionPoint(in: string, before: begin.location, after: ["\\usepackage", "\\newtheorem"])
+        return (NSRange(location: location, length: 0), definition)
     }
 
     /// Where a line goes in the preamble: after the last line containing one of `markers`,
     /// or at the start of the `\begin{document}` line. Packages go after the last
     /// `\usepackage`, and theorem definitions after the last `\newtheorem` or `\usepackage`,
     /// so each follows what it depends on.
-    private func preambleInsertionPoint(before beginLocation: Int, after markers: [String] = ["\\usepackage"]) -> Int {
-        let string = text as NSString
+    private static func preambleInsertionPoint(in string: NSString, before beginLocation: Int, after markers: [String] = ["\\usepackage"]) -> Int {
         let preambleRange = NSRange(location: 0, length: beginLocation)
         var location: Int?
         for marker in markers {

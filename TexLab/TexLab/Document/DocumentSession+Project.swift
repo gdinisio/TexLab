@@ -31,14 +31,6 @@ extension DocumentSession {
                 self?.refreshProject()
             }
         })
-        projectObservers.append(center.addObserver(forName: ProjectEvents.addReferenceNotification, object: nil, queue: .main) { [weak self] notification in
-            let main = notification.userInfo?[ProjectEvents.mainPathKey] as? String
-            let file = notification.userInfo?[ProjectEvents.fileKey] as? URL
-            let kind = (notification.userInfo?[ProjectEvents.kindKey] as? String).flatMap(NewFileKind.init(rawValue:))
-            MainActor.assumeIsolated {
-                self?.handleAddReference(mainPath: main, file: file, kind: kind)
-            }
-        })
         refreshProject()
     }
 
@@ -60,11 +52,15 @@ extension DocumentSession {
             return
         }
         let text = text
+        // Files open in this window are read as they are here, unsaved changes included.
+        let openTexts = openFileTexts
+        // Another file of the window belongs to the project the window already has.
+        let knownMainFile = isShowingOtherFile ? project?.mainFile : nil
         projectRefreshTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(150))
             guard !Task.isCancelled else { return }
             let snapshot = await Task.detached(priority: .utility) {
-                ProjectIndex.snapshot(for: fileURL, text: text)
+                ProjectIndex.snapshot(for: fileURL, text: text, openTexts: openTexts, knownMainFile: knownMainFile)
             }.value
             guard !Task.isCancelled, let self else { return }
             if snapshot != self.project {
@@ -99,33 +95,23 @@ extension DocumentSession {
 
     // MARK: - Opening files
 
-    /// Opens a project file: text files in a TexLab tab beside this window, others in the
-    /// app that normally opens them.
+    /// Opens a project file: text files in this window's editor, beside its document (or
+    /// in a window of their own if asked), others in the app that normally opens them.
     func openProjectFile(_ url: URL, inNewWindow: Bool = false) {
         guard ProjectFileKind(url: url, isDirectory: false).opensInTexLab else {
             NSWorkspace.shared.open(url)
             return
         }
-        let window = editor.textView?.window
+        if !inNewWindow, showFile(url) {
+            return
+        }
+        // A file is edited in one place only, so this window lets it go first.
+        if let file = openFiles.first(where: { $0.matches(url) }), !file.isWindowDocument {
+            closeFile(file)
+        }
         Task {
-            guard let opened = try? await NSDocumentController.shared.openDocument(withContentsOf: url, display: true) else {
+            if (try? await NSDocumentController.shared.openDocument(withContentsOf: url, display: true)) == nil {
                 NSSound.beep()
-                return
-            }
-            let (document, wasOpen) = opened
-            guard !wasOpen, !inNewWindow, let window else { return }
-            // SwiftUI creates the new window shortly after the document opens.
-            for _ in 0..<40 {
-                if let newWindow = document.windowControllers.first?.window
-                    ?? NSApp.windows.first(where: { $0.representedURL?.standardizedFileURL == url.standardizedFileURL }),
-                   newWindow !== window {
-                    if newWindow.tabGroup !== window.tabGroup {
-                        window.addTabbedWindow(newWindow, ordered: .above)
-                    }
-                    newWindow.makeKeyAndOrderFront(nil)
-                    return
-                }
-                try? await Task.sleep(for: .milliseconds(50))
             }
         }
     }
@@ -171,10 +157,13 @@ extension DocumentSession {
             throw ProjectError.fileExists(name)
         }
         try FileManager.default.moveItem(at: url, to: destination)
+        openFilesDidMove(from: url, to: destination)
         refreshProject()
     }
 
     func moveToTrash(_ urls: [URL]) {
+        // Open copies close without being saved back, which would bring the files back.
+        openFilesWereRemoved(urls)
         NSWorkspace.shared.recycle(urls) { [weak self] _, _ in
             // Not necessarily called on the main thread.
             Task { @MainActor in
@@ -195,34 +184,14 @@ extension DocumentSession {
         editor.insertText(reference, actionName: String(localized: "Insert Reference"))
     }
 
-    /// Makes the main file use a new file, in whichever window has it open, or on disk.
+    /// Makes the main file use a new file: in the editor if it's shown, in whichever window
+    /// has it open, or on disk.
     private func addReferenceInMainFile(to file: URL, kind: NewFileKind) {
         guard let main = project?.mainFile ?? fileURL else { return }
-        if let fileURL, SourceMap.canonicalPath(fileURL) == SourceMap.canonicalPath(main) {
-            applyReference(to: file, kind: kind)
-        } else if NSDocumentController.shared.document(for: main) != nil {
-            NotificationCenter.default.post(name: ProjectEvents.addReferenceNotification, object: nil, userInfo: [
-                ProjectEvents.mainPathKey: SourceMap.canonicalPath(main),
-                ProjectEvents.fileKey: file,
-                ProjectEvents.kindKey: kind.rawValue,
-            ])
-        } else if let data = try? Data(contentsOf: main), let decoded = try? TextDecoding.decode(data),
-                  let insertion = ProjectReferences.insertion(for: file, kind: kind, in: decoded.text, mainFolder: main.deletingLastPathComponent()) {
-            let updated = (decoded.text as NSString).replacingCharacters(in: insertion.range, with: insertion.text)
-            try? (updated.data(using: decoded.encoding) ?? Data(updated.utf8)).write(to: main, options: .atomic)
+        let folder = main.deletingLastPathComponent()
+        modifyFile(at: main, actionName: String(localized: "Add Reference")) { text in
+            ProjectReferences.insertion(for: file, kind: kind, in: text, mainFolder: folder)
         }
-    }
-
-    private func handleAddReference(mainPath: String?, file: URL?, kind: NewFileKind?) {
-        guard let mainPath, let file, let kind, let fileURL, SourceMap.canonicalPath(fileURL) == mainPath else { return }
-        applyReference(to: file, kind: kind)
-    }
-
-    /// Adds the reference to this window's document, as an undoable edit.
-    private func applyReference(to file: URL, kind: NewFileKind) {
-        guard let folder = documentDirectory,
-              let insertion = ProjectReferences.insertion(for: file, kind: kind, in: text, mainFolder: folder) else { return }
-        editor.replace(insertion.range, with: insertion.text, actionName: String(localized: "Add Reference"))
     }
 
     /// Makes `url` the main file of this document with a `% !TEX root` comment.
@@ -253,13 +222,4 @@ nonisolated enum ProjectError: LocalizedError {
     var recoverySuggestion: String? {
         String(localized: "Choose a different name.")
     }
-}
-
-/// Messages between the windows of a project.
-nonisolated enum ProjectEvents {
-    /// Asks the window showing a main file to reference a new file.
-    static let addReferenceNotification = Notification.Name("TexLabAddProjectReference")
-    static let mainPathKey = "main"
-    static let fileKey = "file"
-    static let kindKey = "kind"
 }

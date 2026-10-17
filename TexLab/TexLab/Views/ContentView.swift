@@ -56,7 +56,7 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 640, minHeight: 400)
-        .navigationSubtitle(session.status.summary)
+        .navigationSubtitle(session.windowSubtitle)
         .toolbar(id: "TexLabEditor") {
             EditorToolbar(session: session)
         }
@@ -77,7 +77,7 @@ struct ContentView: View {
             isPresented: $session.isExportingPDF,
             document: session.isExportingPDF ? session.pdfExportDocument : nil,
             contentType: .pdf,
-            defaultFilename: session.displayName
+            defaultFilename: session.pdfName
         ) { _ in }
         .onAppear {
             // A document took over from the Welcome window, as in Xcode.
@@ -87,14 +87,21 @@ struct ContentView: View {
             if let mode = EditorMode(rawValue: storedEditorMode) {
                 session.setEditorMode(mode)
             }
+            // The window's document receives the editor's changes while it is shown.
+            let documentBinding = $document
+            session.writeDocumentText = { text in
+                documentBinding.wrappedValue.text = text
+            }
             session.start(text: document.text, encoding: document.encoding, fileURL: fileURL)
         }
         .onDisappear {
             session.stop()
         }
         .onChange(of: fileURL) { _, newValue in
-            session.fileURL = newValue
-            session.refreshProject()
+            session.windowDocumentDidMove(to: newValue)
+        }
+        .onChange(of: document.text) { _, newValue in
+            session.windowDocumentTextDidChange(newValue)
         }
         .onChange(of: session.isPreviewVisible) { _, newValue in
             showsPreview = newValue
@@ -112,7 +119,10 @@ struct ContentView: View {
 
     private var editorColumn: some View {
         VStack(spacing: 0) {
-            SourceEditor(text: $document.text, configuration: editorConfiguration, session: session)
+            if session.project != nil || session.openFiles.count > 1 {
+                EditorFileBar(session: session)
+            }
+            SourceEditor(initialText: document.text, configuration: editorConfiguration, session: session)
             if showsStatusBar {
                 StatusBar(session: session)
             }

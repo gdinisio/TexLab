@@ -29,10 +29,27 @@ final class DocumentSession {
     let editor = EditorController()
     let preview = PreviewController()
 
-    /// The document's location on disk, or nil while it is untitled.
+    /// Where the file the editor shows is on disk: the window's document or another file
+    /// of its project. Nil while the window's document is untitled.
     var fileURL: URL?
-    /// The document's text encoding, used for the copy TeX reads.
+    /// The shown file's text encoding, used for the copy TeX reads.
     var encoding: String.Encoding = .utf8
+
+    // MARK: Files
+
+    /// The files open in this window: its own document first, then project files opened
+    /// beside it from the navigator, a search result, an issue or Jump to Definition.
+    var openFiles: [EditorFile] = []
+    /// The file the editor shows.
+    var currentFile: EditorFile?
+    /// The files shown, oldest first, for Go Back and Go Forward.
+    var fileHistory: [String] = []
+    var fileHistoryIndex = -1
+    /// Puts the window document's text into the document, which saves it. Set by the
+    /// window.
+    @ObservationIgnored var writeDocumentText: ((String) -> Void)?
+    @ObservationIgnored var autosaveTask: Task<Void, Never>?
+    @ObservationIgnored var fileObservers: [NSObjectProtocol] = []
 
     // MARK: Editing
 
@@ -122,7 +139,8 @@ final class DocumentSession {
 
     // MARK: Private
 
-    @ObservationIgnored private(set) var text = ""
+    /// The shown file's text, as the editor has it.
+    @ObservationIgnored var text = ""
     @ObservationIgnored var synctex: SyncTeXData?
     @ObservationIgnored var sourceMap: SourceMap?
     @ObservationIgnored var typesetTask: Task<Void, Never>?
@@ -155,9 +173,14 @@ final class DocumentSession {
         fileURL?.deletingLastPathComponent()
     }
 
-    /// The document's name without its extension, as shown in the title bar.
+    /// The shown file's name without its extension.
     var displayName: String {
         fileURL?.deletingPathExtension().lastPathComponent ?? String(localized: "Untitled")
+    }
+
+    /// The name of the typeset PDF: the document's, not the chapter's on screen.
+    var pdfName: String {
+        pdfFileURL?.deletingPathExtension().lastPathComponent ?? displayName
     }
 
     var isTypesetting: Bool {
@@ -186,6 +209,12 @@ final class DocumentSession {
         self.text = text
         self.encoding = encoding
         self.fileURL = fileURL
+        let windowFile = EditorFile(url: fileURL, text: text, encoding: encoding, isWindowDocument: true)
+        openFiles = [windowFile]
+        currentFile = windowFile
+        recordInHistory(windowFile)
+        claimWindowDocument()
+        observeFileEvents()
         if fileURL == nil {
             // An untitled document has no project yet.
             sidebarTab = .outline
@@ -208,6 +237,7 @@ final class DocumentSession {
     func stop() {
         analysisTask?.cancel()
         liveIssuesTask?.cancel()
+        closeOpenFiles()
         mathRenderTask?.cancel()
         needsAnotherMathRender = false
         stopProject()
@@ -222,8 +252,19 @@ final class DocumentSession {
 
     // MARK: - Editing
 
+    /// Called for each change made in the editor.
     func sourceDidChange(_ text: String) {
         self.text = text
+        if let file = currentFile {
+            file.text = text
+            if file.isWindowDocument {
+                writeDocumentText?(text)
+                markWindowDocumentEdited()
+            } else {
+                file.hasUnsavedChanges = true
+                scheduleAutosave()
+            }
+        }
         scheduleAnalysis()
         scheduleAutomaticTypeset()
     }
@@ -270,7 +311,7 @@ final class DocumentSession {
             NSSound.beep()
             return
         }
-        PreviewController.print(pdfDocument, jobTitle: displayName, window: editor.textView?.window)
+        PreviewController.print(pdfDocument, jobTitle: pdfName, window: editor.textView?.window)
     }
 
     // MARK: - Outline
@@ -334,7 +375,7 @@ final class DocumentSession {
         }
     }
 
-    private func analyze() {
+    func analyze() {
         let count = WordCounter.count(in: text)
         if count != wordCount {
             wordCount = count
@@ -373,10 +414,11 @@ final class DocumentSession {
         }
     }
 
+    /// Another window asks to show a line of one of this window's files.
     private func handleRevealRequest(path: String?, line: Int?) {
-        guard let path, let line, let fileURL, SourceMap.canonicalPath(fileURL) == path else { return }
-        _ = SourceNavigator.takePendingLine(for: fileURL)
-        editor.revealLine(line)
+        guard let path, let line, let file = openFiles.first(where: { $0.id == path }), let url = file.url else { return }
+        _ = SourceNavigator.takePendingLine(for: url)
+        open(url, line: line)
     }
 }
 

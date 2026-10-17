@@ -183,8 +183,10 @@ extension DocumentSession {
         }
         // A part of a project uses its main file's preamble.
         let rootURL = magic.root.flatMap { documentDirectory?.appending(path: $0).standardizedFileURL }
-            ?? (project?.mainFileIsDetected == true ? project?.mainFile : nil)
-        if let url = rootURL, let data = try? Data(contentsOf: url), let rootText = try? TextDecoding.decode(data).text {
+            ?? project?.mainFile.flatMap { main in
+                fileURL.map(SourceMap.canonicalPath) == SourceMap.canonicalPath(main) ? nil : main
+            }
+        if let url = rootURL, let rootText = textOfFile(url) {
             if let rootEngine = MagicComments(text: rootText).program {
                 engine = rootEngine
             }

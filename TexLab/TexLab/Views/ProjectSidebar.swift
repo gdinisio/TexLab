@@ -7,9 +7,11 @@ import AppKit
 import Foundation
 import SwiftUI
 
-/// The project navigator: the files of the document's folder, like Xcode's. Double-click a
-/// file to open it in a tab, drag it into the editor to reference it, and use the context
-/// menu or the + button to add, rename and remove files.
+/// The project navigator: the files of the document's folder, like Xcode's. Selecting a
+/// text file shows it in the editor — the arrow keys step through them — and the selection
+/// follows the file the editor shows. Double-click an image or PDF to open it, drag a file
+/// into the editor to reference it, and use the context menu or the + button to add,
+/// rename and remove files.
 struct ProjectSidebar: View {
     var session: DocumentSession
 
@@ -87,16 +89,29 @@ struct ProjectSidebar: View {
             menu(for: Array(urls), in: project)
         } primaryAction: { urls in
             for url in urls where !isFolder(url, in: project) {
-                session.openProjectFile(url)
+                if ProjectFileKind(url: url, isDirectory: false).opensInTexLab {
+                    // Already shown by selecting it; double-click or Return goes to the text.
+                    session.openProjectFile(url)
+                    session.editor.focus()
+                } else {
+                    NSWorkspace.shared.open(url)
+                }
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomBar(project)
         }
         .onAppear {
-            if selection.isEmpty, let fileURL = session.fileURL {
-                selection = [fileURL.standardizedFileURL]
-            }
+            followCurrentFile(in: project)
+        }
+        .onChange(of: session.currentFile?.id) {
+            followCurrentFile(in: project)
+        }
+        .onChange(of: selection) { _, newValue in
+            // Selecting one text file shows it, as in Xcode.
+            guard newValue.count == 1, let url = newValue.first, !isFolder(url, in: project),
+                  ProjectFileKind(url: url, isDirectory: false).opensInTexLab, !isCurrentURL(url) else { return }
+            session.openProjectFile(url)
         }
     }
 
@@ -210,6 +225,15 @@ struct ProjectSidebar: View {
     }
 
     // MARK: - Helpers
+
+    /// Selects the file the editor shows, unless it's already among the selection.
+    private func followCurrentFile(in project: ProjectSnapshot) {
+        guard let fileURL = session.fileURL else { return }
+        let path = SourceMap.canonicalPath(fileURL)
+        guard !selection.contains(where: { SourceMap.canonicalPath($0) == path }) else { return }
+        let url = project.tree.files.first(where: { SourceMap.canonicalPath($0.url) == path })?.url ?? fileURL
+        selection = [url]
+    }
 
     private func isMain(_ file: ProjectFile, in project: ProjectSnapshot) -> Bool {
         guard let main = project.mainFile else { return false }

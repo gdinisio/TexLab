@@ -66,6 +66,23 @@ struct TexLabCommands: Commands {
                 navigatorButton("Issues", tab: .issues, key: "5")
             }
             .disabled(session == nil)
+            Group {
+                Button("Go Back") {
+                    session?.goBack()
+                }
+                .keyboardShortcut(.leftArrow, modifiers: [.command, .control])
+                .disabled(session?.canGoBack != true)
+                Button("Go Forward") {
+                    session?.goForward()
+                }
+                .keyboardShortcut(.rightArrow, modifiers: [.command, .control])
+                .disabled(session?.canGoForward != true)
+                Button("Show Main File") {
+                    session?.showMainFile()
+                }
+                .keyboardShortcut(.upArrow, modifiers: [.command, .control])
+                .disabled(session?.project?.mainFile == nil || session?.isMainFile != false)
+            }
             Divider()
             previewZoomCommands
             Toggle("Two Pages", isOn: $previewShowsTwoPages)

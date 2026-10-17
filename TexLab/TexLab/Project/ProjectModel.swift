@@ -179,8 +179,15 @@ nonisolated enum ProjectIndex {
         documentClassPattern.firstMatch(in: text, range: NSRange(location: 0, length: (text as NSString).length)) != nil
     }
 
-    /// The document's project, given where it is and what it says.
-    static func snapshot(for documentURL: URL, text: String) -> ProjectSnapshot {
+    /// The document's project, given where it is and what it says. `openTexts` holds the
+    /// text of files open in the window, by canonical path, which is used instead of what
+    /// is saved. `knownMainFile` is the main file of the window the document is shown in,
+    /// so showing another file of the project — a bibliography in a subfolder, say — keeps
+    /// the same project.
+    static func snapshot(for documentURL: URL, text: String, openTexts: [String: String] = [:], knownMainFile: URL? = nil) -> ProjectSnapshot {
+        func read(_ url: URL) -> String? {
+            openTexts[SourceMap.canonicalPath(url)] ?? contents(of: url)
+        }
         let directory = documentURL.deletingLastPathComponent()
         var mainFile: URL?
         var detected = false
@@ -188,6 +195,9 @@ nonisolated enum ProjectIndex {
             mainFile = directory.appending(path: root).standardizedFileURL
         } else if isMainDocument(text) {
             mainFile = documentURL.standardizedFileURL
+        } else if let knownMainFile, SourceMap.relativePath(of: documentURL, inside: knownMainFile.deletingLastPathComponent()) != nil {
+            mainFile = knownMainFile.standardizedFileURL
+            detected = true
         } else if let including = fileIncluding(documentURL) {
             mainFile = including
             detected = true
@@ -203,18 +213,18 @@ nonisolated enum ProjectIndex {
         for file in tree.files {
             switch file.kind {
             case .latex where SourceMap.canonicalPath(file.url) != current:
-                if let other = contents(of: file.url) {
+                if let other = read(file.url) {
                     labels += ReferenceScanner.labels(in: other, file: file.url)
                     commands += DefinitionFinder.commandDefinitions(in: other, file: file.url)
                     verbatimEnvironments.formUnion(LiveChecker.verbatimEnvironmentDefinitions(in: other))
                 }
             case .package where ["sty", "cls"].contains(file.url.pathExtension.lowercased()):
-                if let package = contents(of: file.url) {
+                if let package = read(file.url) {
                     commands += DefinitionFinder.commandDefinitions(in: package, file: file.url)
                     verbatimEnvironments.formUnion(LiveChecker.verbatimEnvironmentDefinitions(in: package))
                 }
             case .bibliography:
-                if let database = contents(of: file.url) {
+                if let database = read(file.url) {
                     entries += ReferenceScanner.bibEntries(in: database, file: file.url)
                 }
             default:
@@ -225,7 +235,7 @@ nonisolated enum ProjectIndex {
             mainFile = candidate
         }
         let mainText = mainFile.flatMap { main in
-            SourceMap.canonicalPath(main) == current ? text : contents(of: main)
+            SourceMap.canonicalPath(main) == current ? text : read(main)
         }
         return ProjectSnapshot(
             folder: folder,

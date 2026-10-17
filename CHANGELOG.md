@@ -3,6 +3,41 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.24 — One window for the whole project
+
+- Selecting a file in the project navigator now shows it in the window's editor, like
+  Xcode, so the chapters of a document can be switched between without a window or tab
+  for each. The arrow keys step through the files; double-click or Return goes to the
+  text. Images and PDFs still open in their own app on double-click.
+- Search results, issues, ⌘-clicks in the PDF (inverse search), the References navigator
+  and Jump to Definition show other files of the project the same way.
+- Each file keeps its own undo history, insertion point, scroll position, folds and
+  Visual editor state, so switching back picks up where you were. Undo only ever changes
+  the file on screen.
+- A bar above the editor shows the file and its path in the project, goes back and
+  forward through the files shown (⌃⌘← and ⌃⌘→, also in the View menu), lists the files
+  open in the window with Close, Show in Project Navigator and Show in Finder, and has a
+  button back to the main file (⌃⌘↑). The window subtitle names the file on screen.
+- Files other than the window's own document are saved two seconds after the last
+  change, when you switch to another file or app, when the window closes and when TexLab
+  quits. Saving replaces the file safely and keeps its encoding and Finder metadata.
+  Changes other apps make (a `git pull`, another editor) are picked up when TexLab
+  becomes active, unless the file has changes of its own.
+- Typesetting from any file of the project typesets the whole document, including the
+  unsaved text of every file open in the window, and the PDF and SyncTeX stay linked to
+  the right files. A file without `\documentclass` is always typeset through the main
+  file, even straight after switching to it.
+- The outline, live preview, live issues, folding and Jump to Definition follow the file
+  on screen, and the project stays the same while you move around it.
+- Inserting a figure, link, aligned equations or a theorem in a chapter adds the packages
+  and `\newtheorem` it needs to the main file — in the editor, in another window, or on
+  disk — instead of doing nothing.
+- A file is edited in one window only: opening a file another window shows brings that
+  window forward, and a window opened on a file saves and gives up its copy elsewhere.
+  Open in New Window in the navigator's context menu still gives a file a window of its
+  own.
+- Exported and printed PDFs are named after the document, not the chapter on screen.
+
 ## v1.23 — A better Welcome window and New Project
 
 - **New Project** (⇧⌘N, or Create New Project in the Welcome window) is now a template

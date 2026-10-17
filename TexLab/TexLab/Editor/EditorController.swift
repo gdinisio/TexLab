@@ -4,6 +4,7 @@
 //
 
 import AppKit
+import CoreGraphics
 import Foundation
 
 /// The interface menu commands, the sidebar and the preview use to work with a window's
@@ -30,6 +31,46 @@ final class EditorController {
     func focus() {
         guard let textView else { return }
         textView.window?.makeFirstResponder(textView)
+    }
+
+    // MARK: - Files
+
+    /// Where the editor is in the file it shows, to come back to.
+    func currentState() -> (selection: NSRange, scrollOrigin: CGPoint?, folds: [FoldableRegion]) {
+        guard let textView else { return (NSRange(location: 0, length: 0), nil, []) }
+        return (textView.selectedRange(), textView.enclosingScrollView?.contentView.bounds.origin, textView.folds)
+    }
+
+    /// Shows another file's text, with its own insertion point, scroll position and folds.
+    /// Not undoable: each file keeps its own undo history.
+    func show(text: String, selection: NSRange, scrollOrigin: CGPoint?, folds: [FoldableRegion]) {
+        guard let textView else { return }
+        textView.breakUndoCoalescing()
+        textView.endPlaceholders()
+        textView.folds = []
+        textView.setText(text)
+        let length = (text as NSString).length
+        let location = min(selection.location, length)
+        let range = NSRange(location: location, length: min(selection.length, length - location))
+        textView.setSelectedRange(range)
+        textView.folds = folds.filter { NSMaxRange($0.range) <= length }
+        textView.updatePresentation()
+        guard let scrollView = textView.enclosingScrollView else { return }
+        if let scrollOrigin {
+            // After the new text is laid out.
+            DispatchQueue.main.async { [weak textView] in
+                guard let textView, let clipView = textView.enclosingScrollView?.contentView else { return }
+                clipView.scroll(to: scrollOrigin)
+                scrollView.reflectScrolledClipView(clipView)
+            }
+        } else {
+            textView.scrollRangeToVisible(range)
+        }
+    }
+
+    /// Brings the editor in line with text changed outside it, keeping its place.
+    func applyExternalText(_ text: String) {
+        textView?.applyExternalText(text)
     }
 
     // MARK: - Editing

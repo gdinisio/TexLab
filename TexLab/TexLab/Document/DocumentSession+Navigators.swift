@@ -42,9 +42,12 @@ extension DocumentSession {
         var sources: [(file: URL?, name: String, text: String?)] = [(nil, displayName, text)]
         if let fileURL, let project {
             let current = SourceMap.canonicalPath(fileURL)
+            // Files open in this window are searched as they are, unsaved changes included.
+            let openTexts = openFileTexts
             for file in project.tree.files where file.kind == .latex || file.kind == .bibliography || file.kind == .package || file.kind == .text {
-                guard SourceMap.canonicalPath(file.url) != current else { continue }
-                sources.append((file.url, PathUtilities.relativePath(of: file.url, from: project.folder), nil))
+                let path = SourceMap.canonicalPath(file.url)
+                guard path != current else { continue }
+                sources.append((file.url, PathUtilities.relativePath(of: file.url, from: project.folder), openTexts[path]))
             }
         }
         isSearchingProject = true
@@ -86,9 +89,8 @@ extension DocumentSession {
         }
     }
 
-    /// Opens a project file and moves its editor to `line`.
+    /// Shows a line of a project file, in this window's editor.
     func openProjectFile(_ url: URL, line: Int) {
-        SourceNavigator.requestReveal(of: line, in: url)
-        openProjectFile(url)
+        open(url, line: line)
     }
 }

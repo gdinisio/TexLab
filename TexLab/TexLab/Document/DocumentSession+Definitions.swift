@@ -50,11 +50,7 @@ extension DocumentSession {
         case .here(let range):
             editor.reveal(location: range.location, length: range.length)
         case .line(let line, let url):
-            if let fileURL, SourceMap.canonicalPath(url) == SourceMap.canonicalPath(fileURL) {
-                editor.revealLine(line)
-            } else {
-                openProjectFile(url, line: line)
-            }
+            open(url, line: line)
         case .file(let url):
             openProjectFile(url)
         }
