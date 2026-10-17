@@ -155,6 +155,10 @@ nonisolated struct ProjectSnapshot: Sendable, Equatable {
     var verbatimEnvironments: Set<String> = []
     /// The main file's `\title`, for the Welcome window.
     var title: String?
+    /// The main file and the files it includes, in reading order, then its bibliographies.
+    var parts: [DocumentPart] = []
+    /// The headings, frames and floats of the whole document, in reading order.
+    var outline: [DocumentOutlineEntry] = []
 
     var labelKeys: [String] {
         labels.map(\.key)
@@ -237,6 +241,11 @@ nonisolated enum ProjectIndex {
         let mainText = mainFile.flatMap { main in
             SourceMap.canonicalPath(main) == current ? text : read(main)
         }
+        let structure = mainFile.map { main in
+            DocumentStructure.build(main: main) { url in
+                SourceMap.canonicalPath(url) == current ? text : read(url)
+            }
+        }
         return ProjectSnapshot(
             folder: folder,
             tree: tree,
@@ -246,7 +255,9 @@ nonisolated enum ProjectIndex {
             bibEntries: entries.sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending },
             commands: commands,
             verbatimEnvironments: verbatimEnvironments,
-            title: mainText.flatMap(title(in:))
+            title: mainText.flatMap(title(in:)),
+            parts: structure?.parts ?? [],
+            outline: structure?.outline ?? []
         )
     }
 

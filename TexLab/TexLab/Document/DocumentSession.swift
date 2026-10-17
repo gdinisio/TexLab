@@ -328,6 +328,24 @@ final class DocumentSession {
         }
     }
 
+    /// Moves the editor to an item of the whole document's outline, in whichever file it
+    /// is, and shows it in the preview too.
+    func revealOutlineEntry(_ entry: DocumentOutlineEntry) {
+        var line = entry.line
+        if let fileURL, SourceMap.canonicalPath(fileURL) == SourceMap.canonicalPath(entry.file) {
+            // The project's outline of the shown file may be a few edits old; find the
+            // heading where it is now.
+            let matches = flatOutline.filter { $0.kind == entry.kind && $0.title == entry.title }
+            if let nearest = matches.min(by: { abs($0.line - entry.line) < abs($1.line - entry.line) }) {
+                line = nearest.line
+            }
+        }
+        open(entry.file, line: line)
+        if canSynchronize && isPreviewVisible {
+            revealInPreview(line: line)
+        }
+    }
+
     private func updateCurrentOutlineItem() {
         let current = flatOutline.last { $0.line <= caretLine }?.id
         if current != currentOutlineItemID {
@@ -382,9 +400,15 @@ final class DocumentSession {
         }
         let newOutline = OutlineParser.parse(text)
         if newOutline != outline {
+            let newFlatOutline = OutlineParser.flatten(newOutline)
+            let headingsChanged = newFlatOutline.map { "\($0.kind.rawValue) \($0.title)" } != flatOutline.map { "\($0.kind.rawValue) \($0.title)" }
             outline = newOutline
-            flatOutline = OutlineParser.flatten(newOutline)
+            flatOutline = newFlatOutline
             updateCurrentOutlineItem()
+            // The whole document's outline and the chapters' headings come from the project.
+            if headingsChanged, (project?.parts.count ?? 0) > 1 {
+                refreshProject()
+            }
         }
         updateLivePreview()
         checkLiveIssues()

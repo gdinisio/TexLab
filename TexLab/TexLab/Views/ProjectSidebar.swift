@@ -7,15 +7,18 @@ import AppKit
 import Foundation
 import SwiftUI
 
-/// The project navigator: the files of the document's folder, like Xcode's. Selecting a
-/// text file shows it in the editor — the arrow keys step through them — and the selection
-/// follows the file the editor shows. Double-click an image or PDF to open it, drag a file
-/// into the editor to reference it, and use the context menu or the + button to add,
-/// rename and remove files.
+/// The project navigator, like Xcode's. The Document section lists the main file and the
+/// chapters it includes in reading order, each with its first heading, then its
+/// bibliographies; Files lists the project folder. Selecting a text file shows it in the
+/// editor — the arrow keys step through them — and the selection follows the file the
+/// editor shows. The filter field finds files by name. Double-click an image or PDF to
+/// open it, drag a file into the editor to reference it, and use the context menu or the
+/// + button to add, rename and remove files.
 struct ProjectSidebar: View {
     var session: DocumentSession
 
-    @State private var selection: Set<URL> = []
+    @State private var selection: Set<NavigatorItem> = []
+    @State private var filter = ""
     @State private var renamingURL: URL?
     @State private var newFolderParent: URL?
     @State private var enteredName = ""
@@ -80,15 +83,46 @@ struct ProjectSidebar: View {
     }
 
     private func navigator(_ project: ProjectSnapshot) -> some View {
-        List(project.tree.children ?? [], children: \.children, selection: $selection) { file in
-            ProjectRow(file: file, isMain: isMain(file, in: project), isCurrent: isCurrent(file))
-                .draggable(file.url)
+        List(selection: $selection) {
+            if trimmedFilter.isEmpty {
+                if showsDocument(project) {
+                    Section("Document") {
+                        ForEach(project.parts) { part in
+                            DocumentPartRow(part: part, isCurrent: isCurrentURL(part.url))
+                                .tag(NavigatorItem.part(part.order))
+                                .draggable(part.url)
+                        }
+                    }
+                }
+                Section {
+                    OutlineGroup(project.tree.children ?? [], children: \.children) { file in
+                        ProjectRow(file: file, isMain: isMain(file, in: project), isCurrent: isCurrent(file))
+                            .tag(NavigatorItem.file(file.url))
+                            .draggable(file.url)
+                    }
+                } header: {
+                    if showsDocument(project) {
+                        Text("Files")
+                    }
+                }
+            } else {
+                let matches = matchingFiles(in: project)
+                if matches.isEmpty {
+                    Text("No Matching Files")
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(matches) { file in
+                    ProjectRow(file: file, isMain: isMain(file, in: project), isCurrent: isCurrent(file), detail: folderPath(of: file, in: project))
+                        .tag(NavigatorItem.file(file.url))
+                        .draggable(file.url)
+                }
+            }
         }
         .listStyle(.sidebar)
-        .contextMenu(forSelectionType: URL.self) { urls in
-            menu(for: Array(urls), in: project)
-        } primaryAction: { urls in
-            for url in urls where !isFolder(url, in: project) {
+        .contextMenu(forSelectionType: NavigatorItem.self) { items in
+            menu(for: urls(of: items, in: project), in: project)
+        } primaryAction: { items in
+            for url in urls(of: items, in: project) where !isFolder(url, in: project) {
                 if ProjectFileKind(url: url, isDirectory: false).opensInTexLab {
                     // Already shown by selecting it; double-click or Return goes to the text.
                     session.openProjectFile(url)
@@ -109,10 +143,50 @@ struct ProjectSidebar: View {
         }
         .onChange(of: selection) { _, newValue in
             // Selecting one text file shows it, as in Xcode.
-            guard newValue.count == 1, let url = newValue.first, !isFolder(url, in: project),
-                  ProjectFileKind(url: url, isDirectory: false).opensInTexLab, !isCurrentURL(url) else { return }
+            guard newValue.count == 1, let item = newValue.first, let url = url(of: item, in: project),
+                  !isFolder(url, in: project), ProjectFileKind(url: url, isDirectory: false).opensInTexLab,
+                  !isCurrentURL(url) else { return }
             session.openProjectFile(url)
         }
+    }
+
+    /// Whether the document has parts to list: the main file includes something.
+    private func showsDocument(_ project: ProjectSnapshot) -> Bool {
+        project.parts.count > 1
+    }
+
+    private var trimmedFilter: String {
+        filter.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Files whose name or path contains the filter, in path order.
+    private func matchingFiles(in project: ProjectSnapshot) -> [ProjectFile] {
+        project.tree.files
+            .filter { file in
+                file.name.localizedStandardContains(trimmedFilter)
+                    || PathUtilities.relativePath(of: file.url, from: project.folder).localizedStandardContains(trimmedFilter)
+            }
+            .sorted { PathUtilities.relativePath(of: $0.url, from: project.folder).localizedStandardCompare(PathUtilities.relativePath(of: $1.url, from: project.folder)) == .orderedAscending }
+    }
+
+    private func folderPath(of file: ProjectFile, in project: ProjectSnapshot) -> String? {
+        let path = PathUtilities.relativePath(of: file.url.deletingLastPathComponent(), from: project.folder)
+        return path.isEmpty || path == "." ? nil : path
+    }
+
+    private func url(of item: NavigatorItem, in project: ProjectSnapshot) -> URL? {
+        switch item {
+        case .part(let order):
+            project.parts.first { $0.order == order }?.url
+        case .file(let url):
+            url
+        }
+    }
+
+    /// The files and folders of the selected rows, each once.
+    private func urls(of items: Set<NavigatorItem>, in project: ProjectSnapshot) -> [URL] {
+        var seen: Set<String> = []
+        return items.compactMap { url(of: $0, in: project) }.filter { seen.insert(SourceMap.canonicalPath($0)).inserted }
     }
 
     // MARK: - Context menu
@@ -204,16 +278,32 @@ struct ProjectSidebar: View {
             .fixedSize()
             .help("Add a file or folder to the project")
 
-            Spacer(minLength: 4)
-
-            if let main = project.mainFile {
-                Label(main.lastPathComponent, systemImage: "doc.richtext")
-                    .labelStyle(.titleAndIcon)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .foregroundStyle(.secondary)
-                    .help(session.isMainFile ? "This document is the main file" : "Typesetting this document typesets \(main.lastPathComponent)")
+            HStack(spacing: 4) {
+                Image(systemName: "line.3.horizontal.decrease.circle")
+                    .foregroundStyle(trimmedFilter.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.accentColor))
+                    .accessibilityHidden(true)
+                TextField("Filter", text: $filter)
+                    .textFieldStyle(.plain)
+                if !filter.isEmpty {
+                    Button {
+                        filter = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Clear the filter")
+                    .accessibilityLabel("Clear the filter")
+                }
             }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(.background, in: RoundedRectangle(cornerRadius: 6))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(.separator)
+            }
+            .help("Show only files whose name contains this text")
         }
         .font(.callout)
         .padding(.horizontal, 10)
@@ -226,13 +316,18 @@ struct ProjectSidebar: View {
 
     // MARK: - Helpers
 
-    /// Selects the file the editor shows, unless it's already among the selection.
+    /// Selects the file the editor shows — in the Document section if it's a part of the
+    /// document — unless it's already among the selection.
     private func followCurrentFile(in project: ProjectSnapshot) {
         guard let fileURL = session.fileURL else { return }
         let path = SourceMap.canonicalPath(fileURL)
-        guard !selection.contains(where: { SourceMap.canonicalPath($0) == path }) else { return }
-        let url = project.tree.files.first(where: { SourceMap.canonicalPath($0.url) == path })?.url ?? fileURL
-        selection = [url]
+        guard !selection.contains(where: { url(of: $0, in: project).map(SourceMap.canonicalPath) == path }) else { return }
+        if trimmedFilter.isEmpty, showsDocument(project),
+           let part = project.parts.first(where: { SourceMap.canonicalPath($0.url) == path }) {
+            selection = [.part(part.order)]
+        } else if let file = project.tree.files.first(where: { SourceMap.canonicalPath($0.url) == path }) {
+            selection = [.file(file.url)]
+        }
     }
 
     private func isMain(_ file: ProjectFile, in project: ProjectSnapshot) -> Bool {
@@ -283,10 +378,58 @@ struct ProjectSidebar: View {
     }
 }
 
+/// A row of the navigator: a part of the document, or a file or folder of the project.
+private enum NavigatorItem: Hashable {
+    case part(Int)
+    case file(URL)
+}
+
+/// A part of the document: the main file with the document's title, a chapter with its
+/// first heading, or a bibliography, indented as deeply as it is included.
+private struct DocumentPartRow: View {
+    var part: DocumentPart
+    var isCurrent: Bool
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(part.url.lastPathComponent)
+                        .fontWeight(isCurrent ? .semibold : .regular)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if part.kind == .main {
+                        Text("Main")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(.quaternary, in: Capsule())
+                            .accessibilityLabel("Main file")
+                    }
+                }
+                if let title = part.title {
+                    Text(title)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+        } icon: {
+            Image(systemName: part.systemImage)
+                .foregroundStyle(isCurrent ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+        }
+        .padding(.leading, CGFloat(max(part.depth - 1, 0)) * 12)
+        .help(part.url.filePath)
+    }
+}
+
 private struct ProjectRow: View {
     var file: ProjectFile
     var isMain: Bool
     var isCurrent: Bool
+    /// The folder it's in, when files are listed without their folders.
+    var detail: String?
 
     var body: some View {
         Label {
@@ -295,6 +438,13 @@ private struct ProjectRow: View {
                     .fontWeight(isCurrent ? .semibold : .regular)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                if let detail {
+                    Text(verbatim: detail)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                }
                 if isMain {
                     Text("Main")
                         .font(.caption2.weight(.medium))

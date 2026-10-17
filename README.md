@@ -138,8 +138,16 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   apps are picked up. Typesetting from a chapter typesets the whole document, with the
   unsaved text of every open file. A file is only ever edited in one window: opening one
   that another window shows brings that window forward.
-- **Navigators** — the sidebar has five, like Xcode's, on ⌘1–⌘5: Project, Outline, Find,
-  References and Issues.
+- **Navigators** — the sidebar has five, like Xcode's, chosen from the row of icons at its
+  top or with ⌘1–⌘5: Project, Outline, Find, References and Issues; the Issues icon
+  shows how many there are.
+- **Document section** — the project navigator lists the main file and the chapters it
+  includes (`\input`, `\include`, `\subfile`, `\import`) in reading order, each with its
+  first heading, nested as deeply as they are included, then the bibliographies; click
+  one to write in it. A filter field at the bottom finds any file of the project by name.
+- **Outline of the whole document** — the Outline navigator can show the file on screen
+  or the whole document across all its files, in reading order; selecting a heading in
+  another chapter opens that chapter at it.
 - **Jump to Definition** — ⌘-click (or ⌃⌘J, or the context menu) goes from a reference
   to its `\label`, from a citation to its bibliography entry, from `\input`,
   `\includegraphics` or `\bibliography` to the file, from a command to its
@@ -188,8 +196,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 - **Live preview** that keeps its place and zoom as the document changes.
 - **SyncTeX** — ⌘-click the PDF (or Show in Source) to jump to the source line, even in
   another file; ⇧⌘J (or Show in PDF) highlights the text a line produced.
-- **Issues** — errors, warnings and bad boxes with file and line in the sidebar and the
-  gutter; ⌘' moves through them. The full log is one click away.
+- **Issues** — errors, warnings and bad boxes with file and line in the sidebar, grouped
+  by file, and in the gutter; ⌘' moves through them. The full log is one click away.
 - **Live issues** — like Xcode's, found as you type, before typesetting: environments
   and braces that aren't closed or don't match, references to labels nothing defines,
   citations missing from the bibliography, and labels defined twice. They read the text
@@ -333,6 +341,10 @@ TexLab/TexLab/
   file-based output so pipes can't stall). `LaTeXLogParser` turns the log into issues;
   `SourceMap` maps the paths TeX reports (build copy, overlay, relative paths) back to the
   files you edit; `SyncTeXData` parses uncompressed SyncTeX with a byte-level parser.
+- **Document structure** — `DocumentStructure` follows the main file through what it
+  includes, in the order TeX reads it, as part of the project scan: the parts listed in
+  the navigator and the outline of the whole document, with each included file's
+  headings spliced in where it is read.
 - **Files of a window** — `EditorFile` holds each file a window shows: the window's own
   document, saved by the document system, and project files opened beside it, which the
   window saves itself (coordinated, replacing the file safely). One `SourceTextView`

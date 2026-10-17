@@ -3,6 +3,29 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.25 — A better sidebar
+
+- The navigators are chosen from a row of icons like Xcode's navigator bar, instead of a
+  segmented control: the chosen one is tinted and filled, each has a tooltip with its
+  shortcut (⌘1–⌘5), and the Issues icon carries a badge with the number of issues, red
+  when there are errors.
+- **Project navigator**
+  - A Document section lists the main file (with the document's title) and the files it
+    includes with `\input`, `\include`, `\subfile`, `\import` and `\subimport`, in reading
+    order and nested as they are included, each with its first heading — the chapters of
+    a thesis at a glance — followed by its bibliographies. Click one to write in it.
+  - The project's folder follows under Files.
+  - A filter field at the bottom lists the files whose name or path contains what you
+    type, with their folders.
+  - The file on screen is selected in the Document section when it's a part of the
+    document, and its icon is tinted.
+- **Outline navigator**: This File or Whole Document. The whole document's outline runs
+  through every included file in reading order, with each chapter's headings where it
+  is read; items in other files name their file, and selecting one opens that file at
+  the heading. The selection follows the insertion point in both.
+- **Issues navigator**: TeX's issues are grouped by file, in the order TeX reported
+  them, and rows show just the line; live issues name the file they were found in.
+
 ## v1.24 — One window for the whole project
 
 - Selecting a file in the project navigator now shows it in the window's editor, like
