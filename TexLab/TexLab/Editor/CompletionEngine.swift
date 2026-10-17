@@ -255,12 +255,10 @@ nonisolated enum CompletionEngine {
     private static func fileItems(_ sources: CompletionSources, extensions: Set<String>, keepsExtension: Bool, partial: String) -> [CompletionItem] {
         let items = sources.files.filter { extensions.contains($0.pathExtension) }.map { file in
             let insertion = keepsExtension ? file.path : String(file.path.dropLast(file.pathExtension.count + 1))
-            let folder = (file.path as NSString).deletingLastPathComponent
             return CompletionItem(
                 kind: .file,
                 insertion: insertion,
                 title: insertion,
-                detail: folder.isEmpty ? nil : folder,
                 systemImage: ProjectFileKind(url: URL(filePath: file.path), isDirectory: false).systemImage
             )
         }

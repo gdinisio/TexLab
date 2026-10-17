@@ -378,6 +378,7 @@ struct IssuesSidebar: View {
                 } label: {
                     Label("Show Log", systemImage: "doc.text.magnifyingglass")
                 }
+                .disabled(session.log.isEmpty && session.console.isEmpty)
                 .help("Show the full TeX log")
             }
             .toggleStyle(.button)
@@ -432,7 +433,7 @@ struct IssuesSidebar: View {
 
     @ViewBuilder
     private var emptyState: some View {
-        if session.status == .idle || session.status == .running && session.lastTypesetDate == nil {
+        if session.allIssues.isEmpty && session.lastTypesetDate == nil {
             ContentUnavailableView {
                 Label("Not Typeset Yet", systemImage: "doc.badge.gearshape")
             } description: {

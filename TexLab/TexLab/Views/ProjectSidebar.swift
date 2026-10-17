@@ -519,7 +519,11 @@ struct NewProjectFileSheet: View {
         .padding(20)
         .frame(width: 460)
         .onAppear {
-            folder = session.newFileFolder ?? session.project?.folder
+            // One of the picker's own folders, so it shows the choice.
+            let requested = session.newFileFolder ?? session.project?.folder
+            folder = session.project?.tree.folders.first { item in
+                requested.map { SourceMap.canonicalPath($0) == SourceMap.canonicalPath(item.url) } ?? false
+            }?.url ?? session.project?.folder
         }
         .onChange(of: kind) { oldKind, newKind in
             // Keep a name the user typed; replace the suggestion.

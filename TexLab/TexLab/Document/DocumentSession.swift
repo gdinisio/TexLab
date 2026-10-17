@@ -341,7 +341,8 @@ final class DocumentSession {
             }
         }
         open(entry.file, line: line)
-        if canSynchronize && isPreviewVisible {
+        // Not when the file opened in a window of its own.
+        if canSynchronize && isPreviewVisible, let fileURL, SourceMap.canonicalPath(fileURL) == SourceMap.canonicalPath(entry.file) {
             revealInPreview(line: line)
         }
     }

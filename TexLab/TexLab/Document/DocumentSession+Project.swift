@@ -28,6 +28,8 @@ extension DocumentSession {
         let center = NotificationCenter.default
         projectObservers.append(center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
+                // Figures may have been changed in another app.
+                self?.editor.forgetThumbnails()
                 self?.refreshProject()
             }
         })
@@ -64,6 +66,10 @@ extension DocumentSession {
             }.value
             guard !Task.isCancelled, let self else { return }
             if snapshot != self.project {
+                if snapshot.tree != self.project?.tree {
+                    // A figure that was missing may be there now.
+                    self.editor.forgetThumbnails()
+                }
                 self.project = snapshot
                 // Labels and bibliography entries elsewhere in the project may have changed.
                 self.checkLiveIssues()

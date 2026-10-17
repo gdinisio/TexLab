@@ -73,6 +73,10 @@ struct ReadOnlyTextView: NSViewRepresentable {
             textView.font = NSFont.monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
             textView.textContainerInset = NSSize(width: 8, height: 8)
             textView.string = text
+            // TeX's summary and the last error are at the end.
+            DispatchQueue.main.async { [weak textView] in
+                textView?.scrollToEndOfDocument(nil)
+            }
         }
         return scrollView
     }

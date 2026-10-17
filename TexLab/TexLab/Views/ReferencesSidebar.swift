@@ -32,7 +32,7 @@ struct ReferencesSidebar: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                TextField(kind == .labels ? "Filter labels" : "Filter by key, author, title or year", text: $search)
+                TextField(kind == .labels ? "Filter by label or caption" : "Filter by key, author, title or year", text: $search)
                     .textFieldStyle(.roundedBorder)
             }
             .padding(.horizontal, 10)
@@ -52,13 +52,18 @@ struct ReferencesSidebar: View {
     @ViewBuilder
     private var labels: some View {
         let all = session.allLabels
-        let groups = ReferencePicker.groups(all.filter { search.isEmpty || $0.key.localizedCaseInsensitiveContains(search) })
+        let groups = ReferencePicker.groups(all.filter { label in
+            search.isEmpty || label.key.localizedCaseInsensitiveContains(search)
+                || (label.context?.localizedCaseInsensitiveContains(search) ?? false)
+        })
         if all.isEmpty {
             ContentUnavailableView {
                 Label("No Labels", systemImage: "tag")
             } description: {
                 Text("Labels you add with \\label{…} appear here, from every file of the project.")
             }
+        } else if groups.isEmpty {
+            ContentUnavailableView.search(text: search)
         } else {
             List(selection: $labelSelection) {
                 ForEach(groups, id: \.title) { group in
@@ -114,6 +119,8 @@ struct ReferencesSidebar: View {
             } description: {
                 Text("Entries from the project’s .bib files appear here. Add one with File ▸ New File in Project.")
             }
+        } else if shown.isEmpty {
+            ContentUnavailableView.search(text: search)
         } else {
             List(shown, selection: $entrySelection) { entry in
                 BibEntryRow(entry: entry)

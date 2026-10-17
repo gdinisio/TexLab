@@ -27,7 +27,15 @@ extension DocumentSession {
         let magic = MagicComments(text: text)
         let actionName = String(localized: "Change Typesetting Engine")
         let line = newEngine.map(MagicComments.programLine(for:)) ?? ""
-        if let range = magic.programLineRange {
+        if let main = project?.mainFile, !isMainFile {
+            // A chapter is typeset through the main file, whose comment decides.
+            modifyFile(at: main, actionName: actionName) { mainText in
+                if let range = MagicComments(text: mainText).programLineRange {
+                    return (range, line)
+                }
+                return line.isEmpty ? nil : (NSRange(location: 0, length: 0), line)
+            }
+        } else if let range = magic.programLineRange {
             editor.replace(range, with: line, actionName: actionName)
         } else if !line.isEmpty {
             editor.replace(NSRange(location: 0, length: 0), with: line, actionName: actionName)

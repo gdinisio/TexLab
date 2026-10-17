@@ -53,6 +53,8 @@ final class SourceTextView: NSTextView {
     /// Resolves an `\includegraphics` path for figure thumbnails.
     var resolveImageURL: ((String) -> URL?)?
     var thumbnails: [String: NSImage] = [:]
+    /// When each thumbnail's file was last changed, to notice a figure redrawn elsewhere.
+    var thumbnailDates: [String: Date] = [:]
     var missingThumbnails: Set<String> = []
     /// Locations of the formulas currently shown as source because the selection is in them.
     var revealedMath: Set<Int> = []
@@ -536,6 +538,7 @@ final class SourceTextView: NSTextView {
 
         guard let closer = AutoPair.closer(for: character), !isEscaped else {
             super.insertText(insertString, replacementRange: replacementRange)
+            suggestCompletionsIfUseful(afterTyping: typed)
             return
         }
         let closing = String(decoding: [closer], as: UTF16.self)
@@ -616,6 +619,7 @@ final class SourceTextView: NSTextView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        hideCompletion()
         let point = convert(event.locationInWindow, from: nil)
         // Command-click jumps to a definition, as in Xcode; elsewhere it selects as usual.
         if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,

@@ -41,13 +41,14 @@ struct NewProjectView: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 134, maximum: 160), spacing: 12)], spacing: 12) {
                 ForEach(DocumentTemplate.allCases) { template in
                     TemplateCard(template: template, isSelected: setup.template == template)
-                        .onTapGesture(count: 2) {
-                            setup.template = template
-                            create()
-                        }
+                        // A click selects at once; waiting to rule out a double-click felt slow.
                         .onTapGesture {
                             setup.template = template
                         }
+                        .simultaneousGesture(TapGesture(count: 2).onEnded {
+                            setup.template = template
+                            create()
+                        })
                         .accessibilityAddTraits(.isButton)
                         .accessibilityAddTraits(setup.template == template ? .isSelected : [])
                         .accessibilityAction {

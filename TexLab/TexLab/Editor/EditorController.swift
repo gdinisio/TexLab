@@ -190,6 +190,10 @@ final class EditorController {
         textView?.resolveImageURL = resolver
     }
 
+    func forgetThumbnails() {
+        textView?.forgetThumbnails()
+    }
+
     // MARK: - Folding
 
     func foldAtSelection() {

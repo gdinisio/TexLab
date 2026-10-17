@@ -39,16 +39,20 @@ final class CompletionPopup {
         set { model.onAccept = newValue }
     }
 
-    /// Shows `items` below the screen rectangle of the text being completed, keeping the
-    /// selected item if it's still there.
+    /// Shows `items` below the screen rectangle of the text being completed. The best match
+    /// is selected, unless the list is the same as before — the editor only scrolled — and
+    /// another item was chosen with the arrow keys.
     func show(_ items: [CompletionItem], below textRect: NSRect, in window: NSWindow) {
-        let previous = selectedItem?.id
-        model.items = items
-        model.selectedIndex = previous.flatMap { id in items.firstIndex { $0.id == id } } ?? 0
+        let isSameList = isVisible && items.map(\.id) == model.items.map(\.id)
+        if !isSameList {
+            model.items = items
+            model.selectedIndex = 0
+        }
 
         let panel = self.panel ?? makePanel()
         let rows = CGFloat(min(items.count, Self.visibleRows))
-        let hasFooter = items.contains { $0.detail != nil }
+        // Citations and labels have more to say than fits beside them.
+        let hasFooter = items.contains { ($0.kind == .citation || $0.kind == .label) && $0.detail != nil }
         let size = NSSize(width: Self.width, height: rows * Self.rowHeight + 8 + (hasFooter ? Self.footerHeight : 0))
         model.showsFooter = hasFooter
 

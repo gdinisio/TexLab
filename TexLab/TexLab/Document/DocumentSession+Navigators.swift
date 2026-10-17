@@ -39,7 +39,11 @@ extension DocumentSession {
             isSearchingProject = false
             return
         }
-        var sources: [(file: URL?, name: String, text: String?)] = [(nil, displayName, text)]
+        // The shown file is named, so its results still lead to it after switching files.
+        let shownName = fileURL.map { url in
+            project.map { PathUtilities.relativePath(of: url, from: $0.folder) } ?? url.lastPathComponent
+        } ?? displayName
+        var sources: [(file: URL?, name: String, text: String?)] = [(fileURL, shownName, text)]
         if let fileURL, let project {
             let current = SourceMap.canonicalPath(fileURL)
             // Files open in this window are searched as they are, unsaved changes included.
@@ -61,13 +65,20 @@ extension DocumentSession {
         }
     }
 
-    /// Shows a search result: in this editor, or in the file's own window.
+    /// Shows a search result: in this editor, or in the file's own window. The match itself
+    /// is selected when the file is on screen here and the text there hasn't changed.
     func reveal(_ match: SearchMatch) {
-        if let file = match.file {
-            openProjectFile(file, line: match.line)
-        } else {
+        guard let file = match.file else {
             editor.reveal(location: match.location, length: match.length)
+            return
         }
+        open(file, line: match.line)
+        guard let fileURL, SourceMap.canonicalPath(fileURL) == SourceMap.canonicalPath(file) else { return }
+        let range = NSRange(location: match.location, length: match.length)
+        let string = text as NSString
+        guard NSMaxRange(range) <= string.length,
+              string.substring(with: range).compare(findQuery, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame else { return }
+        editor.reveal(location: match.location, length: match.length)
     }
 
     /// Shows where a label is defined.

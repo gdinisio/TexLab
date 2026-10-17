@@ -57,14 +57,30 @@ struct PreviewPane: View {
                     Text("Open Settings…")
                 }
             }
-        case .failed, .timedOut:
+        case .failed:
             ContentUnavailableView {
                 Label("No Preview", systemImage: "xmark.octagon")
             } description: {
                 Text("TeX couldn’t produce a PDF. Fix the errors listed in Issues, then typeset again.")
             } actions: {
+                Button("Show Issues") {
+                    session.showIssues()
+                }
                 Button("Show Log") {
                     session.isShowingLog = true
+                }
+            }
+        case .timedOut:
+            ContentUnavailableView {
+                Label("Typesetting Took Too Long", systemImage: "clock.badge.exclamationmark")
+            } description: {
+                Text("TeX was stopped before it produced a PDF. A loop in a macro, or a package waiting for input, can keep it running; the log shows where it stopped.")
+            } actions: {
+                Button("Show Log") {
+                    session.isShowingLog = true
+                }
+                Button("Typeset Again") {
+                    session.typeset()
                 }
             }
         case .idle, .cancelled, .succeeded:

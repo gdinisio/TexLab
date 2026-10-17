@@ -92,7 +92,17 @@ extension SourceTextView {
             completionPopup.moveSelection(by: -8)
         case #selector(NSResponder.scrollPageDown(_:)), #selector(NSResponder.pageDown(_:)):
             completionPopup.moveSelection(by: 8)
-        case #selector(NSResponder.insertNewline(_:)), #selector(NSResponder.insertTab(_:)):
+        case #selector(NSResponder.insertNewline(_:)):
+            // Return after a command typed in full that has nothing to add starts a new line.
+            if let item = completionPopup.selectedItem, item.kind == .command, item.argumentCount == 0,
+               let storage = textStorage,
+               let query = CompletionEngine.query(at: selectedRange().location, in: storage.mutableString),
+               "\\" + query.partial == item.insertion {
+                hideCompletion()
+                return false
+            }
+            acceptCompletion(nil)
+        case #selector(NSResponder.insertTab(_:)):
             acceptCompletion(nil)
         case #selector(NSResponder.cancelOperation(_:)):
             hideCompletion()

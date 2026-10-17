@@ -200,8 +200,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 - **Typeset** with ⌘R, or automatically after a pause in typing. Unsaved changes are
   included, and auxiliary files stay out of your folders.
 - **Engines** — pdfLaTeX, XeLaTeX or LuaLaTeX, chosen per document with Typeset ▸ Engine
-  (which writes a `% !TEX program` comment other editors understand) or by default in
-  Settings. latexmk is used when installed; otherwise TexLab runs BibTeX/Biber, makeindex
+  (which writes a `% !TEX program` comment other editors understand — into the main file
+  when a chapter is on screen) or by default in Settings. latexmk is used when installed; otherwise TexLab runs BibTeX/Biber, makeindex
   and repeated passes itself.
 - **Multi-file projects** — add `% !TEX root = main.tex` to a chapter and typesetting it
   typesets the whole project, including the chapter's unsaved text.
