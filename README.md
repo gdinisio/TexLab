@@ -57,6 +57,15 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   (Option-Return inserts a plain line break); brackets and `$` pair automatically, and
   typing an opening bracket with a selection wraps it; Tab and Shift-Tab indent lines;
   ⌘/ comments lines.
+- **Preview while editing** — while the insertion point is in a formula, a TikZ drawing,
+  a table, a figure or table float, an `\includegraphics` or an `\input` of a figure,
+  its typeset version floats just below the source in a small panel of Liquid Glass, in
+  both the Code and the Visual editor, so you see the source and what it makes together.
+  It follows your changes: the last version that typeset stays, dimmed, with a spinner
+  while TeX catches up, or a warning when the source can't be typeset as it is (an
+  unfinished `\frac{`, say). It moves above the source when there's no room below or the
+  completion list is there, scrolls with the text, lets clicks through, and can be turned
+  off in Settings ▸ Editor.
 - **Rendered math in the source** — formulas (`$…$`, `\(…\)`, `\[…\]`, `$$…$$` and
   math environments such as `equation` and `align`) are shown typeset right in the
   editor, with the document's own macros, until the insertion point enters them; then
@@ -79,10 +88,14 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
     `\LaTeX` and escapes such as `\&` show as the characters they produce.
   - TikZ drawings (`tikzpicture`, `circuitikz`, `forest`) and tables (`tabular`,
     `tabular*`, `tabularx`, `tabulary`) show typeset, with the document's own preamble,
-    on a small piece of white paper so their colours stay true in Dark Mode. Click one,
-    or move the insertion point into it, to edit its source. They're typeset in the
-    background in a run of their own, so a slow or broken drawing never holds up the
-    formulas, and one TeX can't typeset stays as source.
+    on a small piece of white paper so their colours stay true in Dark Mode. A whole
+    `figure` or `table` float shows as one piece of paper — its picture, drawing or
+    table, centred, with the caption typeset beneath (as "Table: …", since the number
+    depends on the rest of the document) — instead of `\begin{table}[H]`, `\centering`
+    and `\caption` around it. Click one, or move the insertion point into it, to edit
+    its source. They're typeset in the background in a run of their own, so a slow or
+    broken drawing never holds up the formulas, and one TeX can't typeset stays as source
+    (a float that can't be typeset shows the drawing or table in it instead).
   - `\input`, `\include` and `\subfile` show as chips like references', naming the part
     by its first heading (a file that isn't there is marked). A file holding a figure
     shows its picture with the caption beneath, and one holding a drawing or table

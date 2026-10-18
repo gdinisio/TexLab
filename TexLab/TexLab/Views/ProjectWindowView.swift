@@ -39,6 +39,7 @@ struct ProjectWindowView: View {
     @AppStorage(SettingsKey.visualLineWidth) private var lineWidth = AppSettings.visualLineWidth
     @AppStorage(SettingsKey.rendersMathInEditor) private var rendersMath = AppSettings.rendersMathInEditor
     @AppStorage(SettingsKey.showsImagesInline) private var showsImages = AppSettings.showsImagesInline
+    @AppStorage(SettingsKey.previewsWhileEditing) private var previewsWhileEditing = AppSettings.previewsWhileEditing
     @AppStorage(SettingsKey.showsLiveIssues) private var showsLiveIssues = AppSettings.showsLiveIssues
 
     var body: some View {
@@ -89,6 +90,9 @@ struct ProjectWindowView: View {
         .onChange(of: rendersMath) {
             session.livePreviewSettingDidChange()
         }
+        .onChange(of: previewsWhileEditing) {
+            session.livePreviewSettingDidChange()
+        }
         .onChange(of: showsLiveIssues) {
             session.checkLiveIssues()
         }
@@ -133,7 +137,8 @@ struct ProjectWindowView: View {
             limitsLineWidth: limitsLineWidth,
             lineWidth: lineWidth,
             rendersMath: rendersMath,
-            showsImages: showsImages
+            showsImages: showsImages,
+            previewsWhileEditing: previewsWhileEditing
         )
     }
 }

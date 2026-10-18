@@ -3,6 +3,33 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.34 — Preview while editing, and whole floats typeset
+
+- **Preview while editing.** While the insertion point is in a formula, a TikZ drawing,
+  a table, a figure or table float, an `\includegraphics` or an `\input` of a figure, its
+  typeset version floats just below the source in a small panel of Liquid Glass, so the
+  source and what it makes are both in view as you edit. It works in the Code editor
+  too, where formulas are otherwise never shown typeset.
+  - It follows your changes. Until TeX has typeset the new version, the last one stays,
+    dimmed, with a spinner; when the source can't be typeset as it is — an unfinished
+    `\frac{`, a missing brace — a warning shows instead, and the last good version
+    stays until it can.
+  - It sits below the source, or above it when there's no room below or the completion
+    list is open; for a table taller than the window it keeps to the edge away from the
+    insertion point. It scrolls with the text, never takes clicks or the keyboard, and
+    hides when the editor isn't in use or another file is shown.
+  - One- and two-letter formulas such as `$n$` get none. Settings ▸ Editor ▸ "Preview
+    formulas, drawings, tables and images while editing them" turns it off.
+- **Whole figure and table floats typeset in the Visual editor.** A `table` or `figure`
+  float (and `table*`, `figure*`) now shows as one piece of paper — its table, drawing
+  or picture centred, with the caption typeset beneath it in the document's own style —
+  instead of the table alone between `\begin{table}[H]`, `\centering`, `\caption{…}`
+  and `\end{table}`. The caption reads "Table: …" without a number, since the number
+  depends on the rest of the document. If the float can't be typeset, the table or
+  drawing in it is shown as before. An `\input` of a figure file shows the whole float
+  too, caption and all. Floats were typeset this way with pdfLaTeX, XeLaTeX and
+  LuaLaTeX, with and without the caption package.
+
 ## v1.33 — Previews in the Visual editor, and a glass sidebar
 
 - **TikZ drawings and tables typeset in the Visual editor.** `tikzpicture`, `circuitikz`

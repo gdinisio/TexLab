@@ -114,6 +114,7 @@ extension SourceTextView {
 
         manager.setReplacements(replacements)
         lineNumberRuler?.needsDisplay = true
+        updateEditingPreview()
     }
 
     /// What an `\input` shows: the figure, drawing or table of the file it includes when
@@ -122,7 +123,8 @@ extension SourceTextView {
         let preview = inclusionPreviews[path]
         let caption = preview?.caption ?? preview?.title ?? path
         if let preview, configuration.showsRenderedMath, let block = preview.block, let rendered = renderedMath[block.key] {
-            return (VisualLabel(range: label.range, text: caption, kind: .preview(systemImage: preview.systemImage, onPaper: true)), rendered.image)
+            // A float is typeset with its caption, so nothing goes beneath it.
+            return (VisualLabel(range: label.range, text: block.isFloat ? "" : caption, kind: .preview(systemImage: preview.systemImage, onPaper: true)), rendered.image)
         }
         if let preview, configuration.showsImages, let imagePath = preview.imagePath, let picture = thumbnail(for: imagePath) {
             return (VisualLabel(range: label.range, text: caption, kind: .preview(systemImage: preview.systemImage, onPaper: false)), picture)
@@ -145,6 +147,8 @@ extension SourceTextView {
         let formattingChanged = configuration.stylesFormatting && !visualElements.isEmpty && visualElementsTouchingSelection() != revealedVisuals
         if mathChanged || formattingChanged {
             updatePresentation()
+        } else {
+            updateEditingPreview()
         }
     }
 
@@ -161,7 +165,7 @@ extension SourceTextView {
     /// The width text is laid out in, for sizing figures and the title block. Without line
     /// wrapping the container is unbounded, and before the first layout the view has no
     /// width, so the result is kept to a sensible, finite range.
-    private var presentationWidth: CGFloat {
+    var presentationWidth: CGFloat {
         let padding = textContainer?.lineFragmentPadding ?? 0
         let container = textContainer?.size.width ?? 0
         let visible = visibleRect.width - 2 * textContainerInset.width
@@ -191,6 +195,7 @@ extension SourceTextView {
     /// Keeps regions and folds in step with an edit, while the text storage processes it.
     func presentationTextWillChange(editedRange: NSRange, changeInLength delta: Int) {
         presentationLayoutManager?.textWillChange(editedRange: editedRange, changeInLength: delta)
+        editingPreviewTextWillChange(editedRange: editedRange, changeInLength: delta)
         let oldEnd = NSMaxRange(editedRange) - delta
 
         func survives(_ range: NSRange) -> Int? {
@@ -225,6 +230,7 @@ extension SourceTextView {
     func setMathRegions(_ regions: [MathRegion]) {
         guard regions != mathRegions else { return }
         mathRegions = regions
+        editingPreviewRegionsDidChange()
         updatePresentation()
     }
 
@@ -239,6 +245,14 @@ extension SourceTextView {
     func setRenderedMath(_ images: [String: MathImage]) {
         renderedMath = images
         updatePresentation()
+    }
+
+    /// Updates which formulas, drawings and tables TeX couldn't typeset, which the editing
+    /// preview marks.
+    func setFailedRenderKeys(_ keys: Set<String>) {
+        guard keys != failedRenderKeys else { return }
+        failedRenderKeys = keys
+        updateEditingPreview()
     }
 
     /// Updates what each `\input` shows.
@@ -273,7 +287,7 @@ extension SourceTextView {
         }
     }
 
-    private func thumbnail(for path: String) -> NSImage? {
+    func thumbnail(for path: String) -> NSImage? {
         if let cached = thumbnails[path] {
             return cached
         }

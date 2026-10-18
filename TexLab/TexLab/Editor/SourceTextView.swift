@@ -64,6 +64,17 @@ final class SourceTextView: NSTextView {
     var visualElements: [VisualElement] = []
     /// Locations of the visual elements currently showing their markup.
     var revealedVisuals: Set<Int> = []
+    /// Keys of formulas, drawings and tables TeX couldn't typeset.
+    var failedRenderKeys: Set<String> = []
+
+    // MARK: Editing preview
+
+    /// The typeset version of what's being edited, floating beside its source.
+    var editingPreview: EditingPreviewView?
+    /// The source the preview belongs to and the last version of it that typeset, kept in
+    /// step with edits until the next one arrives.
+    var editingPreviewLast: (anchor: NSRange, content: EditingPreviewContent)?
+    var editingPreviewObservers: [NSObjectProtocol] = []
 
     // MARK: Completion
 
@@ -181,7 +192,8 @@ final class SourceTextView: NSTextView {
             lineNumberRuler?.editorFontDidChange()
         }
         isContinuousSpellCheckingEnabled = configuration.checksSpelling
-        if needsNewTheme || previous?.rendersMath != configuration.rendersMath || previous?.showsImages != configuration.showsImages {
+        if needsNewTheme || previous?.rendersMath != configuration.rendersMath || previous?.showsImages != configuration.showsImages
+            || previous?.previewsWhileEditing != configuration.previewsWhileEditing {
             updatePresentation()
         }
         applyLineWrapping()
@@ -275,6 +287,8 @@ final class SourceTextView: NSTextView {
 
     /// Replaces the whole text without registering undo, for loading and reverting.
     func setText(_ text: String) {
+        // Another file: what the preview showed belongs to the last one.
+        hideEditingPreview()
         guard let storage = textStorage else { return }
         endPlaceholders()
         let selection = selectedRange()
@@ -797,9 +811,23 @@ final class SourceTextView: NSTextView {
         super.doCommand(by: selector)
     }
 
+    override func becomeFirstResponder() -> Bool {
+        let became = super.becomeFirstResponder()
+        if became {
+            DispatchQueue.main.async { [weak self] in
+                self?.updateEditingPreview()
+            }
+        }
+        return became
+    }
+
     override func resignFirstResponder() -> Bool {
         hideCompletion()
-        return super.resignFirstResponder()
+        let resigned = super.resignFirstResponder()
+        if resigned {
+            hideEditingPreview()
+        }
+        return resigned
     }
 
     override func viewWillMove(toWindow newWindow: NSWindow?) {
@@ -812,6 +840,7 @@ final class SourceTextView: NSTextView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         followScrollingForCompletion()
+        followScrollingForEditingPreview()
     }
 
     /// Updates the completion list after typing: opens it where it helps, refines it

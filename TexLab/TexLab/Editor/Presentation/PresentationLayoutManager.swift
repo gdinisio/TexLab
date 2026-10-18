@@ -71,7 +71,7 @@ final class Replacement {
                 // Drawings and tables keep their colours, on paper so they read in Dark Mode.
                 RenderedPaper.draw(math.image, in: rect)
             } else {
-                drawTinted(math.image, in: rect)
+                Self.drawTinted(math.image, in: rect)
             }
         case .fold(let region, let thumbnail):
             FoldChip.draw(region, thumbnail: thumbnail, in: rect, font: font)
@@ -82,13 +82,13 @@ final class Replacement {
         }
     }
 
-    /// Draws black-on-clear artwork in the current text colour, so formulas follow Dark Mode.
-    private func drawTinted(_ image: NSImage, in rect: NSRect) {
+    /// Draws black-on-clear artwork in the text colour, so formulas follow Dark Mode.
+    static func drawTinted(_ image: NSImage, in rect: NSRect, color: NSColor = .textColor) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         context.saveGState()
         context.beginTransparencyLayer(in: rect, auxiliaryInfo: nil)
         image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-        NSColor.textColor.setFill()
+        color.setFill()
         rect.fill(using: .sourceAtop)
         context.endTransparencyLayer()
         context.restoreGState()

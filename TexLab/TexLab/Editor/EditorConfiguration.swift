@@ -77,6 +77,9 @@ nonisolated struct EditorConfiguration: Equatable, Sendable {
     var rendersMath = AppSettings.rendersMathInEditor
     /// Shows the image of `\includegraphics` in place of the command (Visual only).
     var showsImages = AppSettings.showsImagesInline
+    /// Shows a formula, drawing, table or picture typeset beside its source while the
+    /// insertion point is in it, in both editors.
+    var previewsWhileEditing = AppSettings.previewsWhileEditing
 
     var isVisual: Bool { mode == .visual }
 

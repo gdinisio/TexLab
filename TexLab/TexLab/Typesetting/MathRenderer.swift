@@ -89,6 +89,12 @@ nonisolated enum MathRenderer {
         sourceDirectory: URL?
     ) async -> [String: RenderedMath]? {
         var source = "\\documentclass{article}\n" + preamble + "\n"
+        if snippets.contains(where: { $0.value.isFloat }) {
+            // A float is typeset in a minipage, where \caption works as in the float. Its
+            // caption isn't numbered: the number depends on the rest of the document.
+            source += "\\makeatletter\n\\providecommand\\TexLabFloat[1]{\\def\\@captype{#1}}\n"
+            source += "\\AtBeginDocument{\\def\\fnum@figure{\\figurename}\\def\\fnum@table{\\tablename}}\n\\makeatother\n"
+        }
         source += "\\usepackage[active,tightpage,auctex]{preview}\n\\setlength\\PreviewBorder{1pt}\n\\pagestyle{empty}\n\\begin{document}\n"
         for (_, region) in snippets {
             if region.isBlock {

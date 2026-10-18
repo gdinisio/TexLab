@@ -32,6 +32,9 @@ enum VisualLabelRenderer {
                 return (.zero, 0)
             }
             let artwork = previewSize(of: image, onPaper: onPaper, font: font, lineHeight: lineHeight, availableWidth: availableWidth)
+            guard !label.text.isEmpty else {
+                return (CGSize(width: ceil(min(artwork.width, availableWidth)), height: ceil(artwork.height + 8)), 4)
+            }
             let caption = captionText(label.text, font: font)
             let captionWidth = chipIconWidth(font) + 4 + caption.size().width
             let width = min(max(artwork.width, captionWidth), availableWidth)
@@ -133,10 +136,10 @@ enum VisualLabelRenderer {
     /// centred beneath it, as a figure is printed.
     private static func drawPreview(_ caption: String, image: NSImage, systemImage: String, onPaper: Bool, in rect: NSRect, font: NSFont) {
         let text = captionText(caption, font: font)
-        let textSize = text.size()
+        let textSize = caption.isEmpty ? .zero : text.size()
         // The artwork takes the height the caption leaves, keeping its proportions.
         let paper = onPaper ? 2 * RenderedPaper.padding : 0
-        let artworkHeight = max(rect.height - previewGap - textSize.height - 8, 0)
+        let artworkHeight = max(rect.height - (caption.isEmpty ? 0 : previewGap + textSize.height) - 8, 0)
         let imageHeight = max(artworkHeight - paper, 0)
         let imageWidth = imageHeight * image.size.width / image.size.height
         let artwork = NSRect(x: rect.midX - (imageWidth + paper) / 2, y: rect.minY + 4, width: imageWidth + paper, height: artworkHeight)
@@ -148,6 +151,7 @@ enum VisualLabelRenderer {
             image.draw(in: artwork, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
             NSGraphicsContext.restoreGraphicsState()
         }
+        guard !caption.isEmpty else { return }
 
         let iconSize = chipIconWidth(font)
         let width = min(iconSize + 4 + textSize.width, rect.width)

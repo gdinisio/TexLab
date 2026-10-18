@@ -5,20 +5,23 @@
 
 import Foundation
 
-/// A piece of the source that the editor can show rendered: math, or a TikZ drawing or
-/// table, which is typeset as it is and drawn on a piece of paper.
+/// A piece of the source that the editor can show rendered: math, or a TikZ drawing, a
+/// table or a whole figure or table float, which is typeset as it is and drawn on a piece
+/// of paper.
 nonisolated struct MathRegion: Sendable, Equatable {
     /// The whole construct, including `$…$`, `\[…\]` or `\begin{…}…\end{…}`.
     var range: NSRange
-    /// The math between the delimiters, or the body of a drawing or table.
+    /// The math between the delimiters, or the body of a drawing, table or float.
     var contentRange: NSRange
     var isDisplay: Bool
     /// Display math alone on its lines, drawn centred like the typeset output.
     var standsAlone: Bool
     /// The LaTeX TexLab typesets to draw the region.
     var snippet: String
-    /// A TikZ drawing or a table rather than math: typeset outside math mode, in colour.
+    /// A drawing, a table or a float rather than math: typeset outside math mode, in colour.
     var isBlock = false
+    /// A figure or table float, typeset with its caption.
+    var isFloat = false
 
     /// Identifies the rendering of this region, so identical formulas share one image.
     var key: String { (isBlock ? "B:" : isDisplay ? "D:" : "I:") + snippet }
@@ -62,19 +65,76 @@ nonisolated enum MathScanner {
         return blocks(in: string, range: body, excluding: excluded) + math
     }
 
-    // MARK: - Drawings and tables
+    // MARK: - Drawings, tables and floats
 
     /// The environments shown typeset, as they are, outside math: TikZ drawings and tables.
     private static let blockPattern = try! NSRegularExpression(
         pattern: #"\\(begin|end)\s*\{(tikzpicture|circuitikz|forest|tabular\*?|tabularx|tabulary)\}"#
     )
+    /// Figure and table floats, shown typeset whole, with their captions.
+    private static let floatPattern = try! NSRegularExpression(pattern: #"\\(begin|end)\s*\{(figure\*?|table\*?)\}"#)
 
-    /// The outermost TikZ drawings and tables in `range`, each from its `\begin` to the
-    /// matching `\end`. A table in a drawing, or one table in another, is part of the outer one.
+    /// The figure and table floats in `range`, and the outermost TikZ drawings and tables,
+    /// in source order, each from its `\begin` to the matching `\end`. A table in a
+    /// drawing, or one table in another, is part of the outer one. A float is shown whole,
+    /// caption and all; the drawing or table in it is shown instead if the float can't be
+    /// typeset.
     static func blocks(in string: NSString, range: NSRange, excluding excluded: [NSRange]) -> [MathRegion] {
         var blocks: [MathRegion] = []
+        for float in environments(floatPattern, in: string, range: range, excluding: excluded) {
+            // The float's placement, such as [htbp] or [H], doesn't matter on its own.
+            var bodyStart = float.contentStart
+            while bodyStart < float.contentEnd, Char.isWhitespace(string.character(at: bodyStart)) {
+                bodyStart += 1
+            }
+            if bodyStart < float.contentEnd, string.character(at: bodyStart) == Char.openBracket {
+                let close = string.range(of: "]", range: NSRange(location: bodyStart, length: float.contentEnd - bodyStart))
+                if close.location != NSNotFound {
+                    bodyStart = NSMaxRange(close)
+                }
+            }
+            let body = string.substring(with: NSRange(location: bodyStart, length: float.contentEnd - bodyStart))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !body.isEmpty else { continue }
+            // A float can't go in the box each preview is; a page-wide minipage that
+            // captions like the float does, with \caption working as in it, can.
+            let kind = float.name.hasPrefix("table") ? "table" : "figure"
+            blocks.append(MathRegion(
+                range: float.whole,
+                contentRange: NSRange(location: bodyStart, length: float.contentEnd - bodyStart),
+                isDisplay: true,
+                standsAlone: isAloneOnItsLines(float.whole, in: string),
+                snippet: "\\begin{minipage}{\\linewidth}\\TexLabFloat{\(kind)}\n" + body + "\n\\end{minipage}",
+                isBlock: true,
+                isFloat: true
+            ))
+        }
+        for block in environments(blockPattern, in: string, range: range, excluding: excluded) {
+            blocks.append(MathRegion(
+                range: block.whole,
+                contentRange: NSRange(location: block.contentStart, length: block.contentEnd - block.contentStart),
+                isDisplay: true,
+                standsAlone: isAloneOnItsLines(block.whole, in: string),
+                snippet: string.substring(with: block.whole).trimmingCharacters(in: .whitespacesAndNewlines),
+                isBlock: true
+            ))
+        }
+        return blocks.sorted {
+            $0.range.location != $1.range.location ? $0.range.location < $1.range.location : $0.range.length > $1.range.length
+        }
+    }
+
+    /// The outermost environments `pattern` matches the `\begin` and `\end` of, with the
+    /// same name nested inside counted, so each ends at its own `\end`.
+    private static func environments(
+        _ pattern: NSRegularExpression,
+        in string: NSString,
+        range: NSRange,
+        excluding excluded: [NSRange]
+    ) -> [(name: String, whole: NSRange, contentStart: Int, contentEnd: Int)] {
+        var found: [(name: String, whole: NSRange, contentStart: Int, contentEnd: Int)] = []
         var open: (name: String, start: Int, contentStart: Int, depth: Int)?
-        for match in blockPattern.matches(in: string as String, range: range) {
+        for match in pattern.matches(in: string as String, range: range) {
             let command = match.range
             guard !excluded.contains(where: { NSIntersectionRange($0, command).length > 0 }),
                   !isEscaped(command.location, in: string) else { continue }
@@ -86,21 +146,13 @@ nonisolated enum MathScanner {
                 open = current
                 guard current.depth == 0 else { continue }
                 let whole = NSRange(location: current.start, length: NSMaxRange(command) - current.start)
-                let snippet = string.substring(with: whole).trimmingCharacters(in: .whitespacesAndNewlines)
-                blocks.append(MathRegion(
-                    range: whole,
-                    contentRange: NSRange(location: current.contentStart, length: command.location - current.contentStart),
-                    isDisplay: true,
-                    standsAlone: isAloneOnItsLines(whole, in: string),
-                    snippet: snippet,
-                    isBlock: true
-                ))
+                found.append((name, whole, current.contentStart, command.location))
                 open = nil
             } else if isBegin {
                 open = (name, command.location, NSMaxRange(command), 1)
             }
         }
-        return blocks
+        return found
     }
 
     /// Whether the backslash at `location` is itself escaped, as in `\\begin`.

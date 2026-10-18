@@ -51,6 +51,8 @@ extension SourceTextView {
             self?.acceptCompletion(item)
         }
         completionPopup.show(items, below: rect, in: window)
+        // The preview makes way for the list.
+        repositionEditingPreview()
     }
 
     /// Whether typing `typed` should open the list by itself.
@@ -77,8 +79,12 @@ extension SourceTextView {
     }
 
     func hideCompletion() {
+        let wasVisible = completionPopup.isVisible
         completionPopup.hide()
         cachedCompletionSources = nil
+        if wasVisible {
+            repositionEditingPreview()
+        }
     }
 
     /// The keys the open list handles. Returns false for the ones the text should have.

@@ -183,6 +183,10 @@ final class EditorController {
         textView?.setRenderedMath(images)
     }
 
+    func setFailedRenderKeys(_ keys: Set<String>) {
+        textView?.setFailedRenderKeys(keys)
+    }
+
     func setInclusionPreviews(_ previews: [String: InclusionPreview]) {
         textView?.setInclusionPreviews(previews)
     }

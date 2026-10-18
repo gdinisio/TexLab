@@ -86,6 +86,7 @@ extension DocumentSession {
             keepsOldImages = !mathCache.isEmpty
             mathCacheSignature = signature
             failedMathKeys = []
+            editor.setFailedRenderKeys([])
         }
 
         var missing: [String: MathRegion] = [:]
@@ -168,6 +169,7 @@ extension DocumentSession {
             failedMathKeys.formUnion(requested.subtracting(results.keys))
             pruneMathCache()
             editor.setRenderedMath(mathCache)
+            editor.setFailedRenderKeys(failedMathKeys)
         }
 
         // Render what changed meanwhile, and the next batch of a long document.
@@ -285,10 +287,13 @@ extension DocumentSession {
 // MARK: - Editor mode
 
 extension DocumentSession {
-    /// Whether formulas are rendered in the editor: in the Visual editor, when Settings
-    /// allow it.
+    /// Whether formulas, drawings and tables are typeset for the editor: for the Visual
+    /// editor to show them, when Settings allow it, or for the preview beside the source
+    /// being edited, in either editor.
     var rendersMathNow: Bool {
-        effectiveEditorMode == .visual && UserDefaults.standard.bool(forKey: SettingsKey.rendersMathInEditor)
+        let defaults = UserDefaults.standard
+        return (effectiveEditorMode == .visual && defaults.bool(forKey: SettingsKey.rendersMathInEditor))
+            || defaults.bool(forKey: SettingsKey.previewsWhileEditing)
     }
 
     /// Switches between the Code and Visual editors.

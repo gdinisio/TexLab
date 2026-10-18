@@ -103,6 +103,7 @@ private struct EditorSettings: View {
     @AppStorage(SettingsKey.indentsWithSpaces) private var indentsWithSpaces = AppSettings.indentsWithSpaces
     @AppStorage(SettingsKey.checksSpelling) private var checksSpelling = AppSettings.checksSpelling
     @AppStorage(SettingsKey.suggestsCompletions) private var suggestsCompletions = AppSettings.suggestsCompletions
+    @AppStorage(SettingsKey.previewsWhileEditing) private var previewsWhileEditing = AppSettings.previewsWhileEditing
     @AppStorage(SettingsKey.foldsFloatsOnOpen) private var foldsFloatsOnOpen = AppSettings.foldsFloatsOnOpen
     @AppStorage(SettingsKey.foldsPreambleOnOpen) private var foldsPreambleOnOpen = AppSettings.foldsPreambleOnOpen
 
@@ -168,10 +169,11 @@ private struct EditorSettings: View {
                 Toggle("Close environments automatically", isOn: $autoClosesEnvironments)
                 Toggle("Suggest completions as you type — commands, labels, citations and files", isOn: $suggestsCompletions)
                 Toggle("Check spelling while typing", isOn: $checksSpelling)
+                Toggle("Preview formulas, drawings, tables and images while editing them", isOn: $previewsWhileEditing)
             } header: {
                 Text("Editing")
             } footer: {
-                Text("Press Esc for completions at any time. Option-Return inserts a line break without continuing a list.")
+                Text("Press Esc for completions at any time. Option-Return inserts a line break without continuing a list. While the insertion point is in a formula, a TikZ drawing, a table or an image, its typeset version floats beside the source and follows your changes.")
                     .foregroundStyle(.secondary)
             }
 

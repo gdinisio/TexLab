@@ -42,24 +42,18 @@ nonisolated struct InclusionPreview: Sendable, Equatable {
         let caption = float.map(\.title).flatMap { $0.isEmpty ? nil : $0 }
         let name = (path as NSString).lastPathComponent
 
-        // A figure: its picture.
+        // A figure, drawing or table: typeset, the float whole, with its caption; or else,
+        // without TeX, the figure's picture.
         let picture = graphicsPattern.matches(in: text, range: whole).first { match in
             !comments.contains { NSIntersectionRange($0, match.range).length > 0 }
         }
-        if let picture {
-            let imagePath = string.substring(with: picture.range(at: 1)).trimmingCharacters(in: .whitespaces)
-            return InclusionPreview(title: caption ?? name, systemImage: "photo", imagePath: imagePath, caption: caption ?? name)
-        }
-
-        // A drawing or a table, typeset.
-        if let block = MathScanner.blocks(in: string, range: whole, excluding: comments + scan.regions.map(\.range)).first {
-            let isTable = block.snippet.hasPrefix("\\begin{tab")
-            return InclusionPreview(
-                title: caption ?? name,
-                systemImage: isTable ? "tablecells" : "scribble.variable",
-                block: block,
-                caption: caption ?? name
-            )
+        let imagePath = picture.map { string.substring(with: $0.range(at: 1)).trimmingCharacters(in: .whitespaces) }
+        let blocks = MathScanner.blocks(in: string, range: whole, excluding: comments + scan.regions.map(\.range))
+        let block = blocks.first
+        if block != nil || imagePath != nil {
+            let isTable = float?.kind == .table || (float == nil && block?.snippet.hasPrefix("\\begin{tab") == true)
+            let systemImage = isTable ? "tablecells" : imagePath != nil ? "photo" : "scribble.variable"
+            return InclusionPreview(title: caption ?? name, systemImage: systemImage, imagePath: imagePath, block: block, caption: caption ?? name)
         }
 
         if let float {
