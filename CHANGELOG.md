@@ -3,6 +3,22 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.30 — Opening project files without crashing
+
+- Fixes a crash when a second project window opened — for example after clicking a
+  figure included from a chapter. AppKit links toolbars with the same identifier and
+  copies every item one inserts into the others; SwiftUI inserts a window's items one by
+  one, so the second window's toolbar put each item into the first window's again and
+  AppKit stopped at the duplicate. Each open project window now has its own toolbar
+  identifier, and a new window starts from the first window's customization.
+- Fixes clicking a file in the project navigator opening it in a new window instead of
+  showing it in the editor. A folder's canonical path ended with a slash, so no file was
+  ever found to be inside a folder: the window didn't count the project's own files as
+  its own. The same mistake kept chapters from being typeset with the unsaved text of
+  the other open files, could switch the project to a chapter's folder, and stopped
+  Move to Trash from closing the open files inside a trashed folder; all of these work
+  now.
+
 ## v1.29 — Builds with main-actor isolation
 
 - Fixes the build: `TeXDocument` overrides of `autosavesInPlace`, `fileURL` and

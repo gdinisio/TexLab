@@ -330,7 +330,8 @@ TexLab/TexLab/
   plain text, and keeps files a window opens for itself out of Open Recent.
 - **Project windows** — `ProjectWindowController` is an `NSWindowController` hosting the
   SwiftUI window content (`ProjectWindowView`, through `NSHostingController`, whose
-  toolbar it bridges). A project's documents share it: showing one moves the window
+  toolbar it bridges; each open window has its own toolbar identifier, as AppKit links
+  toolbars that share one and SwiftUI's bridge inserts items one by one). A project's documents share it: showing one moves the window
   controller to that document (`removeWindowController` / `addWindowController`), so
   the title, proxy icon, edited dot and the File menu's document commands follow the file
   on screen, as in Xcode. A document opened from the Finder or Open Recent finds its

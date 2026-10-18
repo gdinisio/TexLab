@@ -21,10 +21,13 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate {
     private(set) static var all: [ProjectWindowController] = []
 
     private static let frameAutosaveName = "TexLabProjectWindow"
+    private static let toolbarID = "TexLabEditor"
     private static let windowIdentifier = NSUserInterfaceItemIdentifier("TexLabProjectWindow")
     private static let openFilesKey = "TexLabOpenFiles"
 
     let session = DocumentSession()
+    /// Which of the toolbar identifiers the window has (see `toolbarID(forSlot:)`).
+    private let toolbarSlot: Int
     /// The project's folder and main file, known before the project has been scanned.
     private var folderHint: URL?
     private var mainFileHint: URL?
@@ -86,6 +89,8 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate {
     // MARK: - Creating
 
     private init(document: TeXDocument) {
+        let slot = Self.freeToolbarSlot()
+        toolbarSlot = slot
         let window = ProjectWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -109,7 +114,8 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate {
         session.prepare(with: document)
         associate(document)
 
-        let host = NSHostingController(rootView: ProjectWindowView(session: session))
+        Self.seedToolbarConfiguration(forSlot: slot)
+        let host = NSHostingController(rootView: ProjectWindowView(session: session, toolbarID: Self.toolbarID(forSlot: slot)))
         // SwiftUI's minimum sizes limit the window; the user sizes it.
         host.sizingOptions = [.minSize]
         // The toolbar comes from the SwiftUI view; the title is the document's.
@@ -128,6 +134,42 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate {
 
     required init?(coder: NSCoder) {
         fatalError("Project windows are made in code")
+    }
+
+    // MARK: - Toolbars
+
+    // AppKit treats toolbars with the same identifier as one family and copies every item
+    // one of them inserts into the others. SwiftUI inserts a hosted window's items one by
+    // one, so a second window with the first one's identifier would put each item into the
+    // first window's toolbar again, and AppKit stops at the duplicate. Each open window
+    // therefore has an identifier of its own: the first the usual one, the others numbered,
+    // starting from the first window's customization.
+
+    /// The lowest toolbar slot no open window has.
+    private static func freeToolbarSlot() -> Int {
+        let used = Set(all.map(\.toolbarSlot))
+        var slot = 0
+        while used.contains(slot) {
+            slot += 1
+        }
+        return slot
+    }
+
+    private static func toolbarID(forSlot slot: Int) -> String {
+        slot == 0 ? toolbarID : "\(toolbarID)-\(slot + 1)"
+    }
+
+    /// Gives a numbered toolbar the first window's customization, which AppKit keeps in the
+    /// user defaults under the toolbar's identifier.
+    private static func seedToolbarConfiguration(forSlot slot: Int) {
+        guard slot > 0,
+              let primary = all.first(where: { $0.toolbarSlot == 0 })?.window?.toolbar?.identifier,
+              primary.contains(toolbarID) else { return }
+        let identifier = primary.replacingOccurrences(of: toolbarID, with: toolbarID(forSlot: slot))
+        let defaults = UserDefaults.standard
+        if let configuration = defaults.dictionary(forKey: "NSToolbar Configuration \(primary)") {
+            defaults.set(configuration, forKey: "NSToolbar Configuration \(identifier)")
+        }
     }
 
     // MARK: - Showing documents

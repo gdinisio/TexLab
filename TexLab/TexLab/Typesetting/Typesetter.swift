@@ -89,8 +89,14 @@ nonisolated struct SourceMap: Sendable {
         return paths.filter { seen.insert($0).inserted }
     }
 
+    /// A file's path with `.` and `..` and symbolic links resolved. A folder's path has no
+    /// slash at the end, so the paths of the files in it begin with it and a slash.
     static func canonicalPath(_ url: URL) -> String {
-        url.standardizedFileURL.resolvingSymlinksInPath().filePath
+        var path = url.standardizedFileURL.resolvingSymlinksInPath().filePath
+        while path.count > 1 && path.hasSuffix("/") {
+            path.removeLast()
+        }
+        return path
     }
 
     /// The path of `url` relative to `directory`, if it is inside it.

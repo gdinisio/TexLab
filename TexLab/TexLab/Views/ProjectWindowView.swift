@@ -14,6 +14,8 @@ import UniformTypeIdentifiers
 /// beside the typeset PDF.
 struct ProjectWindowView: View {
     @Bindable var session: DocumentSession
+    /// The window's own toolbar identifier, so toolbars of different windows aren't linked.
+    var toolbarID: String
 
     @AppStorage("showsPreview") private var showsPreview = true
 
@@ -51,7 +53,7 @@ struct ProjectWindowView: View {
             }
         }
         .frame(minWidth: 640, minHeight: 400)
-        .toolbar(id: "TexLabEditor") {
+        .toolbar(id: toolbarID) {
             EditorToolbar(session: session)
         }
         .focusedSceneValue(\.documentSession, session)
