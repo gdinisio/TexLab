@@ -177,6 +177,8 @@ struct NewProjectFileSheet: View {
     @State private var folder: URL?
     @State private var addsReference = true
     @State private var errorMessage: String?
+    /// Whether the folder was chosen, rather than suggested for the kind of file.
+    @State private var isFolderChosen = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -190,7 +192,10 @@ struct NewProjectFileSheet: View {
                 }
                 TextField("Name", text: $name, prompt: Text(kind.defaultName))
                 if let project = session.project {
-                    Picker("Folder", selection: $folder) {
+                    Picker("Folder", selection: Binding(get: { folder }, set: { newFolder in
+                        folder = newFolder
+                        isFolderChosen = true
+                    })) {
                         ForEach(project.tree.folders, id: \.url) { item in
                             Text(folderTitle(item.url, in: project)).tag(Optional(item.url))
                         }
@@ -222,16 +227,20 @@ struct NewProjectFileSheet: View {
         .padding(20)
         .frame(width: 460)
         .onAppear {
-            // One of the picker's own folders, so it shows the choice.
-            let requested = session.newFileFolder ?? session.project?.folder
-            folder = session.project?.tree.folders.first { item in
-                requested.map { SourceMap.canonicalPath($0) == SourceMap.canonicalPath(item.url) } ?? false
-            }?.url ?? session.project?.folder
+            let requested = session.newFileFolder.flatMap { url in
+                // The project folder itself, from File ▸ New File in Project, is no choice.
+                session.project.map { SourceMap.canonicalPath($0.folder) == SourceMap.canonicalPath(url) } == true ? nil : url
+            }
+            isFolderChosen = requested != nil
+            folder = pickerFolder(for: requested ?? suggestedFolder(for: kind))
         }
         .onChange(of: kind) { oldKind, newKind in
             // Keep a name the user typed; replace the suggestion.
             if name.isEmpty || name == oldKind.defaultName {
                 name = newKind.defaultName
+            }
+            if !isFolderChosen {
+                folder = pickerFolder(for: suggestedFolder(for: newKind))
             }
         }
     }
@@ -247,6 +256,30 @@ struct NewProjectFileSheet: View {
 
     private var isValid: Bool {
         !trimmedName.isEmpty && !trimmedName.contains("/") && !trimmedName.hasPrefix(".") && folder != nil
+    }
+
+    /// Where a file of `kind` goes unless a folder is chosen: a part of the document with
+    /// the others — in Sections, Chapters, Lectures or Slides, as the templates have them —
+    /// and anything else in the project folder.
+    private func suggestedFolder(for kind: NewFileKind) -> URL? {
+        guard let project = session.project else { return nil }
+        guard kind == .chapter else { return project.folder }
+        let names = ["sections", "chapters", "lectures", "slides"]
+        let folders = (project.tree.children ?? []).filter(\.isFolder)
+        for name in names {
+            if let match = folders.first(where: { $0.name.lowercased() == name }) {
+                return match.url
+            }
+        }
+        return project.folder
+    }
+
+    /// The picker's own entry for `url`, so the picker shows the choice.
+    private func pickerFolder(for url: URL?) -> URL? {
+        guard let project = session.project else { return url }
+        return project.tree.folders.first { item in
+            url.map { SourceMap.canonicalPath($0) == SourceMap.canonicalPath(item.url) } ?? false
+        }?.url ?? project.folder
     }
 
     private func folderTitle(_ url: URL, in project: ProjectSnapshot) -> String {

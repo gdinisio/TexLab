@@ -133,8 +133,9 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   symbols; math symbols get `$…$` when inserted outside math.
 - **Drag and drop** — drop images, `.tex` or `.bib` files onto the editor to insert
   `\includegraphics`, `\input` or `\bibliography` with a path relative to the document.
-- **Templates** — File ▸ New from Template: Article, Report, Book, Presentation (Beamer),
-  Letter and Blank.
+- **Templates** — File ▸ New from Template: Article, Report, Thesis, Lecture Notes,
+  Assignment, Presentation (Beamer), Letter and Blank, each as one document — the same
+  templates New Project makes as folders.
 
 **Projects**
 
@@ -186,15 +187,41 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   files follow them, and the list follows changes made in the Finder.
 - **New File in Project** (⌥⌘N, or + in the navigator) creates a section or chapter, a
   BibTeX bibliography, a package or a complete document in any folder of the project, and
-  can add it to the main file: `\input{…}` before `\end{document}`, the bibliography
-  (`\bibliography` or `\addbibresource` for biblatex), or `\usepackage` in the preamble —
-  in the main file's window if it's open, as an undoable edit.
-- **New Project** (⇧⌘N) opens a template chooser like Xcode's: a gallery of Article,
-  Report, Book, Presentation, Letter and Blank, each with a sketch of its first page,
-  beside the project's name, title and author, the paper (A4 or US Letter, from your
-  region) and font size — or widescreen or standard slides — the engine, and a
-  `references.bib` already wired up. TexLab then asks where to save the folder, and
-  remembers your choices for the next project. Every combination typesets as created.
+  can add it to the main file: a part's `\input{…}` goes after the last part — before the
+  references, the appendices and the page break or slide in front of them, never in the
+  title page — a bibliography as `\bibliography` or `\addbibresource` for biblatex, and
+  a package as `\usepackage` in the preamble, in the main file's window if it's open, as
+  an undoable edit. A new part starts with the heading its document uses — a chapter in a
+  report or thesis, a section in an article, a section and a first slide in a
+  presentation — and goes in the project's Sections, Chapters, Lectures or Slides folder
+  unless you choose another.
+- **New Project** (⇧⌘N) opens a template chooser like Xcode's, a gallery with a sketch of
+  each template's first page:
+  - **Article** — a title page with the title, author, affiliation, date, the abstract
+    and a copyright notice; then the introduction and the sections, one file each in
+    `Sections/`; then the references on a page of their own. `Figures/` holds the
+    pictures, found by name, and `references.bib` the bibliography, read with biblatex
+    and biber.
+  - **Report** — a title page, the abstract and contents, and chapters in `Chapters/`.
+  - **Thesis** — a title page with the degree and university, abstract,
+    acknowledgements, contents and lists of figures and tables in `FrontMatter/`,
+    chapters in `Chapters/`, appendices in `Appendices/`, then the references.
+  - **Lecture Notes** — numbered theorems, definitions, examples and exercises with
+    `cleveref`, a running head with the course and section, and a file per lecture in
+    `Lectures/`.
+  - **Assignment** — numbered problems with solutions, and the course and your name at
+    the top of every page.
+  - **Presentation** — Beamer slides without the navigation clutter, a file per part of
+    the talk in `Slides/`, and references on a slide of their own.
+  - **Letter** and **Blank**.
+
+  Beside the gallery go the project's name, title, author and affiliation, the language
+  (for hyphenation, quotation marks and the names TeX prints, such as "References"), the
+  paper (A4 or US Letter, from your region) and font size — or widescreen or standard
+  slides — the engine, and whether to include the bibliography. TexLab then asks where to
+  save the folder, and remembers your choices for the next project. Every template but
+  Blank typesets as created, with pdfLaTeX, XeLaTeX and LuaLaTeX, with or without the
+  bibliography.
 - **Main file** — a part of a project is typeset through the file that includes it, found
   automatically when it has no `\documentclass`, or named with `% !TEX root` (the
   navigator's "Use as Main File for This Document" writes that comment). Completion
@@ -314,7 +341,7 @@ TexLab/TexLab/
 ├── Editor/         Source editor (AppKit text system), syntax, completion, snippets
 ├── Typesetting/    TeX discovery, typesetting pipeline, log parsing, SyncTeX
 ├── Preview/        PDF preview and navigation
-├── Project/        Project folder scanning, main file detection, new files and references
+├── Project/        Project folders and templates, main file detection, new files and references
 ├── Views/          Window layout, sidebar, toolbar, sheets, Settings
 └── Support/        Settings keys and defaults, paths, text statistics
 ```
@@ -408,6 +435,12 @@ TexLab/TexLab/
   `ProjectSnapshot` off the main thread (file tree, main file, labels and citation keys of
   the other files); `DirectoryWatcher` (a dispatch source per folder) and app activation
   keep it current.
+- **Templates** — `DocumentTemplate` lists the templates; `ProjectTemplates.swift` holds
+  each one's folders and files as plain LaTeX with placeholders (`⟨title⟩`, `⟨paper⟩`,
+  `⟨language⟩`…) and line markers (`⟨bib⟩`, `⟨nobib⟩`, `⟨pdf⟩`, `⟨unicode⟩`) that
+  `ProjectSetup` fills in from the New Project window, so each template reads as the
+  document it makes. New from Template inlines each `\input` to make the same document
+  as one file.
 - **Toolbar and navigators** — `EditorToolbar` is SwiftUI `CustomizableToolbarContent`,
   split into groups of related tools so AppKit's customisation palette offers them all;
   tools insert through `DocumentSession+Insert`, which adds the packages and definitions

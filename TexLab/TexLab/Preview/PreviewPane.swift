@@ -83,6 +83,12 @@ struct PreviewPane: View {
                     session.typeset()
                 }
             }
+        case .empty:
+            ContentUnavailableView {
+                Label("Nothing to Show Yet", systemImage: "doc")
+            } description: {
+                Text("Write something between \\begin{document} and \\end{document}, then typeset again.")
+            }
         case .idle, .cancelled, .succeeded:
             ContentUnavailableView {
                 Label("No Preview Yet", systemImage: "doc.richtext")

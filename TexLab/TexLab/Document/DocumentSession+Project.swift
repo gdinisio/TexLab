@@ -130,7 +130,8 @@ extension DocumentSession {
             throw ProjectError.fileExists(url.lastPathComponent)
         }
         let rootPath = project?.mainFile.map { PathUtilities.relativePath(of: $0, from: folder) }
-        try Data(kind.contents(name: name, rootPath: kind == .chapter ? rootPath : nil).utf8).write(to: url, options: .withoutOverwriting)
+        let mainText = (project?.mainFile ?? fileURL).flatMap(textOfFile)
+        try Data(kind.contents(name: name, rootPath: kind == .chapter ? rootPath : nil, mainText: mainText).utf8).write(to: url, options: .withoutOverwriting)
         if addsReference, kind.canBeReferenced {
             addReferenceInMainFile(to: url, kind: kind)
         }

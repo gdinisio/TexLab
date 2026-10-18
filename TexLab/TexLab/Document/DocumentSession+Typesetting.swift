@@ -201,7 +201,14 @@ extension DocumentSession {
                 synctex = result.synctex
                 pdfFileURL = exportCopy(of: result.pdfURL, named: exportName)
             }
-            if result.status == .succeeded {
+            let hasErrors = issues.contains { $0.severity == .error }
+            if result.pdfData == nil, !hasErrors, result.log.range(of: "no pages of output", options: .caseInsensitive) != nil {
+                // An empty document, such as a new blank one: nothing to preview yet. TeX
+                // says "No pages of output", LuaTeX "no pages of output".
+                status = .empty
+                pdfDocument = nil
+                synctex = nil
+            } else if result.status == .succeeded {
                 status = .succeeded(pages: pdfDocument?.pageCount ?? 0)
             } else if result.status == .timedOut {
                 status = .timedOut

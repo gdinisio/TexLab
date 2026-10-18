@@ -3,6 +3,49 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.31 — Project templates
+
+New Project now makes whole projects — folders of parts, figures and a bibliography —
+and has more templates. Every template but Blank, which starts empty, typesets as
+created with pdfLaTeX, XeLaTeX and LuaLaTeX, with or without its bibliography, on A4 and
+US Letter, without a warning; the Article, Lecture Notes and Presentation were also
+typeset in each language offered.
+
+- **Article** follows the layout of a real paper: `main.tex`, `references.bib`, a
+  `Figures` folder and a `Sections` folder with `abstract.tex` (its own `abstract`
+  environment) and `introduction.tex`. `main.tex` has a title page with the title,
+  author, affiliation, date, the abstract and a copyright notice, defined once as
+  `\papertitle`, `\paperauthor`, `\paperaffil` and `\paperdate`; then the introduction
+  and each section, one file apiece; then the references on a page of their own, with
+  biblatex and biber. `\graphicspath` finds pictures in `Figures` by name.
+- **Report** — title page, abstract and contents, and chapters in `Chapters`.
+- **Thesis** (new, in place of Book) — title page with the degree and university;
+  abstract, acknowledgements, contents and lists of figures and tables in `FrontMatter`;
+  chapters in `Chapters`, appendices in `Appendices`, then the references.
+- **Lecture Notes** (new) — theorems, definitions, examples and exercises numbered by
+  section, `\cref` references, the course and section at the top of each page, and a file
+  per lecture in `Lectures`.
+- **Assignment** (new) — numbered problems with optional titles, solutions, and the course
+  and your name at the top of every page.
+- **Presentation** — Beamer slides without navigation symbols, numbered, with a file per
+  part of the talk in `Slides` and the references on a slide of their own.
+- **Letter** and **Blank** take the language and paper too.
+- The New Project window adds an affiliation (University, Institution, Course or
+  Institute, as the template calls it) and the language — English (UK or US), Italian,
+  French, German or Spanish — which sets hyphenation, quotation marks, the names TeX
+  prints and the date. The gallery scrolls, and each new template has a sketch of its
+  first page.
+- **New File in Project** fits the templates: a new section or chapter goes in the
+  Sections, Chapters, Lectures or Slides folder unless you pick another, starts with the
+  heading its document uses (a chapter in a report or thesis, a section in an article, a
+  section and a first slide in a presentation, each with a label), and its `\input` goes
+  after the last part — before the references, the appendices and the page break in
+  front of them, and never inside the title page. Before, it went just before
+  `\end{document}`, after the bibliography.
+- File ▸ New from Template makes the same templates as one document.
+- An empty document, such as a new Blank one, says there's nothing to typeset yet instead
+  of reporting a failure.
+
 ## v1.30 — Opening project files without crashing
 
 - Fixes a crash when a second project window opened — for example after clicking a

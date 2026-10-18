@@ -9,7 +9,8 @@ import Foundation
 import SwiftUI
 
 /// The New Project window, like Xcode's template chooser: pick a template from a gallery,
-/// fill in the title and author, choose the paper, size and engine, then where to save.
+/// fill in the title, author and affiliation, choose the language, paper, size and engine,
+/// then where to save.
 struct NewProjectView: View {
     @Environment(\.dismissWindow) private var dismissWindow
     @State private var setup = ProjectSetup.lastUsed
@@ -26,7 +27,7 @@ struct NewProjectView: View {
             Divider()
             footer
         }
-        .frame(width: 800, height: 500)
+        .frame(width: 820, height: 580)
         .onAppear {
             isNameFocused = true
         }
@@ -38,28 +39,33 @@ struct NewProjectView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Choose a template for your new project")
                 .font(.title3.weight(.semibold))
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 134, maximum: 160), spacing: 12)], spacing: 12) {
-                ForEach(DocumentTemplate.allCases) { template in
-                    TemplateCard(template: template, isSelected: setup.template == template)
-                        // A click selects at once; waiting to rule out a double-click felt slow.
-                        .onTapGesture {
-                            setup.template = template
-                        }
-                        .simultaneousGesture(TapGesture(count: 2).onEnded {
-                            setup.template = template
-                            create()
-                        })
-                        .accessibilityAddTraits(.isButton)
-                        .accessibilityAddTraits(setup.template == template ? .isSelected : [])
-                        .accessibilityAction {
-                            setup.template = template
-                        }
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 128, maximum: 160), spacing: 12)], spacing: 12) {
+                    ForEach(DocumentTemplate.allCases) { template in
+                        TemplateCard(template: template, isSelected: setup.template == template)
+                            // A click selects at once; waiting to rule out a double-click felt slow.
+                            .onTapGesture {
+                                setup.template = template
+                            }
+                            .simultaneousGesture(TapGesture(count: 2).onEnded {
+                                setup.template = template
+                                create()
+                            })
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityAddTraits(setup.template == template ? .isSelected : [])
+                            .accessibilityAction {
+                                setup.template = template
+                            }
+                    }
                 }
+                .padding(2)
             }
-            Spacer(minLength: 0)
+            .scrollIndicators(.automatic)
             Label(setup.template.summary, systemImage: setup.template.systemImage)
                 .font(.callout)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(minHeight: 36, alignment: .topLeading)
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -76,8 +82,16 @@ struct NewProjectView: View {
                     TextField("Title", text: $setup.title, prompt: Text(verbatim: setup.trimmedName.isEmpty ? String(localized: "Same as the project") : setup.trimmedName))
                 }
                 TextField(setup.template == .letter ? String(localized: "Your Name") : String(localized: "Author"), text: $setup.author)
+                if let label = setup.template.affiliationLabel {
+                    TextField(label, text: $setup.affiliation, prompt: Text("Optional"))
+                }
             }
             Section {
+                Picker("Language", selection: $setup.language) {
+                    ForEach(DocumentLanguage.allCases) { language in
+                        Text(verbatim: language.title).tag(language)
+                    }
+                }
                 if setup.hasPageSetup {
                     Picker("Paper", selection: $setup.paper) {
                         ForEach(PaperSize.allCases) { paper in
@@ -103,7 +117,7 @@ struct NewProjectView: View {
                     }
                 }
                 if setup.supportsBibliography {
-                    Toggle("Bibliography (references.bib)", isOn: $setup.includesBibliography)
+                    Toggle("Bibliography (references.bib, with biblatex)", isOn: $setup.includesBibliography)
                 }
             } footer: {
                 Text(engineDescription)
@@ -197,6 +211,12 @@ extension ProjectSetup {
         if let author = saved["author"] as? String {
             setup.author = author
         }
+        if let affiliation = saved["affiliation"] as? String {
+            setup.affiliation = affiliation
+        }
+        if let raw = saved["language"] as? String, let language = DocumentLanguage(rawValue: raw) {
+            setup.language = language
+        }
         return setup
     }
 
@@ -210,6 +230,8 @@ extension ProjectSetup {
             "engine": engine.rawValue,
             "bibliography": includesBibliography,
             "author": author,
+            "affiliation": affiliation,
+            "language": language.rawValue,
         ] as [String: Any], forKey: Self.defaultsKey)
     }
 }
@@ -288,25 +310,49 @@ nonisolated enum TemplateSketch {
         }
         switch template {
         case .article:
-            mark(0.25, 0.09, 0.50, 0.045, 0.8)
-            mark(0.35, 0.165, 0.30, 0.025, 0.45)
-            mark(0.40, 0.21, 0.20, 0.02, 0.3)
-            mark(0.12, 0.30, 0.38, 0.035, 0.7)
-            text(from: 0.38, lines: 6)
-            mark(0.12, 0.74, 0.30, 0.035, 0.7)
-            text(from: 0.82, lines: 2)
+            // The title page: title, author, affiliation and date, the abstract, and the
+            // copyright notice at the foot.
+            mark(0.18, 0.17, 0.64, 0.045, 0.8)
+            mark(0.32, 0.26, 0.36, 0.025, 0.5)
+            mark(0.28, 0.31, 0.44, 0.02, 0.35)
+            mark(0.38, 0.35, 0.24, 0.02, 0.3)
+            mark(0.42, 0.46, 0.16, 0.022, 0.55)
+            text(from: 0.52, lines: 4, x: 0.18, width: 0.64)
+            mark(0.36, 0.86, 0.28, 0.022, 0.4)
         case .report:
-            mark(0.12, 0.10, 0.20, 0.025, 0.45)
-            mark(0.12, 0.16, 0.58, 0.065, 0.85)
-            mark(0.12, 0.31, 0.36, 0.035, 0.65)
-            text(from: 0.39, lines: 5)
-            mark(0.12, 0.70, 0.30, 0.035, 0.65)
-            text(from: 0.78, lines: 3)
-        case .book:
-            mark(0.16, 0.26, 0.68, 0.07, 0.85)
-            mark(0.27, 0.37, 0.46, 0.03, 0.45)
-            mark(0.33, 0.60, 0.34, 0.03, 0.55)
-            mark(0.38, 0.86, 0.24, 0.022, 0.3)
+            mark(0.14, 0.28, 0.72, 0.07, 0.85)
+            mark(0.30, 0.42, 0.40, 0.03, 0.5)
+            mark(0.26, 0.48, 0.48, 0.025, 0.35)
+            mark(0.36, 0.86, 0.28, 0.025, 0.35)
+        case .thesis:
+            mark(0.14, 0.20, 0.72, 0.06, 0.85)
+            mark(0.24, 0.27, 0.52, 0.06, 0.85)
+            mark(0.32, 0.40, 0.36, 0.03, 0.5)
+            mark(0.22, 0.64, 0.56, 0.022, 0.35)
+            mark(0.28, 0.69, 0.44, 0.025, 0.5)
+            mark(0.24, 0.79, 0.52, 0.025, 0.4)
+            mark(0.36, 0.84, 0.28, 0.022, 0.3)
+        case .notes:
+            // Running head with the course and the section, then a theorem.
+            mark(0.12, 0.05, 0.26, 0.018, 0.3)
+            mark(0.62, 0.05, 0.26, 0.018, 0.3)
+            mark(0.12, 0.08, 0.76, 0.006, 0.25)
+            mark(0.12, 0.15, 0.42, 0.035, 0.7)
+            text(from: 0.23, lines: 3)
+            mark(0.12, 0.42, 0.22, 0.022, 0.6)
+            text(from: 0.48, lines: 2, x: 0.36, width: 0.52)
+            mark(0.12, 0.62, 0.18, 0.022, 0.5)
+            text(from: 0.68, lines: 3)
+        case .assignment:
+            mark(0.26, 0.07, 0.48, 0.04, 0.8)
+            mark(0.36, 0.14, 0.28, 0.022, 0.45)
+            mark(0.38, 0.18, 0.24, 0.02, 0.3)
+            mark(0.12, 0.28, 0.22, 0.025, 0.65)
+            text(from: 0.34, lines: 2)
+            mark(0.12, 0.47, 0.16, 0.022, 0.45)
+            text(from: 0.53, lines: 3)
+            mark(0.12, 0.74, 0.22, 0.025, 0.65)
+            text(from: 0.80, lines: 2)
         case .presentation:
             mark(0.18, 0.32, 0.64, 0.09, 0.85)
             mark(0.28, 0.48, 0.44, 0.05, 0.45)

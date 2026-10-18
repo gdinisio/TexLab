@@ -5,14 +5,19 @@
 
 import Foundation
 
-/// Starting points offered by File ▸ New from Template.
+/// Starting points for New Project and File ▸ New from Template.
 ///
-/// Every template typesets with a standard TeX distribution, so a new document shows a
-/// preview straight away and the user can learn by editing something that already works.
+/// A template is a project: a main file and, for longer documents, a folder of parts it
+/// inputs, figures and a bibliography (`ProjectTemplates.swift`). New from Template makes
+/// the same document as one file. Every template typesets with a standard TeX
+/// distribution, so a new document shows a preview straight away and the user can learn
+/// by editing something that already works.
 nonisolated enum DocumentTemplate: String, CaseIterable, Identifiable {
     case article
     case report
-    case book
+    case thesis
+    case notes
+    case assignment
     case presentation
     case letter
     case minimal
@@ -21,24 +26,36 @@ nonisolated enum DocumentTemplate: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .article: "Article"
-        case .report: "Report"
-        case .book: "Book"
-        case .presentation: "Presentation"
-        case .letter: "Letter"
-        case .minimal: "Blank"
+        case .article: String(localized: "Article")
+        case .report: String(localized: "Report")
+        case .thesis: String(localized: "Thesis")
+        case .notes: String(localized: "Lecture Notes")
+        case .assignment: String(localized: "Assignment")
+        case .presentation: String(localized: "Presentation")
+        case .letter: String(localized: "Letter")
+        case .minimal: String(localized: "Blank")
         }
     }
 
     /// What the template is for, shown in the New Project window.
     var summary: String {
         switch self {
-        case .article: String(localized: "Papers, essays and notes, divided into sections.")
-        case .report: String(localized: "Longer documents with chapters and a table of contents.")
-        case .book: String(localized: "Books and theses, with front matter, chapters and back matter.")
-        case .presentation: String(localized: "Slides made with Beamer.")
-        case .letter: String(localized: "A formal letter with addresses, opening and closing.")
-        case .minimal: String(localized: "An empty document, to start from scratch.")
+        case .article:
+            String(localized: "A paper with a title page — title, author, affiliation, abstract and copyright — then its sections, one file each, and the references on a page of their own.")
+        case .report:
+            String(localized: "A report with a title page, an abstract and contents, and a chapter per file.")
+        case .thesis:
+            String(localized: "A thesis: title page, abstract, acknowledgements and lists of contents, figures and tables, then chapters, appendices and references.")
+        case .notes:
+            String(localized: "Course notes with numbered theorems, definitions and exercises, and a file per lecture.")
+        case .assignment:
+            String(localized: "Problems and solutions, with the course and your name at the top of every page.")
+        case .presentation:
+            String(localized: "Beamer slides, with a file for each part of the talk.")
+        case .letter:
+            String(localized: "A formal letter with addresses, opening and closing.")
+        case .minimal:
+            String(localized: "An empty document, to start from scratch.")
         }
     }
 
@@ -46,157 +63,39 @@ nonisolated enum DocumentTemplate: String, CaseIterable, Identifiable {
         switch self {
         case .article: "doc.text"
         case .report: "doc.richtext"
-        case .book: "book.closed"
+        case .thesis: "graduationcap"
+        case .notes: "book.pages"
+        case .assignment: "checklist"
         case .presentation: "play.rectangle"
         case .letter: "envelope"
         case .minimal: "doc"
         }
     }
 
-    var text: String {
+    /// Whether the template can have a bibliography.
+    var supportsBibliography: Bool {
+        projectFiles.contains { $0.onlyWithBibliography }
+    }
+
+    /// Whether the template has a title page or title block.
+    var hasTitle: Bool {
+        ![.letter, .minimal].contains(self)
+    }
+
+    /// What the template calls the affiliation field, or nil if it has none.
+    var affiliationLabel: String? {
         switch self {
-        case .article:
-            #"""
-            \documentclass[11pt]{article}
-
-            \usepackage[T1]{fontenc}
-            \usepackage{amsmath, amssymb}
-            \usepackage{graphicx}
-            \usepackage{hyperref}
-
-            \title{Untitled}
-            \author{}
-            \date{\today}
-
-            \begin{document}
-
-            \maketitle
-
-            \section{Introduction}
-
-            Start writing here. Typeset with \emph{Command-R} to update the preview.
-
-            \end{document}
-
-            """#
-        case .report:
-            #"""
-            \documentclass[11pt]{report}
-
-            \usepackage[T1]{fontenc}
-            \usepackage{amsmath, amssymb}
-            \usepackage{graphicx}
-            \usepackage{hyperref}
-
-            \title{Untitled Report}
-            \author{}
-            \date{\today}
-
-            \begin{document}
-
-            \maketitle
-            \tableofcontents
-
-            \chapter{Introduction}
-
-            \section{Background}
-
-            Start writing here.
-
-            \chapter{Conclusion}
-
-            \end{document}
-
-            """#
-        case .book:
-            #"""
-            \documentclass[11pt]{book}
-
-            \usepackage[T1]{fontenc}
-            \usepackage{amsmath, amssymb}
-            \usepackage{graphicx}
-            \usepackage{hyperref}
-
-            \title{Untitled Book}
-            \author{}
-            \date{}
-
-            \begin{document}
-
-            \frontmatter
-            \maketitle
-            \tableofcontents
-
-            \mainmatter
-
-            \chapter{First Chapter}
-
-            Start writing here.
-
-            \backmatter
-
-            \end{document}
-
-            """#
-        case .presentation:
-            #"""
-            \documentclass{beamer}
-
-            \usetheme{default}
-
-            \title{Untitled Presentation}
-            \author{}
-            \date{\today}
-
-            \begin{document}
-
-            \begin{frame}
-              \titlepage
-            \end{frame}
-
-            \begin{frame}{Overview}
-              \begin{itemize}
-                \item First point
-                \item Second point
-              \end{itemize}
-            \end{frame}
-
-            \end{document}
-
-            """#
-        case .letter:
-            #"""
-            \documentclass[11pt]{letter}
-
-            \signature{Your Name}
-            \address{Street \\ City \\ Country}
-
-            \begin{document}
-
-            \begin{letter}{Recipient \\ Street \\ City}
-
-            \opening{Dear Sir or Madam,}
-
-            Start writing here.
-
-            \closing{Yours faithfully,}
-
-            \end{letter}
-
-            \end{document}
-
-            """#
-        case .minimal:
-            #"""
-            \documentclass{article}
-
-            \begin{document}
-
-
-
-            \end{document}
-
-            """#
+        case .article, .report: String(localized: "Affiliation")
+        case .thesis: String(localized: "University")
+        case .notes: String(localized: "Institution")
+        case .assignment: String(localized: "Course")
+        case .presentation: String(localized: "Institute")
+        case .letter, .minimal: nil
         }
+    }
+
+    /// The template as one document, for File ▸ New from Template and new documents.
+    var text: String {
+        ProjectSetup.standaloneText(for: self)
     }
 }

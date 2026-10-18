@@ -50,6 +50,8 @@ nonisolated enum TypesetStatus: Equatable, Sendable {
     case failed(errors: Int, producedPDF: Bool)
     case cancelled
     case timedOut
+    /// The document has nothing to typeset yet, so TeX made no pages.
+    case empty
     /// No TeX distribution was found. `sandboxed` is true when the App Sandbox is the
     /// likely reason.
     case texNotFound(sandboxed: Bool)
@@ -75,6 +77,8 @@ nonisolated enum TypesetStatus: Equatable, Sendable {
             String(localized: "Typesetting Stopped")
         case .timedOut:
             String(localized: "Typesetting Timed Out")
+        case .empty:
+            String(localized: "Nothing to Typeset Yet")
         case .texNotFound:
             String(localized: "TeX Not Found")
         case .couldNotStart:
