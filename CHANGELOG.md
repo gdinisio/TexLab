@@ -3,6 +3,14 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.29 — Builds with main-actor isolation
+
+- Fixes the build: `TeXDocument` overrides of `autosavesInPlace`, `fileURL` and
+  `read(from:ofType:)`, and the navigator rows' `isEqual` and `hash`, are `nonisolated`
+  like the AppKit declarations they override, instead of taking on the target's default
+  main-actor isolation. A file moved from another app's queue is followed on the main
+  thread.
+
 ## v1.28 — Native project windows
 
 Selecting files in the project navigator didn't work, and the way windows held files was

@@ -36,9 +36,11 @@ extension UTType {
 /// The text keeps the encoding it was read in, so older sources written in Latin-1 or Mac
 /// OS Roman are saved back exactly as they were found.
 final class TeXDocument: NSDocument {
-    /// The text, as the editor last reported it.
-    var text = ""
-    var encoding: String.Encoding = .utf8
+    /// The text, as the editor last reported it. The document system reads it in
+    /// `read(from:ofType:)`, which isn't isolated to the main actor but runs on the main
+    /// thread, as TeXDocument doesn't read concurrently; everything else is main-thread code.
+    nonisolated(unsafe) var text = ""
+    nonisolated(unsafe) var encoding: String.Encoding = .utf8
     /// What views show and follow: the name, the file and whether there are unsaved changes.
     let state = TeXDocumentState()
     /// The project window that has the document open.
@@ -51,7 +53,7 @@ final class TeXDocument: NSDocument {
     /// Whether the preamble and floats have been collapsed as Settings ask, once per file.
     var hasAppliedOpeningFolds = false
 
-    override class var autosavesInPlace: Bool {
+    nonisolated override class var autosavesInPlace: Bool {
         true
     }
 
@@ -68,11 +70,29 @@ final class TeXDocument: NSDocument {
 
     /// Follows the file: Save As, File ▸ Rename and Move To, and renames in the Finder or
     /// the project navigator.
-    override var fileURL: URL? {
+    nonisolated override var fileURL: URL? {
         didSet {
             guard fileURL != oldValue else { return }
-            refreshState()
-            projectWindow?.documentDidMove(self)
+            onMainThread { document in
+                document.refreshState()
+                document.projectWindow?.documentDidMove(document)
+            }
+        }
+    }
+
+    /// Runs `body` on the main thread — at once if this is it — for changes the document
+    /// system makes from its own queues, such as following a file another app moved.
+    nonisolated private func onMainThread(_ body: @escaping @MainActor (TeXDocument) -> Void) {
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                body(self)
+            }
+        } else {
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    body(self)
+                }
+            }
         }
     }
 
@@ -91,7 +111,7 @@ final class TeXDocument: NSDocument {
 
     // MARK: - Reading and writing
 
-    override func read(from data: Data, ofType typeName: String) throws {
+    nonisolated override func read(from data: Data, ofType typeName: String) throws {
         let decoded = try TextDecoding.decode(data)
         text = decoded.text
         encoding = decoded.encoding

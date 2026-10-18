@@ -86,11 +86,11 @@ final class NavigatorNode: NSObject {
         super.init()
     }
 
-    override func isEqual(_ object: Any?) -> Bool {
+    nonisolated override func isEqual(_ object: Any?) -> Bool {
         (object as? NavigatorNode)?.key == key
     }
 
-    override var hash: Int {
+    nonisolated override var hash: Int {
         key.hashValue
     }
 
