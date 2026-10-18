@@ -115,7 +115,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   title or year and inserts `\cite` (or `\citep`, `\autocite`, …) for one or more
   entries; Reference lists every label by kind and inserts `\eqref` for equations and
   `\ref` otherwise.
-- **Tools that keep documents working** — inserting a figure loads graphicx, a link
+- **Tools that keep documents working** — inserting a figure loads graphicx, a table
+  file booktabs, a drawing tikz, a link
   hyperref, aligned equations amsmath, a code listing listings, `\cref` cleveref, and a
   theorem loads amsthm and adds its `\newtheorem` definition.
 - **Insert menu** — headings, lists, figures and images, tables of any size, math,
@@ -185,16 +186,37 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   file's path relative to the main file — what `\includegraphics` and `\input` expect —
   and Copy LaTeX Reference the whole command. Renames and moves are coordinated, so open
   files follow them, and the list follows changes made in the Finder.
-- **New File in Project** (⌥⌘N, or + in the navigator) creates a section or chapter, a
-  BibTeX bibliography, a package or a complete document in any folder of the project, and
-  can add it to the main file: a part's `\input{…}` goes after the last part — before the
-  references, the appendices and the page break or slide in front of them, never in the
-  title page — a bibliography as `\bibliography` or `\addbibresource` for biblatex, and
-  a package as `\usepackage` in the preamble, in the main file's window if it's open, as
-  an undoable edit. A new part starts with the heading its document uses — a chapter in a
-  report or thesis, a section in an article, a section and a first slide in a
-  presentation — and goes in the project's Sections, Chapters, Lectures or Slides folder
-  unless you choose another.
+- **New File in Project** (⌥⌘N, or + in the navigator) works like Xcode's New File: pick
+  what to make from the list on the left, fill in what it needs on the right, and it's
+  made ready to use, in the folder the project keeps such files in unless you choose
+  another:
+  - **Section or Chapter** — starts with the heading its document uses (a chapter in a
+    report or thesis, a section in an article, a section and a first slide in a
+    presentation), goes in Sections, Chapters, Lectures or Slides, and its `\input{…}`
+    goes in the main file after the last part — before the references, the appendices
+    and the page break or slide in front of them, never in the title page.
+  - **Empty File** — a LaTeX file with nothing in it, or any other text file when you
+    give it an extension, such as `.txt` or `.cfg`.
+  - **Figure** — a picture from your Mac, copied into Figures, in a `figure` environment
+    of its own file: centred, sized to the line, with a caption and a `fig:` label. It's
+    named after the picture, and without one it has a frame to replace later.
+  - **Table** — the rows and columns you choose, with booktabs rules, the caption above
+    and a `tab:` label.
+  - **TikZ Drawing** — a figure drawn with TikZ, to edit, with a caption and a label.
+  - **Images** — pictures or PDFs from your Mac, copied into Figures, with a figure for
+    each inserted where you're writing; the insertion point waits in the first caption
+    and Tab moves to the next. Add Images… in the navigator's + and context menus goes
+    straight to choosing them.
+  - **Document from Template** — a complete document of its own, from any template.
+  - **Bibliography** and **Package** — added to the main file as `\bibliography` (or
+    `\addbibresource` for biblatex) and `\usepackage`.
+
+  A figure, table or drawing goes in where you're writing as `\input{…}` — in the body,
+  never the preamble, when the insertion point is still at the top of a file just
+  opened — and the package it needs (graphicx, booktabs or tikz) joins the preamble. The
+  sheet shows the file's path before it's made, and every change to an open file is
+  undoable. Insert ▸ Figure from Image copies a picture from elsewhere into the project
+  too, so the project keeps working when it's moved or shared.
 - **New Project** (⇧⌘N) opens a template chooser like Xcode's, a gallery with a sketch of
   each template's first page:
   - **Article** — a title page with the title, author, affiliation, date, the abstract

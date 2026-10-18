@@ -312,8 +312,7 @@ struct FileAndHelpCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
             Button("New File in Project…") {
-                session?.newFileFolder = session?.projectFolder
-                session?.isShowingNewFileSheet = true
+                session?.showNewFileSheet()
             }
             .keyboardShortcut("n", modifiers: [.command, .option])
             .disabled(session?.project == nil)

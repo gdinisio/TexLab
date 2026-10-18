@@ -115,6 +115,9 @@ final class DocumentSession {
     var findFieldFocusRequest = 0
     /// The folder New File creates the file in.
     var newFileFolder: URL?
+    /// The kind of file New File starts with, such as images from Add Images…, instead of
+    /// the kind chosen last time.
+    var requestedNewFileKind: NewFileKind?
 
     // MARK: Preview
 
@@ -273,12 +276,10 @@ final class DocumentSession {
     /// insertion point in the caption.
     func insertFigure(for url: URL) {
         ensurePackages(["graphicx"])
-        let path = projectFolder.map { PathUtilities.relativePath(of: url, from: $0) } ?? url.filePath
-        let label = BuildNaming.jobName(for: url.deletingPathExtension().lastPathComponent).lowercased()
         editor.insert(Snippet(
             String(localized: "Figure"),
-            before: "\\begin{figure}[htbp]\n\t\\centering\n\t\\includegraphics[width=0.8\\linewidth]{\(path)}\n\t\\caption{",
-            after: "}\n\t\\label{fig:\(label)}\n\\end{figure}"
+            before: "\\begin{figure}[htbp]\n\t\\centering\n\t\\includegraphics[width=0.8\\linewidth]{\(graphicsPath(of: url))}\n\t\\caption{",
+            after: "}\n\t\\label{fig:\(figureLabel(for: url))}\n\\end{figure}"
         ))
     }
 

@@ -9,8 +9,8 @@ import SwiftUI
 
 /// What the project navigator's list asks of the sidebar around it.
 struct ProjectNavigatorActions {
-    /// File ▸ New File in Project, in a folder.
-    var newFile: (URL) -> Void
+    /// File ▸ New File in Project, in a folder, for a kind of file if given.
+    var newFile: (URL, NewFileKind?) -> Void
     /// A new folder, which the list then names.
     var newFolder: (URL) -> Void
     /// Asks before moving items to the Trash.
@@ -607,7 +607,10 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
         }
 
         menu.addItem(ActionMenuItem(String(localized: "New File…")) {
-            actions.newFile(folder)
+            actions.newFile(folder, nil)
+        })
+        menu.addItem(ActionMenuItem(String(localized: "Add Images…")) {
+            actions.newFile(folder, .image)
         })
         menu.addItem(ActionMenuItem(String(localized: "New Folder")) {
             actions.newFolder(folder)

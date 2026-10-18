@@ -100,14 +100,25 @@ extension DocumentSession {
         isImportingImage = true
     }
 
+    /// Inserts a picture chosen from the Mac, copied into the project's figures folder first
+    /// if it's elsewhere, so the project keeps working when it's moved or shared.
     func insertImportedImage(_ url: URL) {
+        var picture = url
+        if let folder = figuresFolder {
+            do {
+                picture = try projectCopy(of: url, in: folder)
+            } catch {
+                presentError(error)
+                return
+            }
+            refreshProject()
+        }
         switch imageImportPurpose {
         case .figure:
-            insertFigure(for: url)
+            insertFigure(for: picture)
         case .graphic:
             ensurePackages(["graphicx"])
-            let path = projectFolder.map { PathUtilities.relativePath(of: url, from: $0) } ?? url.filePath
-            editor.insertText("\\includegraphics[width=\\linewidth]{\(path)}", actionName: String(localized: "Insert Image"))
+            editor.insertText("\\includegraphics[width=\\linewidth]{\(graphicsPath(of: picture))}", actionName: String(localized: "Insert Image"))
         }
     }
 

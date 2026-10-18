@@ -412,9 +412,8 @@ private struct DocumentToolbarItems: CustomizableToolbarContent {
             .disabled(session.pdfDocument == nil)
         }
         ToolbarItem(id: "newFile", showsByDefault: false) {
-            ToolButton("New File", systemImage: "doc.badge.plus", help: "Add a chapter, bibliography or package to the project (⌥⌘N)") {
-                session.newFileFolder = session.projectFolder
-                session.isShowingNewFileSheet = true
+            ToolButton("New File", systemImage: "doc.badge.plus", help: "Add a part, figure, table, image or other file to the project (⌥⌘N)") {
+                session.showNewFileSheet()
             }
             .disabled(session.project == nil)
         }

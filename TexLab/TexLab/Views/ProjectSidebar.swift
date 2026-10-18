@@ -29,7 +29,7 @@ struct ProjectSidebar: View {
                 ContentUnavailableView {
                     Label("No Project", systemImage: "folder")
                 } description: {
-                    Text("Save this document in a folder to see the other files of its project and add chapters, bibliographies and packages.")
+                    Text("Save this document in a folder to see the other files of its project and add parts, figures, images and bibliographies.")
                 } actions: {
                     Button("Save…") {
                         NSApp.sendAction(#selector(NSDocument.save(_:)), to: nil, from: nil)
@@ -72,9 +72,8 @@ struct ProjectSidebar: View {
 
     private var actions: ProjectNavigatorActions {
         ProjectNavigatorActions(
-            newFile: { folder in
-                session.newFileFolder = folder
-                session.isShowingNewFileSheet = true
+            newFile: { folder, kind in
+                session.showNewFileSheet(kind, in: folder)
             },
             newFolder: { folder in
                 newFolder(in: folder)
@@ -108,8 +107,10 @@ struct ProjectSidebar: View {
         HStack(spacing: 8) {
             Menu {
                 Button("New File…") {
-                    session.newFileFolder = project.folder
-                    session.isShowingNewFileSheet = true
+                    session.showNewFileSheet(in: project.folder)
+                }
+                Button("Add Images…") {
+                    session.showNewFileSheet(.image, in: project.folder)
                 }
                 Button("New Folder") {
                     newFolder(in: project.folder)
@@ -163,139 +164,5 @@ struct ProjectSidebar: View {
         trashCandidates.count == 1
             ? String(localized: "Move “\(trashCandidates[0].lastPathComponent)” to the Trash?")
             : String(localized: "Move \(trashCandidates.count) items to the Trash?")
-    }
-}
-
-/// File ▸ New File in Project: a chapter, bibliography, package or document, created in a
-/// folder of the project and, if you like, referenced from the main file.
-struct NewProjectFileSheet: View {
-    var session: DocumentSession
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var kind: NewFileKind = .chapter
-    @State private var name = NewFileKind.chapter.defaultName
-    @State private var folder: URL?
-    @State private var addsReference = true
-    @State private var errorMessage: String?
-    /// Whether the folder was chosen, rather than suggested for the kind of file.
-    @State private var isFolderChosen = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("New File")
-                .font(.headline)
-            Form {
-                Picker("Kind", selection: $kind) {
-                    ForEach(NewFileKind.allCases) { kind in
-                        Label(kind.title, systemImage: kind.systemImage).tag(kind)
-                    }
-                }
-                TextField("Name", text: $name, prompt: Text(kind.defaultName))
-                if let project = session.project {
-                    Picker("Folder", selection: Binding(get: { folder }, set: { newFolder in
-                        folder = newFolder
-                        isFolderChosen = true
-                    })) {
-                        ForEach(project.tree.folders, id: \.url) { item in
-                            Text(folderTitle(item.url, in: project)).tag(Optional(item.url))
-                        }
-                    }
-                    if kind.canBeReferenced, let main = project.mainFile {
-                        Toggle(kind.referenceDescription(mainFileName: main.lastPathComponent), isOn: $addsReference)
-                    }
-                }
-            }
-            .formStyle(.columns)
-            if let errorMessage {
-                Label(errorMessage, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.secondary)
-                    .font(.callout)
-            }
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel) {
-                    dismiss()
-                }
-                .keyboardShortcut(.cancelAction)
-                Button("Create") {
-                    create()
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!isValid)
-            }
-        }
-        .padding(20)
-        .frame(width: 460)
-        .onAppear {
-            let requested = session.newFileFolder.flatMap { url in
-                // The project folder itself, from File ▸ New File in Project, is no choice.
-                session.project.map { SourceMap.canonicalPath($0.folder) == SourceMap.canonicalPath(url) } == true ? nil : url
-            }
-            isFolderChosen = requested != nil
-            folder = pickerFolder(for: requested ?? suggestedFolder(for: kind))
-        }
-        .onChange(of: kind) { oldKind, newKind in
-            // Keep a name the user typed; replace the suggestion.
-            if name.isEmpty || name == oldKind.defaultName {
-                name = newKind.defaultName
-            }
-            if !isFolderChosen {
-                folder = pickerFolder(for: suggestedFolder(for: newKind))
-            }
-        }
-    }
-
-    private var trimmedName: String {
-        var trimmed = name.trimmingCharacters(in: .whitespaces)
-        let suffix = "." + kind.fileExtension
-        if trimmed.lowercased().hasSuffix(suffix) {
-            trimmed = String(trimmed.dropLast(suffix.count))
-        }
-        return trimmed
-    }
-
-    private var isValid: Bool {
-        !trimmedName.isEmpty && !trimmedName.contains("/") && !trimmedName.hasPrefix(".") && folder != nil
-    }
-
-    /// Where a file of `kind` goes unless a folder is chosen: a part of the document with
-    /// the others — in Sections, Chapters, Lectures or Slides, as the templates have them —
-    /// and anything else in the project folder.
-    private func suggestedFolder(for kind: NewFileKind) -> URL? {
-        guard let project = session.project else { return nil }
-        guard kind == .chapter else { return project.folder }
-        let names = ["sections", "chapters", "lectures", "slides"]
-        let folders = (project.tree.children ?? []).filter(\.isFolder)
-        for name in names {
-            if let match = folders.first(where: { $0.name.lowercased() == name }) {
-                return match.url
-            }
-        }
-        return project.folder
-    }
-
-    /// The picker's own entry for `url`, so the picker shows the choice.
-    private func pickerFolder(for url: URL?) -> URL? {
-        guard let project = session.project else { return url }
-        return project.tree.folders.first { item in
-            url.map { SourceMap.canonicalPath($0) == SourceMap.canonicalPath(item.url) } ?? false
-        }?.url ?? project.folder
-    }
-
-    private func folderTitle(_ url: URL, in project: ProjectSnapshot) -> String {
-        if url.standardizedFileURL == project.folder.standardizedFileURL {
-            return String(localized: "\(project.folder.lastPathComponent) (project folder)")
-        }
-        return PathUtilities.relativePath(of: url, from: project.folder)
-    }
-
-    private func create() {
-        guard let folder else { return }
-        do {
-            try session.createProjectFile(kind: kind, name: trimmedName, in: folder, addsReference: addsReference && kind.canBeReferenced)
-            dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
     }
 }

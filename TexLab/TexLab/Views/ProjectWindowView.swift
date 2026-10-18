@@ -67,7 +67,7 @@ struct ProjectWindowView: View {
             GoToLineSheet(session: session)
         }
         .sheet(isPresented: $session.isShowingNewFileSheet) {
-            NewProjectFileSheet(session: session)
+            NewFileSheet(session: session)
         }
         .fileExporter(
             isPresented: $session.isExportingPDF,

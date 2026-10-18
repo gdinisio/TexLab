@@ -5,127 +5,6 @@
 
 import Foundation
 
-/// The kinds of file New File creates.
-nonisolated enum NewFileKind: String, CaseIterable, Identifiable, Sendable {
-    case chapter
-    case bibliography
-    case package
-    case document
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .chapter: String(localized: "LaTeX Section or Chapter")
-        case .bibliography: String(localized: "BibTeX Bibliography")
-        case .package: String(localized: "LaTeX Package")
-        case .document: String(localized: "LaTeX Document")
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .chapter: "doc.text"
-        case .bibliography: "books.vertical"
-        case .package: "gearshape"
-        case .document: "doc.richtext"
-        }
-    }
-
-    var fileExtension: String {
-        switch self {
-        case .chapter, .document: "tex"
-        case .bibliography: "bib"
-        case .package: "sty"
-        }
-    }
-
-    var defaultName: String {
-        switch self {
-        case .chapter: "chapter"
-        case .bibliography: "references"
-        case .package: "macros"
-        case .document: "document"
-        }
-    }
-
-    /// Whether the main file can reference a file of this kind.
-    var canBeReferenced: Bool {
-        self != .document
-    }
-
-    /// What the main file gains, described for the New File sheet.
-    func referenceDescription(mainFileName: String) -> String {
-        switch self {
-        case .chapter: String(localized: "Add \\input to \(mainFileName)")
-        case .bibliography: String(localized: "Add the bibliography to \(mainFileName)")
-        case .package: String(localized: "Add \\usepackage to \(mainFileName)")
-        case .document: ""
-        }
-    }
-
-    /// The new file's text. A part of a document starts with the heading the main file's
-    /// class uses for its parts: a chapter in a report, book or thesis, a section with a
-    /// first slide in a presentation, and a section otherwise.
-    func contents(name: String, rootPath: String?, mainText: String? = nil) -> String {
-        let title = name
-            .replacingOccurrences(of: "_", with: " ")
-            .replacingOccurrences(of: "-", with: " ")
-            .capitalized
-        let label = name.lowercased().replacingOccurrences(of: " ", with: "-")
-        switch self {
-        case .chapter:
-            var text = ""
-            if let rootPath {
-                // Typesetting this file typesets the whole project.
-                text += "% !TEX root = \(rootPath)\n\n"
-            }
-            switch mainText.map(Self.documentClass(of:)) ?? "" {
-            case "report", "book", "memoir", "scrreprt", "scrbook":
-                return text + "\\chapter{\(title)}\n\\label{ch:\(label)}\n\n"
-            case "beamer":
-                return text + "\\section{\(title)}\n\n\\begin{frame}{\(title)}\n\n\\end{frame}\n"
-            default:
-                return text + "\\section{\(title)}\n\\label{sec:\(label)}\n\n"
-            }
-        case .bibliography:
-            return """
-            % Bibliography database. Cite entries with \\cite{key}.
-            %
-            % @article{key,
-            %   author  = {Last, First and Other, Author},
-            %   title   = {Title of the Article},
-            %   journal = {Journal},
-            %   year    = {2026},
-            % }
-
-            """
-        case .package:
-            return """
-            \\NeedsTeXFormat{LaTeX2e}
-            \\ProvidesPackage{\(name)}
-
-            % Macros shared by the project, for example:
-            % \\newcommand{\\R}{\\mathbb{R}}
-
-            \\endinput
-
-            """
-        case .document:
-            return DocumentTemplate.article.text
-        }
-    }
-
-    private static let documentClassPattern = try! NSRegularExpression(pattern: #"^[^%\n]*\\documentclass\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}"#, options: [.anchorsMatchLines])
-
-    /// The class a document is typeset with, such as `article`.
-    static func documentClass(of text: String) -> String {
-        let string = text as NSString
-        guard let match = documentClassPattern.firstMatch(in: text, range: NSRange(location: 0, length: string.length)) else { return "" }
-        return string.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespaces)
-    }
-}
-
 /// Edits that make one file of a project use another.
 nonisolated enum ProjectReferences {
     /// The command that uses `file` from a document in `folder`, as typed at the insertion
@@ -149,7 +28,7 @@ nonisolated enum ProjectReferences {
         let path = PathUtilities.relativePath(of: file, from: mainFolder)
         let withoutExtension = String(path.dropLast(file.pathExtension.count + 1))
         switch kind {
-        case .chapter:
+        case .chapter, .empty:
             let command = "\\input{\(withoutExtension)}"
             guard !text.contains(command) else { return nil }
             return (NSRange(location: partInsertionPoint(in: string), length: 0), command + "\n")
@@ -174,7 +53,8 @@ nonisolated enum ProjectReferences {
                 return (NSRange(location: close.location, length: 0), names.isEmpty ? withoutExtension : "," + withoutExtension)
             }
             return (lineStart(before: "\\end{document}", in: string), "\\bibliographystyle{plain}\n\\bibliography{\(withoutExtension)}\n")
-        case .document:
+        case .figure, .table, .drawing, .image, .document:
+            // Used where you are writing, or not at all.
             return nil
         }
     }

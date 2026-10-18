@@ -121,25 +121,6 @@ extension DocumentSession {
 
     // MARK: - Changing the project
 
-    /// Creates a file in the project, adds a reference to it in the main file if asked, and
-    /// opens it.
-    @discardableResult
-    func createProjectFile(kind: NewFileKind, name: String, in folder: URL, addsReference: Bool) throws -> URL {
-        let url = folder.appending(path: name).appendingPathExtension(kind.fileExtension)
-        guard !FileManager.default.fileExists(atPath: url.filePath) else {
-            throw ProjectError.fileExists(url.lastPathComponent)
-        }
-        let rootPath = project?.mainFile.map { PathUtilities.relativePath(of: $0, from: folder) }
-        let mainText = (project?.mainFile ?? fileURL).flatMap(textOfFile)
-        try Data(kind.contents(name: name, rootPath: kind == .chapter ? rootPath : nil, mainText: mainText).utf8).write(to: url, options: .withoutOverwriting)
-        if addsReference, kind.canBeReferenced {
-            addReferenceInMainFile(to: url, kind: kind)
-        }
-        refreshProject()
-        openProjectFile(url)
-        return url
-    }
-
     /// Makes a folder, named `name` or — for a new folder the user names next — “untitled
     /// folder”, numbered if that's taken, as the Finder does.
     @discardableResult
@@ -222,7 +203,7 @@ extension DocumentSession {
 
     /// Makes the main file use a new file: in the editor if it's shown, in whichever window
     /// has it open, or on disk.
-    private func addReferenceInMainFile(to file: URL, kind: NewFileKind) {
+    func addReferenceInMainFile(to file: URL, kind: NewFileKind) {
         guard let main = project?.mainFile ?? fileURL else { return }
         let folder = main.deletingLastPathComponent()
         modifyFile(at: main, actionName: String(localized: "Add Reference")) { text in

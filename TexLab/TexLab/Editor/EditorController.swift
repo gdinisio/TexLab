@@ -91,6 +91,11 @@ final class EditorController {
         textView?.insertAtSelection(text, actionName: actionName)
     }
 
+    /// Selects `range` and scrolls it into view.
+    func select(_ range: NSRange) {
+        textView?.reveal(range, selecting: range, highlight: false)
+    }
+
     /// Replaces `range` as one undoable step, keeping the insertion point where it was.
     func replace(_ range: NSRange, with text: String, actionName: String) {
         guard let textView else { return }

@@ -3,6 +3,43 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.32 — New files ready to use
+
+New File in Project offers many more kinds of file, each set up to use straight away.
+Figure, table and drawing files, and figures for images with names containing spaces and
+dots, were typeset in the Article template with pdfLaTeX, XeLaTeX and LuaLaTeX without a
+warning.
+
+- **A new sheet, like Xcode's New File** — the kinds of file are listed on the left, in
+  groups, and what each needs is on the right: a description, the name, the folder, the
+  path the file will have, and whether to use it from the main file or where you're
+  writing. It starts with the kind chosen last time.
+- **Empty File** — with nothing in it; without an extension it's a LaTeX file, input
+  from the main file if you like, and with one, such as `.txt`, it's any text file.
+- **Figure** — choose a picture (with a thumbnail in the sheet), and the figure file has
+  it in a `figure` environment, centred and sized to the line, with a caption and a
+  `fig:` label, named after the picture. The picture is copied into the project if it's
+  elsewhere. Without one, a frame stands in for it.
+- **Table** — a booktabs table of the rows and columns you choose, the caption above it
+  and a `tab:` label.
+- **TikZ Drawing** — a figure with a TikZ picture to start from.
+- **Images** — add several pictures or PDFs at once: they're copied into Figures and,
+  if you like, each gets a figure where you're writing, with the insertion point in the
+  first caption and Tab moving to the next. Add Images… is in the navigator's + and
+  context menus.
+- **Document from Template** — a complete document from any of the templates, in the
+  project.
+- Figures, tables and drawings go in where you're writing as `\input{…}` on a line of
+  their own, and the package each needs — graphicx, booktabs or tikz — is added to the
+  preamble. If the insertion point is in the preamble, as it is in a main file just
+  opened, they go after the body's last part instead of breaking the document.
+- Figures, tables and drawings are suggested for the Figures folder (tables for Tables if
+  there is one), parts for Sections or Chapters, as before.
+- The sheet explains why a name won't do — it can't contain characters TeX reads as
+  commands, such as `%` or `#`, in a LaTeX file's name — instead of just disabling Create.
+- Insert ▸ Figure from Image and Insert ▸ Image copy a picture from outside the project
+  into its Figures folder first, so the project keeps working when it's moved or shared.
+
 ## v1.31 — Project templates
 
 New Project now makes whole projects — folders of parts, figures and a bibliography —
