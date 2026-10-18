@@ -267,6 +267,25 @@ nonisolated enum ProjectIndex {
         )
     }
 
+    /// A file's main file and project folder, found without scanning the folder: the main
+    /// file a `% !TEX root` comment names, the file itself if it's a complete document, or
+    /// the complete document that includes it. A file with none of these has no main file,
+    /// and its own folder.
+    static func projectRoot(forFileAt url: URL, text: String) -> (mainFile: URL?, folder: URL) {
+        let directory = url.deletingLastPathComponent()
+        if let root = MagicComments(text: text).root {
+            let main = directory.appending(path: root).standardizedFileURL
+            return (main, main.deletingLastPathComponent())
+        }
+        if isMainDocument(text) {
+            return (url.standardizedFileURL, directory)
+        }
+        if let including = fileIncluding(url) {
+            return (including, including.deletingLastPathComponent())
+        }
+        return (nil, directory)
+    }
+
     /// A document's `\title`, as plain text, or nil if it has none.
     static func title(in text: String) -> String? {
         let string = text as NSString

@@ -3,12 +3,19 @@
 //  TexLab
 //
 
+import AppKit
 import Foundation
+import Observation
 import SwiftUI
 
-/// The menu bar. Commands act on the focused document window through its session.
+/// The menu bar. Commands act on the main project window through its session.
 struct TexLabCommands: Commands {
-    @FocusedValue(\.documentSession) private var session
+    @FocusedValue(\.documentSession) private var focusedSession
+
+    /// The main project window's session.
+    private var session: DocumentSession? {
+        focusedSession ?? ActiveSession.shared.session
+    }
 
     @AppStorage(SettingsKey.showsLineNumbers) private var showsLineNumbers = AppSettings.showsLineNumbers
     @AppStorage(SettingsKey.wrapsLines) private var wrapsLines = AppSettings.wrapsLines
@@ -282,29 +289,70 @@ struct TexLabCommands: Commands {
     }
 }
 
-/// The File and Help menu additions.
+/// The File and Help menus. The File menu is a Mac document app's: New, Open and Open
+/// Recent from the document controller, and Save, Duplicate, Rename, Move To and Revert
+/// To from the document the main window shows.
 struct FileAndHelpCommands: Commands {
-    @FocusedValue(\.documentSession) private var session
+    @FocusedValue(\.documentSession) private var focusedSession
     @Environment(\.openWindow) private var openWindow
 
+    private var session: DocumentSession? {
+        focusedSession ?? ActiveSession.shared.session
+    }
+
     var body: some Commands {
-        CommandGroup(after: .newItem) {
+        CommandGroup(replacing: .newItem) {
+            Button("New Document") {
+                NSDocumentController.shared.newDocument(nil)
+            }
+            .keyboardShortcut("n")
             NewFromTemplateMenu()
             Button("New Project…") {
                 openWindow(id: NewProjectWindow.id)
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
-            Button("Open Project…") {
-                ProjectOpener.chooseAndOpen()
-            }
-            .keyboardShortcut("o", modifiers: [.command, .shift])
-            OpenRecentProjectMenu()
             Button("New File in Project…") {
                 session?.newFileFolder = session?.projectFolder
                 session?.isShowingNewFileSheet = true
             }
             .keyboardShortcut("n", modifiers: [.command, .option])
             .disabled(session?.project == nil)
+            Divider()
+            Button("Open…") {
+                NSDocumentController.shared.openDocument(nil)
+            }
+            .keyboardShortcut("o")
+            Button("Open Project…") {
+                ProjectOpener.chooseAndOpen()
+            }
+            .keyboardShortcut("o", modifiers: [.command, .shift])
+            OpenRecentMenu()
+            OpenRecentProjectMenu()
+        }
+        CommandGroup(replacing: .saveItem) {
+            Button("Close") {
+                NSApp.sendAction(#selector(NSWindow.performClose(_:)), to: nil, from: nil)
+            }
+            .keyboardShortcut("w")
+            Button("Close File") {
+                if let session, let document = session.currentDocument {
+                    session.closeDocument(document)
+                }
+            }
+            .keyboardShortcut("w", modifiers: [.command, .control])
+            .disabled((session?.documents.count ?? 0) < 2)
+            Divider()
+            documentButton("Save", action: #selector(NSDocument.save(_:)))
+                .keyboardShortcut("s")
+            documentButton("Duplicate", action: #selector(NSDocument.duplicate(_:)))
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+            documentButton("Rename…", action: #selector(NSDocument.rename(_:)))
+            documentButton("Move To…", action: #selector(NSDocument.move(_:)))
+            Menu("Revert To") {
+                documentButton("Last Saved Version", action: #selector(NSDocument.revertToSaved(_:)))
+                documentButton("Browse All Versions…", action: #selector(NSDocument.browseVersions(_:)))
+            }
+            .disabled(session?.currentDocument?.fileURL == nil)
         }
         CommandGroup(after: .importExport) {
             Button("Export PDF…") {
@@ -330,17 +378,49 @@ struct FileAndHelpCommands: Commands {
     }
 }
 
+extension FileAndHelpCommands {
+    /// A command of the document the main window shows, sent along the responder chain to
+    /// it as the standard menu items are.
+    private func documentButton(_ title: LocalizedStringKey, action: Selector) -> some View {
+        Button(title) {
+            NSApp.sendAction(action, to: nil, from: nil)
+        }
+        .disabled(session?.currentDocument == nil)
+    }
+}
+
 /// File ▸ New from Template, listing every built-in template.
 struct NewFromTemplateMenu: View {
-    @Environment(\.newDocument) private var newDocument
-
     var body: some View {
         Menu("New from Template") {
             ForEach(DocumentTemplate.allCases) { template in
                 Button(template.title, systemImage: template.systemImage) {
-                    newDocument(TexLabDocument(text: template.text))
+                    TeXDocumentController.newDocument(text: template.text)
                 }
             }
+        }
+    }
+}
+
+/// File ▸ Open Recent: the files opened lately, as the document controller remembers them.
+struct OpenRecentMenu: View {
+    private let recents = RecentDocuments.shared
+
+    var body: some View {
+        Menu("Open Recent") {
+            let urls = recents.urls
+            ForEach(urls, id: \.self) { url in
+                Button {
+                    TeXDocumentController.open(url)
+                } label: {
+                    Text(verbatim: url.lastPathComponent)
+                }
+            }
+            Divider()
+            Button("Clear Menu") {
+                NSDocumentController.shared.clearRecentDocuments(nil)
+            }
+            .disabled(urls.isEmpty)
         }
     }
 }
@@ -365,5 +445,22 @@ struct OpenRecentProjectMenu: View {
             }
         }
         .disabled(recents.items.isEmpty)
+    }
+}
+
+/// The document controller's recent documents, observed for the Open Recent menu.
+@Observable
+final class RecentDocuments {
+    static let shared = RecentDocuments()
+
+    private(set) var urls: [URL] = []
+
+    /// Reads the list again. Not before launch: the first document controller made is the
+    /// app's, and it must be TexLab's own.
+    func refresh() {
+        let current = NSDocumentController.shared.recentDocumentURLs
+        if current != urls {
+            urls = current
+        }
     }
 }

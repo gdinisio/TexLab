@@ -37,7 +37,7 @@ struct GoToLineSheet: View {
                 .textFieldStyle(.roundedBorder)
                 .focused($isFieldFocused)
                 .onSubmit(go)
-            Text("^[\(lineCount) line](inflect: true) in \(session.currentFile?.name ?? session.displayName).")
+            Text("^[\(lineCount) line](inflect: true) in \(session.currentName).")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack {

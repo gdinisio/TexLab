@@ -3,6 +3,52 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.28 — Native project windows
+
+Selecting files in the project navigator didn't work, and the way windows held files was
+TexLab's own. Both are now built the way Apple intends a project app like Xcode to be:
+on AppKit's document architecture, with SwiftUI views inside.
+
+- **Every file is a Mac document.** Chapters, bibliographies and packages are documents
+  just like the main file (`NSDocument`), instead of files the window saved itself. Each
+  saves automatically and keeps versions (File ▸ Revert To ▸ Browse All Versions), has
+  its own undo history — undoing back to the saved text clears the edited dot again —
+  follows its file when it's renamed or moved, and is read again when another app changes
+  it. A file is only ever open once, so it can't be edited in two windows.
+- **Project windows, like Xcode's.** A project's files share one window, which shows one
+  at a time and is that file's window: the title, proxy icon and edited dot are the shown
+  file's, and File ▸ Save, Duplicate, Rename, Move To and Revert To act on it. Opening a
+  chapter, bibliography or package from the Finder, File ▸ Open or Open Recent while its
+  project is open shows it in the project's window rather than a window of its own; a
+  complete document of its own opens in a new window. The subtitle names the project and
+  how typesetting went.
+- **A native File menu**: New Document, New from Template, New Project, New File in
+  Project, Open…, Open Project…, Open Recent, Open Recent Project, Close (⌘W), Close File
+  (⌃⌘W), Save, Duplicate, Rename…, Move To… and Revert To.
+- **Closing**: closing a window closes the project's files with it — each saves itself,
+  and an untitled document asks as usual — and closing one file shows the one you were
+  on before. TexLab stays open with no windows; the Dock icon brings the Welcome window
+  back. A reopened window has its other files open again.
+- **The project navigator is a native sidebar outline** (`NSOutlineView`), as in Xcode
+  and the Finder. Clicking a file shows it in the editor — this didn't work before,
+  because SwiftUI's list stops selecting rows that can be dragged — and the arrow keys
+  and type-to-select step through files with the keyboard still in the list. The
+  selection follows the file on screen, opening folders to reveal it. Double-click or ⌘↓
+  goes to the file (images and PDFs open in their app), Return renames in place with the
+  name selected up to its extension, ⌘⌫ moves to the Trash, and New Folder names the new
+  folder in place. Drag files onto a folder to move them, from the Finder to copy them
+  in, or into the editor to reference them. The context menu acts on the clicked row, or
+  the whole selection if the row is in it. The Document section shows each included file
+  inside the file that includes it, and open folders stay open per project.
+- Renames and moves in the navigator are coordinated with open documents, so an open
+  chapter follows its file instead of being saved back under the old name.
+
+Technical: `TeXDocument`, `TeXDocumentController`, `ProjectWindowController`,
+`ProjectWindowView` (was `ContentView`), `ProjectNavigatorOutline` and `FileOperations`
+are new; `TexLabDocument` (a SwiftUI `FileDocument`) and `EditorFile` are gone, and the app
+no longer uses `DocumentGroup`. `Info.plist` names `TeXDocument` as the class of every
+document type.
+
 ## v1.27 — Fixes and polish
 
 A pass over the whole app for bugs and rough edges.

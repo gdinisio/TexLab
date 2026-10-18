@@ -23,14 +23,14 @@ extension DocumentSession {
         }
         let text = text
         let context = liveCheckContext
-        let checkedFile = currentFile
+        let checkedDocument = currentDocument
         let source: SourceFile = fileURL.map { SourceFile.file($0) } ?? .currentDocument
         liveIssuesTask = Task { [weak self] in
             let found = await Task.detached(priority: .utility) {
                 LiveChecker.check(text, context: context)
             }.value
             // The editor may show another file by now.
-            guard !Task.isCancelled, let self, self.currentFile === checkedFile else { return }
+            guard !Task.isCancelled, let self, self.currentDocument === checkedDocument else { return }
             let issues = found.enumerated().map { index, issue in
                 Issue(
                     id: Self.liveIssueIDBase + index,

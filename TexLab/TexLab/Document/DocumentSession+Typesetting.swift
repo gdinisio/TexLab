@@ -118,10 +118,11 @@ extension DocumentSession {
             allowsShellEscape: defaults.bool(forKey: SettingsKey.allowsShellEscape),
             buildDirectory: buildDirectory,
             jobName: BuildNaming.jobName(for: mainName),
-            // The window's other files are typeset as they are here, saved or not.
-            openFiles: openFiles.compactMap { file in
-                guard file !== currentFile, file.isWindowDocument || file.hasUnsavedChanges, let url = file.url else { return nil }
-                return OpenFileText(url: url, text: file.text, encoding: file.encoding)
+            // The window's other documents are typeset as they are here, saved or not.
+            openFiles: documents.compactMap { document in
+                guard document !== currentDocument, document.isDocumentEdited || document.hasUnautosavedChanges,
+                      let url = document.fileURL else { return nil }
+                return OpenFileText(url: url, text: document.text, encoding: document.encoding)
             }
         )
 

@@ -57,7 +57,7 @@ extension DocumentSession {
         // Files open in this window are read as they are here, unsaved changes included.
         let openTexts = openFileTexts
         // Another file of the window belongs to the project the window already has.
-        let knownMainFile = isShowingOtherFile ? project?.mainFile : nil
+        let knownMainFile = project?.mainFile
         projectRefreshTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(150))
             guard !Task.isCancelled else { return }
@@ -101,24 +101,17 @@ extension DocumentSession {
 
     // MARK: - Opening files
 
-    /// Opens a project file: text files in this window's editor, beside its document (or
-    /// in a window of their own if asked), others in the app that normally opens them.
+    /// Opens a project file: text files in this window's editor (or in a window of their
+    /// own if asked), others in the app that normally opens them.
     func openProjectFile(_ url: URL, inNewWindow: Bool = false) {
         guard ProjectFileKind(url: url, isDirectory: false).opensInTexLab else {
             NSWorkspace.shared.open(url)
             return
         }
-        if !inNewWindow, showFile(url) {
-            return
-        }
-        // A file is edited in one place only, so this window lets it go first.
-        if let file = openFiles.first(where: { $0.matches(url) }), !file.isWindowDocument {
-            closeFile(file)
-        }
-        Task {
-            if (try? await NSDocumentController.shared.openDocument(withContentsOf: url, display: true)) == nil {
-                NSSound.beep()
-            }
+        if inNewWindow {
+            openInNewWindow(url)
+        } else if !showFile(url) {
+            TeXDocumentController.open(url)
         }
     }
 
@@ -146,30 +139,66 @@ extension DocumentSession {
         return url
     }
 
-    func createFolder(named name: String, in folder: URL) throws {
-        let url = folder.appending(path: name, directoryHint: .isDirectory)
-        guard !FileManager.default.fileExists(atPath: url.filePath) else {
-            throw ProjectError.fileExists(name)
+    /// Makes a folder, named `name` or — for a new folder the user names next — “untitled
+    /// folder”, numbered if that's taken, as the Finder does.
+    @discardableResult
+    func createFolder(named name: String, in folder: URL) throws -> URL {
+        var url = folder.appending(path: name, directoryHint: .isDirectory)
+        var number = 2
+        while FileManager.default.fileExists(atPath: url.filePath) {
+            url = folder.appending(path: "\(name) \(number)", directoryHint: .isDirectory)
+            number += 1
         }
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
         refreshProject()
+        return url
     }
 
     /// Renames a file or folder. Open documents follow the file; references to it in other
     /// files aren't changed.
-    func renameProjectFile(_ url: URL, to name: String) throws {
+    func renameProjectFile(_ url: URL, to name: String) async throws {
         let destination = url.deletingLastPathComponent().appending(path: name)
         guard !FileManager.default.fileExists(atPath: destination.filePath) else {
             throw ProjectError.fileExists(name)
         }
-        try FileManager.default.moveItem(at: url, to: destination)
-        openFilesDidMove(from: url, to: destination)
+        try await FileOperations.move(url, to: destination)
+        refreshProject()
+    }
+
+    /// Moves files and folders into another folder of the project, as dragging them in the
+    /// navigator does. Open documents follow them.
+    func moveProjectItems(_ urls: [URL], into folder: URL) async throws {
+        for url in urls {
+            let destination = folder.appending(path: url.lastPathComponent)
+            guard SourceMap.canonicalPath(destination) != SourceMap.canonicalPath(url) else { continue }
+            guard !FileManager.default.fileExists(atPath: destination.filePath) else {
+                throw ProjectError.fileExists(url.lastPathComponent)
+            }
+            try await FileOperations.move(url, to: destination)
+        }
+        refreshProject()
+    }
+
+    /// Copies files from elsewhere into a folder of the project, as dropping them from the
+    /// Finder on the navigator does.
+    func copyIntoProject(_ urls: [URL], folder: URL) throws {
+        for url in urls {
+            let destination = folder.appending(path: url.lastPathComponent)
+            guard !FileManager.default.fileExists(atPath: destination.filePath) else {
+                throw ProjectError.fileExists(url.lastPathComponent)
+            }
+            try FileManager.default.copyItem(at: url, to: destination)
+        }
         refreshProject()
     }
 
     func moveToTrash(_ urls: [URL]) {
-        // Open copies close without being saved back, which would bring the files back.
-        openFilesWereRemoved(urls)
+        // Open documents close without being saved, which would bring the files back.
+        let paths = urls.map(SourceMap.canonicalPath)
+        for document in documents {
+            guard let path = document.path, paths.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) else { continue }
+            document.close()
+        }
         NSWorkspace.shared.recycle(urls) { [weak self] _, _ in
             // Not necessarily called on the main thread.
             Task { @MainActor in

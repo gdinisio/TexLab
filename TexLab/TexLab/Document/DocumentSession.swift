@@ -20,36 +20,35 @@ nonisolated enum SidebarTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-/// The state of one document window: the editor, typesetting, the preview and statistics.
+/// The state of one project window: the editor, typesetting, the preview and statistics.
 ///
-/// Each window owns a session. Views observe it, and menu commands reach the focused
-/// window's session through `FocusedValues`.
+/// Each project window owns a session. Views observe it, and menu commands reach the main
+/// window's session through `ActiveSession`.
 @Observable
 final class DocumentSession {
     let editor = EditorController()
     let preview = PreviewController()
 
-    /// Where the file the editor shows is on disk: the window's document or another file
-    /// of its project. Nil while the window's document is untitled.
+    /// Where the document the editor shows is on disk; nil while it is untitled.
     var fileURL: URL?
-    /// The shown file's text encoding, used for the copy TeX reads.
+    /// The shown document's text encoding, used for the copy TeX reads.
     var encoding: String.Encoding = .utf8
 
-    // MARK: Files
+    // MARK: Documents
 
-    /// The files open in this window: its own document first, then project files opened
-    /// beside it from the navigator, a search result, an issue or Jump to Definition.
-    var openFiles: [EditorFile] = []
-    /// The file the editor shows.
-    var currentFile: EditorFile?
-    /// The files shown, oldest first, for Go Back and Go Forward.
-    var fileHistory: [String] = []
+    /// The documents open in this window, in the order they were opened: the file the
+    /// window opened with, then the ones opened from the navigator, a search result, an
+    /// issue or Jump to Definition.
+    var documents: [TeXDocument] = []
+    /// The document the editor shows.
+    var currentDocument: TeXDocument?
+    /// The documents shown, oldest first, for Go Back and Go Forward.
+    var fileHistory: [ObjectIdentifier] = []
     var fileHistoryIndex = -1
-    /// Puts the window document's text into the document, which saves it. Set by the
-    /// window.
-    @ObservationIgnored var writeDocumentText: ((String) -> Void)?
-    @ObservationIgnored var autosaveTask: Task<Void, Never>?
+    /// The window, which becomes the window of each document it shows.
+    @ObservationIgnored weak var windowController: ProjectWindowController?
     @ObservationIgnored var fileObservers: [NSObjectProtocol] = []
+    @ObservationIgnored var isStarted = false
 
     // MARK: Editing
 
@@ -150,7 +149,6 @@ final class DocumentSession {
     @ObservationIgnored var issueCursor = -1
     @ObservationIgnored private var analysisTask: Task<Void, Never>?
     @ObservationIgnored private var flatOutline: [OutlineItem] = []
-    @ObservationIgnored private var navigationObserver: NSObjectProtocol?
     @ObservationIgnored var mathCache: [String: MathImage] = [:]
     @ObservationIgnored var failedMathKeys: Set<String> = []
     /// The preamble and engine the cached formulas were typeset with.
@@ -204,30 +202,29 @@ final class DocumentSession {
 
     // MARK: - Lifecycle
 
-    /// Called when the window appears with the document's initial contents.
-    func start(text: String, encoding: String.Encoding, fileURL: URL?) {
-        self.text = text
-        self.encoding = encoding
-        self.fileURL = fileURL
-        let windowFile = EditorFile(url: fileURL, text: text, encoding: encoding, isWindowDocument: true)
-        openFiles = [windowFile]
-        currentFile = windowFile
-        recordInHistory(windowFile)
-        claimWindowDocument()
-        observeFileEvents()
+    /// Called as the window is made, with the document it opens with.
+    func prepare(with document: TeXDocument) {
+        documents = [document]
+        currentDocument = document
+        fileURL = document.fileURL
+        text = document.text
+        encoding = document.encoding
+        hasScannedFolds = document.hasAppliedOpeningFolds
+        recordInHistory(document)
         if fileURL == nil {
             // An untitled document has no project yet.
             sidebarTab = .outline
         }
+    }
+
+    /// Called when the window appears, once its editor is in place.
+    func start() {
+        guard !isStarted else { return }
+        isStarted = true
+        observeFileEvents()
         configureLivePreview()
         analyze()
-        observeNavigationRequests()
         startProject()
-        if let fileURL, let line = SourceNavigator.takePendingLine(for: fileURL) {
-            DispatchQueue.main.async { [weak self] in
-                self?.editor.revealLine(line)
-            }
-        }
         if UserDefaults.standard.bool(forKey: SettingsKey.typesetsAutomatically) {
             typeset()
         }
@@ -237,17 +234,13 @@ final class DocumentSession {
     func stop() {
         analysisTask?.cancel()
         liveIssuesTask?.cancel()
-        closeOpenFiles()
+        stopObservingFileEvents()
         mathRenderTask?.cancel()
         needsAnotherMathRender = false
         stopProject()
         automaticTypesetTask?.cancel()
         typesetTask?.cancel()
         needsAnotherTypeset = false
-        if let navigationObserver {
-            NotificationCenter.default.removeObserver(navigationObserver)
-        }
-        navigationObserver = nil
     }
 
     // MARK: - Editing
@@ -255,16 +248,8 @@ final class DocumentSession {
     /// Called for each change made in the editor.
     func sourceDidChange(_ text: String) {
         self.text = text
-        if let file = currentFile {
-            file.text = text
-            if file.isWindowDocument {
-                writeDocumentText?(text)
-                markWindowDocumentEdited()
-            } else {
-                file.hasUnsavedChanges = true
-                scheduleAutosave()
-            }
-        }
+        // The document saves it; its edited state follows its undo history.
+        currentDocument?.text = text
         scheduleAnalysis()
         scheduleAutomaticTypeset()
     }
@@ -420,64 +405,5 @@ final class DocumentSession {
             lastProjectKey = projectKey
             refreshProject()
         }
-    }
-
-    // MARK: - Navigation between windows
-
-    private func observeNavigationRequests() {
-        guard navigationObserver == nil else { return }
-        navigationObserver = NotificationCenter.default.addObserver(
-            forName: SourceNavigator.revealLineNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            let path = notification.userInfo?[SourceNavigator.pathKey] as? String
-            let line = notification.userInfo?[SourceNavigator.lineKey] as? Int
-            MainActor.assumeIsolated {
-                self?.handleRevealRequest(path: path, line: line)
-            }
-        }
-    }
-
-    /// Another window asks to show a line of one of this window's files.
-    private func handleRevealRequest(path: String?, line: Int?) {
-        guard let path, let line, let file = openFiles.first(where: { $0.id == path }), let url = file.url else { return }
-        _ = SourceNavigator.takePendingLine(for: url)
-        open(url, line: line)
-    }
-}
-
-/// Opens source files in their own windows and reveals a line in them.
-enum SourceNavigator {
-    nonisolated static let revealLineNotification = Notification.Name("TexLabRevealSourceLine")
-    nonisolated static let pathKey = "path"
-    nonisolated static let lineKey = "line"
-
-    private static var pendingLines: [String: Int] = [:]
-
-    /// Opens `url` in TexLab and moves its editor to `line`.
-    static func open(_ url: URL, line: Int?) {
-        if let line {
-            requestReveal(of: line, in: url)
-        }
-        Task {
-            _ = try? await NSDocumentController.shared.openDocument(withContentsOf: url, display: true)
-        }
-    }
-
-    /// Asks the window showing `url` — open already or about to open — to reveal `line`.
-    static func requestReveal(of line: Int, in url: URL) {
-        let path = SourceMap.canonicalPath(url)
-        pendingLines[path] = line
-        NotificationCenter.default.post(
-            name: revealLineNotification,
-            object: nil,
-            userInfo: [pathKey: path, lineKey: line]
-        )
-    }
-
-    /// The line a newly opened window should reveal, if one was requested.
-    static func takePendingLine(for url: URL) -> Int? {
-        pendingLines.removeValue(forKey: SourceMap.canonicalPath(url))
     }
 }

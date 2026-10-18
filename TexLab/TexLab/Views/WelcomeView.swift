@@ -11,8 +11,8 @@ import SwiftUI
 /// or start a single document, and pick up a recent project. A folder or document dropped
 /// on the window opens too.
 struct WelcomeView: View {
-    @Environment(\.newDocument) private var newDocument
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
     @AppStorage(SettingsKey.showsWelcomeAtLaunch) private var showsAtLaunch = AppSettings.showsWelcomeAtLaunch
     @State private var isShowingClone = false
     @State private var isDropTargeted = false
@@ -46,6 +46,7 @@ struct WelcomeView: View {
         }
         .onAppear {
             WelcomeWindow.opener = openWindow
+            WelcomeWindow.dismisser = dismissWindow
         }
     }
 
@@ -93,7 +94,7 @@ struct WelcomeView: View {
                     systemImage: "doc.badge.plus",
                     shortcut: "⌘N"
                 ) {
-                    newDocument(TexLabDocument())
+                    NSDocumentController.shared.newDocument(nil)
                 }
             }
             .padding(.horizontal, 32)
@@ -420,6 +421,7 @@ private struct RecentProjectRow: View {
 enum WelcomeWindow {
     static let id = "welcome"
     static var opener: OpenWindowAction?
+    static var dismisser: DismissWindowAction?
 
     static func show() {
         if let opener {
@@ -428,12 +430,34 @@ enum WelcomeWindow {
             ProjectOpener.chooseAndOpen()
         }
     }
+
+    /// A project window took over from the Welcome window, as in Xcode.
+    static func dismiss() {
+        dismisser?(id: id)
+    }
 }
 
-/// Keeps TexLab from opening an empty document at launch, since the Welcome window does
-/// that job, and brings the Welcome window back when the Dock icon is clicked.
+/// Makes TexLab a document app, keeps it from opening an empty document at launch, since
+/// the Welcome window does that job, and brings the Welcome window back when the Dock icon
+/// is clicked.
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // The first document controller made is the app's.
+        _ = TeXDocumentController()
+        ActiveSession.shared.startObserving()
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        RecentDocuments.shared.refresh()
+    }
+
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        false
+    }
+
+    /// TexLab stays open with no windows, as document apps do; the Dock icon brings the
+    /// Welcome window back.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }
 

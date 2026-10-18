@@ -8,8 +8,8 @@ import Foundation
 import SwiftUI
 
 /// The bar above the editor, like Xcode's jump bar: Go Back and Go Forward through the
-/// files shown, the file the editor shows with a menu of the window's open files, and a
-/// way back to the main file from a chapter.
+/// files shown, the file the editor shows with a menu of the window's open documents, and
+/// a way back to the main file from a chapter.
 struct EditorFileBar: View {
     var session: DocumentSession
 
@@ -72,12 +72,12 @@ struct EditorFileBar: View {
 
     private var fileLabel: some View {
         HStack(spacing: 5) {
-            Image(systemName: icon(for: session.currentFile))
+            Image(systemName: icon(for: session.currentDocument))
                 .foregroundStyle(.secondary)
-            Text(verbatim: path(of: session.currentFile))
+            Text(verbatim: path(of: session.currentDocument))
                 .lineLimit(1)
                 .truncationMode(.head)
-            if session.currentFile?.hasUnsavedChanges == true {
+            if session.currentDocument?.state.isEdited == true {
                 Circle()
                     .fill(.secondary)
                     .frame(width: 6, height: 6)
@@ -92,23 +92,23 @@ struct EditorFileBar: View {
     @ViewBuilder
     private var filesMenu: some View {
         Section("Open in This Window") {
-            ForEach(session.openFiles) { file in
+            ForEach(session.documents) { document in
                 Toggle(isOn: Binding(
-                    get: { session.currentFile === file },
+                    get: { session.currentDocument === document },
                     set: { isOn in
                         if isOn {
-                            session.show(file)
+                            session.show(document)
                         }
                     }
                 )) {
-                    Text(verbatim: path(of: file))
+                    Text(verbatim: path(of: document) + (document.state.isEdited ? " •" : ""))
                 }
             }
         }
         Divider()
-        if let current = session.currentFile, !current.isWindowDocument {
-            Button("Close “\(current.name)”") {
-                session.closeFile(current)
+        if let current = session.currentDocument, session.documents.count > 1 {
+            Button("Close “\(current.state.name)”") {
+                session.closeDocument(current)
             }
         }
         Button("Show in Project Navigator") {
@@ -122,15 +122,15 @@ struct EditorFileBar: View {
         }
     }
 
-    /// The file's path from the project folder, or its name.
-    private func path(of file: EditorFile?) -> String {
-        guard let file, let url = file.url else { return file?.name ?? String(localized: "Untitled") }
-        guard let folder = session.project?.folder else { return file.name }
+    /// The document's path from the project folder, or its name.
+    private func path(of document: TeXDocument?) -> String {
+        guard let document, let url = document.state.url else { return document?.state.name ?? String(localized: "Untitled") }
+        guard let folder = session.project?.folder else { return document.state.name }
         return PathUtilities.relativePath(of: url, from: folder)
     }
 
-    private func icon(for file: EditorFile?) -> String {
-        guard let url = file?.url else { return "doc.text" }
+    private func icon(for document: TeXDocument?) -> String {
+        guard let url = document?.state.url else { return "doc.text" }
         return ProjectFileKind(url: url, isDirectory: false).systemImage
     }
 }

@@ -8,11 +8,9 @@ import Foundation
 import SwiftUI
 
 /// Hosts the AppKit source editor in SwiftUI. The session decides which of the window's
-/// files the editor shows and receives every change; this reports edits and supplies each
-/// file's undo history.
+/// documents the editor shows and receives every change; this reports edits and supplies
+/// each document's undo history.
 struct SourceEditor: NSViewRepresentable {
-    /// The text shown before the session takes over: the window's document.
-    var initialText: String
     var configuration: EditorConfiguration
     var session: DocumentSession
 
@@ -27,7 +25,7 @@ struct SourceEditor: NSViewRepresentable {
 
         textView.delegate = coordinator
         textView.configuration = configuration
-        textView.setText(session.currentFile?.text ?? initialText)
+        textView.setText(session.currentDocument?.text ?? "")
         textView.setSelectedRange(NSRange(location: 0, length: 0))
         textView.droppedFilesFormatter = { [weak session] urls in
             session?.textForDroppedFiles(urls) ?? ""
@@ -69,10 +67,10 @@ struct SourceEditor: NSViewRepresentable {
             parent.session.sourceDidChange(textView.string)
         }
 
-        /// Each file has its own undo history, so undoing never changes a file that isn't on
-        /// screen.
+        /// Each document has its own undo history, so undoing never changes a file that isn't
+        /// on screen, and the document knows from it whether it has unsaved changes.
         func undoManager(for view: NSTextView) -> UndoManager? {
-            parent.session.currentFile?.undoManager ?? view.window?.undoManager
+            parent.session.currentDocument?.undoManager ?? view.window?.undoManager
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {

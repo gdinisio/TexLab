@@ -6,35 +6,37 @@
 import AppKit
 import CoreGraphics
 import Foundation
+import UniformTypeIdentifiers
 
-/// The files of a window, like Xcode's: the project navigator, search results, issues,
-/// SyncTeX and Jump to Definition show any text file of the project in this window's
-/// editor, keeping each file's place, and the preview keeps showing the whole document.
+/// The documents of a window, like the files of an Xcode project window: the project
+/// navigator, search results, issues, SyncTeX and Jump to Definition show any text file of
+/// the project in this window's editor, each where it was left, and the preview keeps
+/// showing the whole document. Each file is a document of its own, which saves itself.
 extension DocumentSession {
-    /// The window's own document.
-    var windowFile: EditorFile? {
-        openFiles.first(where: \.isWindowDocument)
-    }
-
-    /// Whether the editor shows a file other than the window's document.
-    var isShowingOtherFile: Bool {
-        currentFile.map { !$0.isWindowDocument } ?? false
-    }
-
-    /// The window's subtitle: the shown file when it isn't the window's document, and how
-    /// typesetting went.
+    /// The window's subtitle: the project, and how typesetting went.
     var windowSubtitle: String {
         let summary = status.summary
-        guard let file = currentFile, !file.isWindowDocument else { return summary }
-        return summary.isEmpty ? file.name : "\(file.name) — \(summary)"
+        guard let folder = project?.folder ?? (fileURL == nil ? nil : documentDirectory) else { return summary }
+        let name = folder.lastPathComponent
+        return summary.isEmpty ? name : "\(name) — \(summary)"
     }
 
-    // MARK: - Showing files
+    /// The name of the document the editor shows.
+    var currentName: String {
+        currentDocument?.state.name ?? displayName
+    }
 
-    /// Shows a line of a file: here if the editor shows it, as a file of this window if it
-    /// belongs to the project, or in a window of its own otherwise.
+    /// Whether the editor shows `url`.
+    func isShowing(_ url: URL) -> Bool {
+        currentDocument?.matches(url) ?? false
+    }
+
+    // MARK: - Showing documents
+
+    /// Shows a line of a file: here if the editor shows it, as a document of this window if
+    /// it belongs to the project, or in its project's window otherwise.
     func open(_ url: URL, line: Int?) {
-        if let fileURL, SourceMap.canonicalPath(fileURL) == SourceMap.canonicalPath(url) {
+        if isShowing(url) {
             if let line {
                 editor.revealLine(line)
             }
@@ -43,32 +45,38 @@ extension DocumentSession {
         if showFile(url, line: line) {
             return
         }
-        SourceNavigator.open(url, line: line)
+        TeXDocumentController.open(url, line: line)
     }
 
-    /// Shows a text file of the project in the editor, opening it beside the window's
-    /// document if it isn't open yet. A file another window has open is shown there.
-    /// Returns false for files that belong in a window of their own.
+    /// Shows a text file of the project in the editor, opening it as a document of this
+    /// window if it isn't open yet. A file another window has open is shown there. Returns
+    /// false for files that belong in a window of their own.
     @discardableResult
     func showFile(_ url: URL, line: Int? = nil) -> Bool {
-        if let file = openFiles.first(where: { $0.matches(url) }) {
-            show(file, line: line)
+        if let document = documents.first(where: { $0.matches(url) }) {
+            show(document, line: line)
             return true
         }
-        let path = SourceMap.canonicalPath(url)
-        if let owner = EditorFileRegistry.shared.owner(of: path, besides: self) {
-            owner.editor.textView?.window?.makeKeyAndOrderFront(nil)
-            owner.open(url, line: line)
+        if let document = NSDocumentController.shared.document(for: url) as? TeXDocument,
+           let owner = document.projectWindow, owner !== windowController {
+            owner.display(document, line: line)
+            owner.showWindow(nil)
             return true
         }
         guard canShowInWindow(url) else { return false }
-        do {
-            let file = try EditorFile.load(url)
-            openFiles.append(file)
-            EditorFileRegistry.shared.register(file.id, for: self)
-            show(file, line: line)
-        } catch {
-            presentError(error)
+        Task { [weak self] in
+            do {
+                let document = try await TeXDocumentController.openForProject(url)
+                guard let self else { return }
+                if let owner = document.projectWindow, owner !== self.windowController {
+                    owner.display(document, line: line)
+                    owner.showWindow(nil)
+                } else {
+                    self.show(document, line: line)
+                }
+            } catch {
+                self?.presentError(error)
+            }
         }
         return true
     }
@@ -77,39 +85,39 @@ extension DocumentSession {
     func canShowInWindow(_ url: URL) -> Bool {
         guard ProjectFileKind(url: url, isDirectory: false).opensInTexLab,
               FileManager.default.fileExists(atPath: url.filePath) else { return false }
-        let folders = [project?.folder, windowFile?.url?.deletingLastPathComponent()].compactMap { $0 }
+        let folders = [project?.folder, windowController?.projectFolder].compactMap { $0 }
         return folders.contains { folder in
             SourceMap.relativePath(of: url, inside: folder) != nil
         }
     }
 
-    /// Puts `file` in the editor, where it was last time, and brings everything that
-    /// follows the editor — outline, live preview, live issues, gutter — up to date.
-    func show(_ file: EditorFile, line: Int? = nil, recordsHistory: Bool = true) {
-        guard file !== currentFile else {
+    /// Puts `document` in the editor, where it was last time, and brings everything that
+    /// follows the editor — outline, live preview, live issues, gutter — up to date. The
+    /// window becomes the document's window.
+    func show(_ document: TeXDocument, line: Int? = nil, recordsHistory: Bool = true) {
+        guard document !== currentDocument else {
             if let line {
                 editor.revealLine(line)
             }
             return
         }
-        if let current = currentFile {
+        add(document)
+        if let current = currentDocument {
             captureEditorState(into: current)
-            if current.hasUnsavedChanges {
-                save(current)
-            }
         }
-        currentFile = file
-        fileURL = file.url
-        text = file.text
-        encoding = file.encoding
-        hasScannedFolds = file.hasAppliedOpeningFolds
+        windowController?.associate(document)
+        currentDocument = document
+        fileURL = document.fileURL
+        text = document.text
+        encoding = document.encoding
+        hasScannedFolds = document.hasAppliedOpeningFolds
         liveIssues = []
-        editor.show(text: file.text, selection: file.selection, scrollOrigin: line == nil ? file.scrollOrigin : nil, folds: file.folds)
+        editor.show(text: document.text, selection: document.selection, scrollOrigin: line == nil ? document.scrollOrigin : nil, folds: document.folds)
         if let line {
             editor.revealLine(line)
         }
         if recordsHistory {
-            recordInHistory(file)
+            recordInHistory(document)
         }
         analyze()
         // The project's labels and outline now come from the file just left, too.
@@ -118,13 +126,20 @@ extension DocumentSession {
         selectionDidChange()
     }
 
-    private func captureEditorState(into file: EditorFile) {
+    /// Adds a document to the window without showing it.
+    func add(_ document: TeXDocument) {
+        if !documents.contains(where: { $0 === document }) {
+            documents.append(document)
+        }
+    }
+
+    private func captureEditorState(into document: TeXDocument) {
         let state = editor.currentState()
-        file.selection = state.selection
-        file.scrollOrigin = state.scrollOrigin
-        file.folds = state.folds
-        file.hasAppliedOpeningFolds = hasScannedFolds
-        file.text = text
+        document.selection = state.selection
+        document.scrollOrigin = state.scrollOrigin
+        document.folds = state.folds
+        document.hasAppliedOpeningFolds = hasScannedFolds
+        document.text = text
     }
 
     /// Shows the project's main file, from a chapter.
@@ -132,6 +147,33 @@ extension DocumentSession {
         guard let main = project?.mainFile, showFile(main) else {
             NSSound.beep()
             return
+        }
+    }
+
+    /// Opens a project file in a window of its own, out of this one.
+    func openInNewWindow(_ url: URL) {
+        if let document = documents.first(where: { $0.matches(url) }) {
+            guard documents.count > 1 else { return }
+            if document === currentDocument, let other = documentToShow(insteadOf: document) {
+                show(other)
+            }
+            forget(document)
+            document.projectWindow = nil
+            ProjectWindowController.openSeparately(document)
+            return
+        }
+        Task { [weak self] in
+            do {
+                let document = try await TeXDocumentController.openForProject(url)
+                if let owner = document.projectWindow {
+                    owner.display(document)
+                    owner.showWindow(nil)
+                } else {
+                    ProjectWindowController.openSeparately(document)
+                }
+            } catch {
+                self?.presentError(error)
+            }
         }
     }
 
@@ -145,15 +187,16 @@ extension DocumentSession {
         fileHistoryIndex >= 0 && fileHistoryIndex < fileHistory.count - 1
     }
 
-    func recordInHistory(_ file: EditorFile) {
-        if fileHistoryIndex >= 0, fileHistoryIndex < fileHistory.count, fileHistory[fileHistoryIndex] == file.id {
+    func recordInHistory(_ document: TeXDocument) {
+        let id = ObjectIdentifier(document)
+        if fileHistoryIndex >= 0, fileHistoryIndex < fileHistory.count, fileHistory[fileHistoryIndex] == id {
             return
         }
         if fileHistoryIndex < fileHistory.count - 1 {
             fileHistory.removeSubrange((fileHistoryIndex + 1)...)
         }
-        fileHistory.removeAll { $0 == file.id }
-        fileHistory.append(file.id)
+        fileHistory.removeAll { $0 == id }
+        fileHistory.append(id)
         if fileHistory.count > 50 {
             fileHistory.removeFirst(fileHistory.count - 50)
         }
@@ -173,9 +216,9 @@ extension DocumentSession {
     private func moveInHistory(by step: Int) {
         var index = fileHistoryIndex + step
         while fileHistory.indices.contains(index) {
-            if let file = openFiles.first(where: { $0.id == fileHistory[index] }) {
+            if let document = documents.first(where: { ObjectIdentifier($0) == fileHistory[index] }) {
                 fileHistoryIndex = index
-                show(file, recordsHistory: false)
+                show(document, recordsHistory: false)
                 return
             }
             fileHistory.remove(at: index)
@@ -187,217 +230,101 @@ extension DocumentSession {
         NSSound.beep()
     }
 
+    /// The document to show when `document` goes: the one shown before it, or else the
+    /// project's main file or the first one opened.
+    func documentToShow(insteadOf document: TeXDocument) -> TeXDocument? {
+        let others = documents.filter { $0 !== document }
+        for id in fileHistory.reversed() where id != ObjectIdentifier(document) {
+            if let previous = others.first(where: { ObjectIdentifier($0) == id }) {
+                return previous
+            }
+        }
+        if let main = project?.mainFile, let mainDocument = others.first(where: { $0.matches(main) }) {
+            return mainDocument
+        }
+        return others.first
+    }
+
     // MARK: - Closing
 
-    /// Closes a file opened beside the window's document, saving it first.
-    func closeFile(_ file: EditorFile) {
-        guard !file.isWindowDocument else { return }
-        if file.hasUnsavedChanges {
-            guard save(file) else { return }
-        }
-        if file === currentFile, let windowFile {
-            show(windowFile)
-        }
-        openFiles.removeAll { $0 === file }
-        if let index = fileHistory.firstIndex(of: file.id) {
+    /// Closes a document of this window; it saves itself first. The last one closes the
+    /// window.
+    func closeDocument(_ document: TeXDocument) {
+        windowController?.close(document)
+    }
+
+    /// Forgets a document that has closed or moved to another window.
+    func forget(_ document: TeXDocument) {
+        documents.removeAll { $0 === document }
+        let id = ObjectIdentifier(document)
+        if let index = fileHistory.firstIndex(of: id) {
             fileHistory.remove(at: index)
             if index <= fileHistoryIndex {
                 fileHistoryIndex -= 1
             }
         }
         fileHistoryIndex = min(max(fileHistoryIndex, fileHistory.isEmpty ? -1 : 0), fileHistory.count - 1)
-        EditorFileRegistry.shared.unregister(file.id, for: self)
-    }
-
-    /// Saves and forgets every file when the window closes.
-    func closeOpenFiles() {
-        autosaveTask?.cancel()
-        saveOpenFiles()
-        for file in openFiles {
-            EditorFileRegistry.shared.unregister(file.id, for: self)
+        if currentDocument === document {
+            currentDocument = nil
         }
-        for observer in fileObservers {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        fileObservers = []
-    }
-
-    /// Another window opened this file as its own document; this window lets it go so the
-    /// file is edited in one place.
-    func relinquishFile(at path: String) {
-        guard let file = openFiles.first(where: { $0.id == path }), !file.isWindowDocument else { return }
-        closeFile(file)
-    }
-
-    /// Registers the window's document, taking it from a window that had it open beside
-    /// its own.
-    func claimWindowDocument() {
-        guard let file = windowFile, file.url != nil else { return }
-        EditorFileRegistry.shared.owner(of: file.id, besides: self)?.relinquishFile(at: file.id)
-        EditorFileRegistry.shared.register(file.id, for: self)
-    }
-
-    // MARK: - Saving
-
-    /// Saves the files opened beside the window's document soon after the last change.
-    func scheduleAutosave() {
-        autosaveTask?.cancel()
-        autosaveTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2))
-            guard !Task.isCancelled else { return }
-            self?.saveOpenFiles()
-        }
-    }
-
-    /// Writes every file opened beside the window's document that has unsaved changes.
-    func saveOpenFiles() {
-        for file in openFiles where !file.isWindowDocument && file.hasUnsavedChanges {
-            save(file)
-        }
-    }
-
-    @discardableResult
-    func save(_ file: EditorFile) -> Bool {
-        guard !file.isWindowDocument, file.hasUnsavedChanges else { return true }
-        do {
-            try file.save()
-            file.hasReportedSaveError = false
-            return true
-        } catch {
-            // Say so once, not after every pause in typing.
-            if !file.hasReportedSaveError {
-                file.hasReportedSaveError = true
-                presentError(error)
-            }
-            return false
-        }
-    }
-
-    /// Marks the window's document as changed, so it is saved like any Mac document. Its
-    /// edits use the file's own undo history, which the document doesn't watch.
-    func markWindowDocumentEdited() {
-        (editor.textView?.window?.windowController?.document as? NSDocument)?.updateChangeCount(.changeDone)
     }
 
     // MARK: - Changes from elsewhere
 
-    /// The window's document changed outside the editor: Revert To, or an undo made through
-    /// the document.
-    func windowDocumentTextDidChange(_ newText: String) {
-        guard let file = windowFile, newText != file.text else { return }
-        file.text = newText
-        if file === currentFile {
-            DispatchQueue.main.async { [weak self] in
-                guard let self, self.currentFile === file, file.text == newText else { return }
-                self.editor.applyExternalText(newText)
-                self.text = newText
-                self.analyze()
-            }
-        } else {
-            file.textChangedElsewhere()
-        }
+    /// A document was read again from its file: Revert To, or a change another app made,
+    /// such as a `git pull`.
+    func documentDidRevert(_ document: TeXDocument) {
+        guard document === currentDocument else { return }
+        editor.applyExternalText(document.text)
+        text = document.text
+        encoding = document.encoding
+        analyze()
+        refreshProject()
     }
 
-    /// The window's document was saved somewhere else, renamed or moved.
-    func windowDocumentDidMove(to newURL: URL?) {
-        guard let file = windowFile else { return }
-        let oldID = file.id
-        EditorFileRegistry.shared.unregister(oldID, for: self)
-        file.move(to: newURL)
-        if file.url != nil {
-            EditorFileRegistry.shared.register(file.id, for: self)
-        }
-        replaceInHistory(oldID, with: file.id)
-        if file === currentFile {
-            fileURL = newURL
+    /// A document was renamed, moved, or saved for the first time.
+    func documentDidMove(_ document: TeXDocument) {
+        if document === currentDocument {
+            fileURL = document.fileURL
+            if fileURL != nil, sidebarTab == .outline, project == nil {
+                // A newly saved document has a project now.
+                sidebarTab = .project
+            }
         }
         refreshProject()
     }
 
-    /// Files and folders renamed or moved in the navigator: open files follow them.
-    func openFilesDidMove(from oldURL: URL, to newURL: URL) {
-        let oldPath = SourceMap.canonicalPath(oldURL)
-        let newPath = SourceMap.canonicalPath(newURL)
-        for file in openFiles where !file.isWindowDocument {
-            guard let url = file.url else { continue }
-            let path = url.standardizedFileURL.filePath
-            let standardizedOld = oldURL.standardizedFileURL.filePath
-            let suffix: String
-            if file.id == oldPath || path == standardizedOld {
-                suffix = ""
-            } else if file.id.hasPrefix(oldPath + "/") {
-                suffix = String(file.id.dropFirst(oldPath.count))
-            } else {
-                continue
-            }
-            let moved = URL(filePath: newPath + suffix)
-            let oldID = file.id
-            EditorFileRegistry.shared.unregister(oldID, for: self)
-            file.move(to: moved)
-            EditorFileRegistry.shared.register(file.id, for: self)
-            replaceInHistory(oldID, with: file.id)
-            if file === currentFile {
-                fileURL = moved
-            }
-        }
-    }
-
-    /// Files moved to the Trash: open copies close without being saved back.
-    func openFilesWereRemoved(_ urls: [URL]) {
-        let paths = urls.map(SourceMap.canonicalPath)
-        for file in openFiles where !file.isWindowDocument {
-            guard paths.contains(where: { file.id == $0 || file.id.hasPrefix($0 + "/") }) else { continue }
-            file.hasUnsavedChanges = false
-            closeFile(file)
-        }
-    }
-
-    /// Picks up changes other apps made to open files, such as a `git pull`, when TexLab
-    /// becomes active again. Files with changes of their own keep them.
-    func reloadFilesChangedOnDisk() {
-        for file in openFiles where !file.isWindowDocument && !file.hasUnsavedChanges {
-            guard let url = file.url else { continue }
+    /// Picks up changes other apps made to documents without unsaved changes, such as a
+    /// `git pull`, when TexLab becomes active again. Files that are gone close.
+    func reloadDocumentsChangedOnDisk() {
+        for document in documents where !document.isDocumentEdited {
+            guard let url = document.fileURL else { continue }
             guard FileManager.default.fileExists(atPath: url.filePath) else {
-                closeFile(file)
+                if documents.count > 1 {
+                    closeDocument(document)
+                }
                 continue
             }
-            let date = EditorFile.modificationDate(of: url)
-            guard date != file.modificationDate else { continue }
-            file.modificationDate = date
-            guard let reloaded = try? EditorFile.load(url), reloaded.text != file.text else { continue }
-            file.text = reloaded.text
-            file.encoding = reloaded.encoding
-            file.textChangedElsewhere()
-            if file === currentFile {
-                editor.applyExternalText(reloaded.text)
-                text = reloaded.text
-                analyze()
-            }
+            let date = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            guard let date, let known = document.fileModificationDate, date > known else { continue }
+            try? document.revert(toContentsOf: url, ofType: document.fileType ?? UTType.plainText.identifier)
         }
-    }
-
-    private func replaceInHistory(_ oldID: String, with newID: String) {
-        fileHistory = fileHistory.map { $0 == oldID ? newID : $0 }
     }
 
     func observeFileEvents() {
         guard fileObservers.isEmpty else { return }
-        let center = NotificationCenter.default
-        fileObservers.append(center.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+        fileObservers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.saveOpenFiles()
+                self?.reloadDocumentsChangedOnDisk()
             }
         })
-        fileObservers.append(center.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.saveOpenFiles()
-            }
-        })
-        fileObservers.append(center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.reloadFilesChangedOnDisk()
-            }
-        })
+    }
+
+    func stopObservingFileEvents() {
+        for observer in fileObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        fileObservers = []
     }
 
     // MARK: - Editing files that aren't shown
@@ -405,8 +332,8 @@ extension DocumentSession {
     /// The text of a file as this window has it, unsaved changes included, or nil if it
     /// isn't open here.
     func textOfOpenFile(_ url: URL) -> String? {
-        guard let file = openFiles.first(where: { $0.matches(url) }) else { return nil }
-        return file === currentFile ? text : file.text
+        guard let document = documents.first(where: { $0.matches(url) }) else { return nil }
+        return document === currentDocument ? text : document.text
     }
 
     /// A file's text: as open in this window, or as saved.
@@ -414,36 +341,32 @@ extension DocumentSession {
         textOfOpenFile(url) ?? ProjectIndex.contents(of: url)
     }
 
-    /// The text of every file open here, by canonical path, for the project index.
+    /// The text of every document open here, by canonical path, for the project index.
     var openFileTexts: [String: String] {
         var texts: [String: String] = [:]
-        for file in openFiles where file.url != nil {
-            texts[file.id] = file === currentFile ? text : file.text
+        for document in documents {
+            guard let path = document.path else { continue }
+            texts[path] = document === currentDocument ? text : document.text
         }
         return texts
     }
 
-    /// Changes a file open in this window — in the editor as an undoable edit if it's
+    /// Changes a document open in this window — in the editor as an undoable edit if it's
     /// shown. Returns false if the file isn't open here.
     @discardableResult
     func modifyOpenFile(at url: URL, actionName: String, _ change: (String) -> (range: NSRange, text: String)?) -> Bool {
-        guard let file = openFiles.first(where: { $0.matches(url) }) else { return false }
-        if file === currentFile {
+        guard let document = documents.first(where: { $0.matches(url) }) else { return false }
+        if document === currentDocument {
             if let edit = change(text) {
                 editor.replace(edit.range, with: edit.text, actionName: actionName)
             }
             return true
         }
-        guard let edit = change(file.text) else { return true }
-        file.text = (file.text as NSString).replacingCharacters(in: edit.range, with: edit.text)
-        file.textChangedElsewhere()
-        if file.isWindowDocument {
-            writeDocumentText?(file.text)
-            markWindowDocumentEdited()
-        } else {
-            file.hasUnsavedChanges = true
-            save(file)
-        }
+        guard let edit = change(document.text) else { return true }
+        document.text = (document.text as NSString).replacingCharacters(in: edit.range, with: edit.text)
+        // Its undo history describes the text before this change.
+        document.textChangedElsewhere()
+        document.updateChangeCount(.changeDone)
         return true
     }
 
@@ -452,8 +375,9 @@ extension DocumentSession {
         if modifyOpenFile(at: url, actionName: actionName, change) {
             return
         }
-        if let owner = EditorFileRegistry.shared.owner(of: SourceMap.canonicalPath(url), besides: self) {
-            owner.modifyOpenFile(at: url, actionName: actionName, change)
+        if let document = NSDocumentController.shared.document(for: url) as? TeXDocument,
+           let owner = document.projectWindow, owner !== windowController {
+            owner.session.modifyOpenFile(at: url, actionName: actionName, change)
             return
         }
         guard let data = try? Data(contentsOf: url), let decoded = try? TextDecoding.decode(data),
@@ -462,9 +386,9 @@ extension DocumentSession {
         try? (updated.data(using: decoded.encoding) ?? Data(updated.utf8)).write(to: url, options: .atomic)
     }
 
-    private func presentError(_ error: Error) {
+    func presentError(_ error: Error) {
         let alert = NSAlert(error: error)
-        if let window = editor.textView?.window {
+        if let window = editor.textView?.window ?? windowController?.window {
             alert.beginSheetModal(for: window)
         } else {
             alert.runModal()

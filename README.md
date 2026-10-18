@@ -1,9 +1,9 @@
 # TexLab
 
-TexLab is a native LaTeX editor for macOS. It is a document-based SwiftUI app built on
-the Mac text system and PDFKit: every window is a `.tex` document with the standard File
-menu (New, Open Recent, Save, Duplicate, Rename, Move To, Revert To and versions,
-autosave), window tabs and full screen. Projects are plain folders, opened from a Welcome
+TexLab is a native LaTeX editor for macOS. It is a Mac document app built like Xcode: each
+file is a document with the standard File menu (New, Open Recent, Save, Duplicate,
+Rename, Move To, Revert To and versions, autosave), and a project's files share one
+window, which shows them one at a time. Projects are plain folders, opened from a Welcome
 window like Xcode's. You write on the left — as code, or in a Visual editor close to the
 typeset document — the PDF updates on the right, and the two are linked both ways with
 SyncTeX.
@@ -138,18 +138,19 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 **Projects**
 
-- **One window for the whole project** — like Xcode, a window shows any text file of its
-  project: click a chapter in the project navigator (or step through files with the
-  arrow keys) and the editor shows it, while the preview keeps showing the whole
+- **One window for the whole project** — like Xcode, a project window shows any text
+  file of its project: click a chapter in the project navigator (or step through files
+  with the arrow keys) and the editor shows it, while the preview keeps showing the whole
   document. Search results, issues, ⌘-clicks in the PDF and Jump to Definition open files
-  the same way. Each file keeps its own undo history, insertion point, scroll position
-  and folds. The bar above the editor goes back and forward through the files you've
-  shown (⌃⌘← and ⌃⌘→), lists the files open in the window, and returns to the main file
-  (⌃⌘↑). Files other than the window's own document are saved a moment after you stop
-  typing, when you switch away and when the window closes, and changes made by other
-  apps are picked up. Typesetting from a chapter typesets the whole document, with the
-  unsaved text of every open file. A file is only ever edited in one window: opening one
-  that another window shows brings that window forward.
+  the same way, and so does opening a chapter from the Finder or Open Recent while its
+  project is open. The window is the shown file's window: its title, proxy icon and edited
+  dot are that file's, and File ▸ Save, Rename, Move To, Duplicate and Revert To act on it.
+  Every file is a Mac document that saves itself and keeps versions, its own undo history,
+  insertion point, scroll position and folds, and picks up changes other apps make. The
+  bar above the editor goes back and forward through the files you've shown (⌃⌘← and
+  ⌃⌘→), lists the files open in the window, and returns to the main file (⌃⌘↑); File ▸
+  Close File (⌃⌘W) closes one, and closing the window closes them all. Typesetting from a
+  chapter typesets the whole document, with the unsaved text of every open file.
 - **Navigators** — the sidebar has five, like Xcode's, chosen from the row of icons at its
   top or with ⌘1–⌘5: Project, Outline, Find, References and Issues; the Issues icon
   shows how many there are.
@@ -169,15 +170,20 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   shows it.
 - **References navigator** — every label (by kind) and bibliography entry in the project;
   double-click to refer to it, drag it into the text, or go to its definition.
-- **Project navigator** — the first sidebar tab lists the files of the document's folder,
-  like Xcode's: LaTeX files, bibliographies, packages, images and subfolders, with the
-  main file marked. Select a file to show it in the editor (double-click images and PDFs
-  to open them in their usual app, or use Open in New Window), drag it into the editor to insert `\input`,
-  `\includegraphics`, `\bibliography` or `\usepackage` with the right relative path, and
-  use the context menu to open, reference, rename, show in Finder or move to the Trash.
-  Copy Path copies a file's path relative to the main file — what `\includegraphics`
-  and `\input` expect — and Copy LaTeX Reference the whole command.
-  The list follows changes made in the Finder.
+- **Project navigator** — the first sidebar tab lists the files of the project's folder in
+  a native sidebar outline, like Xcode's and the Finder's: LaTeX files, bibliographies,
+  packages, images and folders, with the main file marked. Click a file to show it in the
+  editor; the arrow keys and type-to-select step through files with the keyboard still in
+  the list, and the selection follows the file on screen. Double-click or ⌘↓ goes to the
+  file (images and PDFs open in their usual app), Return renames it in place, ⌘⌫ moves it
+  to the Trash, and dragging moves files between folders, copies files in from the
+  Finder, or drops a reference into the editor — `\input`, `\includegraphics`,
+  `\bibliography` or `\usepackage` with the right relative path. The context menu opens,
+  opens in a new window, references, renames, shows in Finder or moves to the Trash the
+  clicked row or the selection; New Folder names the folder in place. Copy Path copies a
+  file's path relative to the main file — what `\includegraphics` and `\input` expect —
+  and Copy LaTeX Reference the whole command. Renames and moves are coordinated, so open
+  files follow them, and the list follows changes made in the Finder.
 - **New File in Project** (⌥⌘N, or + in the navigator) creates a section or chapter, a
   BibTeX bibliography, a package or a complete document in any folder of the project, and
   can add it to the main file: `\input{…}` before `\end{document}`, the bibliography
@@ -243,6 +249,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 | Find in Project | ⇧⌘F |
 | Go Back / Go Forward (files shown) | ⌃⌘← / ⌃⌘→ |
 | Show Main File | ⌃⌘↑ |
+| Close File / Close Window | ⌃⌘W / ⌘W |
+| Project navigator: go to file / rename / move to Trash | ⌘↓ or double-click / Return / ⌘⌫ |
 | Jump to Definition | ⌘-click or ⌃⌘J |
 | Fold / Unfold | ⌥⌘← / ⌥⌘→ |
 | Fold Figures and Tables / Unfold All | ⌃⌥⌘← / ⌃⌥⌘→ |
@@ -301,8 +309,8 @@ The Xcode project uses a synchronized folder group, so every Swift file under
 
 ```
 TexLab/TexLab/
-├── App/            App entry point and menu commands
-├── Document/       FileDocument, templates, per-window session, outline
+├── App/            App entry point, project windows and menu commands
+├── Document/       NSDocument per file, templates, per-window session, outline
 ├── Editor/         Source editor (AppKit text system), syntax, completion, snippets
 ├── Typesetting/    TeX discovery, typesetting pipeline, log parsing, SyncTeX
 ├── Preview/        PDF preview and navigation
@@ -311,14 +319,29 @@ TexLab/TexLab/
 └── Support/        Settings keys and defaults, paths, text statistics
 ```
 
-- **Document** — `TexLabDocument` is a `FileDocument` holding the text and its encoding.
-  File types are imported UTIs in `Info.plist` (`org.tug.tex`, `.bib`, `.sty`, `.cls`),
-  the identifiers other Mac TeX editors use, so TexLab cooperates rather than claiming
-  ownership.
+- **Documents** — TexLab uses AppKit's document architecture, the one Xcode is built on.
+  Each text file is a `TeXDocument` (`NSDocument`) holding its text and encoding, with
+  autosave in place, versions, and NSDocument's handling of renames, moves and changes
+  made by other apps. `Info.plist` names it as the class for every document type; the
+  types are imported UTIs (`org.tug.tex`, `.bib`, `.sty`, `.cls`), the identifiers other
+  Mac TeX editors use, so TexLab cooperates rather than claiming ownership.
+  `TeXDocumentController` (made first, in the app delegate, so it is the shared one) gives
+  new documents the Article template, opens text files without a type of their own as
+  plain text, and keeps files a window opens for itself out of Open Recent.
+- **Project windows** — `ProjectWindowController` is an `NSWindowController` hosting the
+  SwiftUI window content (`ProjectWindowView`, through `NSHostingController`, whose
+  toolbar it bridges). A project's documents share it: showing one moves the window
+  controller to that document (`removeWindowController` / `addWindowController`), so
+  the title, proxy icon, edited dot and the File menu's document commands follow the file
+  on screen, as in Xcode. A document opened from the Finder or Open Recent finds its
+  window by its main file, or by the folder for a bibliography or package. Closing the
+  window asks each document to close (`canClose`, which autosaves), and closing a
+  document shows another; the window remembers its other open files for state
+  restoration. SwiftUI keeps the Welcome, New Project and Settings windows and the menu
+  bar; `ActiveSession` tells the menu commands which project window is main.
 - **Session** — `DocumentSession` (`@Observable`) is the per-window model: editor and
   preview controllers, caret position, word count, outline, typesetting state and issues.
-  Extensions add typesetting (`+Typesetting`) and SyncTeX navigation (`+Sync`). Menu
-  commands reach the focused window's session through `FocusedValues.documentSession`.
+  Extensions add typesetting (`+Typesetting`) and SyncTeX navigation (`+Sync`).
 - **Editor** — `SourceTextView` is a TextKit 1 `NSTextView` subclass hosted by
   `SourceEditor` (`NSViewRepresentable`) inside `EditorScrollView`, which sizes the text
   view to the visible area on every layout. TextKit 1 gives precise line geometry for the
@@ -364,22 +387,26 @@ TexLab/TexLab/
   includes, in the order TeX reads it, as part of the project scan: the parts listed in
   the navigator and the outline of the whole document, with each included file's
   headings spliced in where it is read.
-- **Files of a window** — `EditorFile` holds each file a window shows: the window's own
-  document, saved by the document system, and project files opened beside it, which the
-  window saves itself (coordinated, replacing the file safely). One `SourceTextView`
-  shows them in turn (`DocumentSession+Files`): switching stores the insertion point,
-  scroll position and folds, puts the other file's text in, and the text view takes its
-  undo manager from the file, so undo never reaches a file that isn't on screen.
-  `EditorFileRegistry` keeps each file to one window. The session's `fileURL` and `text`
-  describe the shown file, so the outline, live preview, live issues and Jump to
-  Definition follow it; typesetting overlays the unsaved text of the window's other files
-  for TeX.
+- **Documents of a window** — one `SourceTextView` shows a window's documents in turn
+  (`DocumentSession+Files`): switching stores the insertion point, scroll position and
+  folds, puts the other document's text in, and the text view takes its undo manager from
+  the document, so undo never reaches a file that isn't on screen and the document knows
+  from it whether it has unsaved changes. The document controller keeps each file to one
+  document, and so to one window. The session's `fileURL` and `text` describe the shown
+  document, so the outline, live preview, live issues and Jump to Definition follow it;
+  typesetting overlays the unsaved text of the window's other documents for TeX.
+- **Project navigator** — `ProjectNavigatorOutline` wraps an `NSOutlineView` in the
+  source-list style: SwiftUI's `List` on macOS stops selecting rows that can be dragged,
+  and the outline view brings the Finder's behaviour — type-select, inline renaming,
+  drag and drop, a context menu for the clicked row or the selection, and folders that
+  stay open per project. Rows are `NavigatorNode` objects reused by path, so open folders
+  and the selection survive each rescan. `FileOperations` moves files through
+  `NSFileCoordinator`, off the main thread, so open documents follow.
 - **Projects** — a project is the main file's folder, not a new file format, so projects
   stay plain folders other TeX tools understand. `ProjectIndex` builds a
   `ProjectSnapshot` off the main thread (file tree, main file, labels and citation keys of
   the other files); `DirectoryWatcher` (a dispatch source per folder) and app activation
-  keep it current. Each file is still its own document, so saving, undo and versions
-  work per file; the navigator opens files as native window tabs.
+  keep it current.
 - **Toolbar and navigators** — `EditorToolbar` is SwiftUI `CustomizableToolbarContent`,
   split into groups of related tools so AppKit's customisation palette offers them all;
   tools insert through `DocumentSession+Insert`, which adds the packages and definitions
@@ -388,8 +415,9 @@ TexLab/TexLab/
   the pointer for Jump to Definition, and the project snapshot also lists the commands
   the project's other files and packages define.
 - **Welcome window** — a SwiftUI `Window` scene presented at launch
-  (`defaultLaunchBehavior`); an `NSApplicationDelegate` stops the untitled document at
-  launch and reopens the window from the Dock. `RecentProjects` keeps recent folders,
+  (`defaultLaunchBehavior`), dismissed when a project window opens; the app delegate
+  stops the untitled document at launch, keeps TexLab open without windows and reopens
+  the Welcome window from the Dock. `RecentProjects` keeps recent folders,
   with their titles and pins, in the user defaults; `ProjectThumbnails` draws the first
   page of the PDF in each project's build folder in the background. `ProjectOpener`
   finds a folder's main file, `GitCloner` runs `git clone` through `ProcessRunner`

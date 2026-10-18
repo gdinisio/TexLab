@@ -117,8 +117,8 @@ nonisolated struct TypesetRequest: Sendable {
     var buildDirectory: URL
     /// The base name of TeX's output files.
     var jobName: String
-    /// Other files open in the window whose text may not be saved yet, such as the window's
-    /// document while a chapter is shown. TeX reads them as they are in the window.
+    /// Other documents open in the window whose text may not be saved yet, such as the main
+    /// file while a chapter is shown. TeX reads them as they are in the window.
     var openFiles: [OpenFileText] = []
 }
 

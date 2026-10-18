@@ -1,26 +1,21 @@
 //
-//  ContentView.swift
+//  ProjectWindowView.swift
 //  TexLab
 //
 //  Created by Giovanni Di Nisio on 25/09/2026.
 //
 
+import AppKit
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The content of a document window: the outline and issues in the sidebar, and the
-/// source editor beside the typeset PDF.
-struct ContentView: View {
-    @Binding var document: TexLabDocument
-    var fileURL: URL?
+/// The content of a project window: the navigators in the sidebar, and the source editor
+/// beside the typeset PDF.
+struct ProjectWindowView: View {
+    @Bindable var session: DocumentSession
 
-    @State private var session = DocumentSession()
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
-    @SceneStorage("showsPreview") private var showsPreview = true
-    /// This window's editor mode, restored with the window.
-    @SceneStorage("editorMode") private var storedEditorMode = ""
+    @AppStorage("showsPreview") private var showsPreview = true
 
     @AppStorage(SettingsKey.editorFontSize) private var fontSize = AppSettings.editorFontSize
     @AppStorage(SettingsKey.showsLineNumbers) private var showsLineNumbers = AppSettings.showsLineNumbers
@@ -56,7 +51,6 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 640, minHeight: 400)
-        .navigationSubtitle(session.windowSubtitle)
         .toolbar(id: "TexLabEditor") {
             EditorToolbar(session: session)
         }
@@ -80,34 +74,15 @@ struct ContentView: View {
             defaultFilename: session.pdfName
         ) { _ in }
         .onAppear {
-            // A document took over from the Welcome window, as in Xcode.
-            WelcomeWindow.opener = openWindow
-            dismissWindow(id: WelcomeWindow.id)
             session.isPreviewVisible = showsPreview
-            if let mode = EditorMode(rawValue: storedEditorMode) {
-                session.setEditorMode(mode)
-            }
-            // The window's document receives the editor's changes while it is shown.
-            let documentBinding = $document
-            session.writeDocumentText = { text in
-                documentBinding.wrappedValue.text = text
-            }
-            session.start(text: document.text, encoding: document.encoding, fileURL: fileURL)
+            session.start()
         }
-        .onDisappear {
-            session.stop()
-        }
-        .onChange(of: fileURL) { _, newValue in
-            session.windowDocumentDidMove(to: newValue)
-        }
-        .onChange(of: document.text) { _, newValue in
-            session.windowDocumentTextDidChange(newValue)
+        .onChange(of: session.windowSubtitle, initial: true) { _, subtitle in
+            // The title is the shown document's, set by the document system.
+            session.windowController?.window?.subtitle = subtitle
         }
         .onChange(of: session.isPreviewVisible) { _, newValue in
             showsPreview = newValue
-        }
-        .onChange(of: session.editorMode) { _, newValue in
-            storedEditorMode = newValue.rawValue
         }
         .onChange(of: rendersMath) {
             session.livePreviewSettingDidChange()
@@ -119,10 +94,10 @@ struct ContentView: View {
 
     private var editorColumn: some View {
         VStack(spacing: 0) {
-            if session.project != nil || session.openFiles.count > 1 {
+            if session.project != nil || session.documents.count > 1 {
                 EditorFileBar(session: session)
             }
-            SourceEditor(initialText: document.text, configuration: editorConfiguration, session: session)
+            SourceEditor(configuration: editorConfiguration, session: session)
             if showsStatusBar {
                 StatusBar(session: session)
             }
@@ -164,8 +139,4 @@ struct ContentView: View {
 extension FocusedValues {
     /// The session of the focused document window, for menu commands.
     @Entry var documentSession: DocumentSession?
-}
-
-#Preview {
-    ContentView(document: .constant(TexLabDocument()), fileURL: nil)
 }

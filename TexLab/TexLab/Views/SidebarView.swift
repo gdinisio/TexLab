@@ -245,7 +245,7 @@ struct OutlineSidebar: View {
             .onChange(of: session.caretLine) {
                 followInDocument(entries)
             }
-            .onChange(of: session.currentFile?.id) {
+            .onChange(of: session.currentDocument?.id) {
                 followInDocument(entries)
             }
             .onChange(of: documentSelection) { _, newValue in
@@ -345,7 +345,7 @@ struct IssuesSidebar: View {
                                 issueButton(issue, showsFile: false)
                             }
                         } header: {
-                            Text("Found While Typing · \(session.currentFile?.name ?? session.displayName)")
+                            Text("Found While Typing · \(session.currentName)")
                         }
                     }
                     // TeX's issues, by file, in the order TeX reported them.

@@ -8,22 +8,18 @@ import Foundation
 import SwiftUI
 
 /// The project navigator, like Xcode's. The Document section lists the main file and the
-/// chapters it includes in reading order, each with its first heading, then its
-/// bibliographies; Files lists the project folder. Selecting a text file shows it in the
-/// editor — the arrow keys step through them — and the selection follows the file the
-/// editor shows. The filter field finds files by name. Double-click an image or PDF to
-/// open it, drag a file into the editor to reference it, and use the context menu or the
-/// + button to add, rename and remove files.
+/// files it includes, in reading order and inside the file that includes them, each with
+/// its first heading, then its bibliographies; Files lists the project folder. The list is
+/// AppKit's sidebar outline (see `ProjectNavigatorOutline`); below it, + adds files and
+/// folders and the filter field finds files by name.
 struct ProjectSidebar: View {
     var session: DocumentSession
 
-    @State private var selection: Set<NavigatorItem> = []
     @State private var filter = ""
-    @State private var renamingURL: URL?
-    @State private var newFolderParent: URL?
-    @State private var enteredName = ""
     @State private var trashCandidates: [URL] = []
     @State private var errorMessage: String?
+    /// A new folder, to name once the list shows it.
+    @State private var folderToName: URL?
 
     var body: some View {
         Group {
@@ -45,28 +41,6 @@ struct ProjectSidebar: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .alert("Rename", isPresented: isPresenting($renamingURL)) {
-            TextField("Name", text: $enteredName)
-            Button("Rename") {
-                if let url = renamingURL {
-                    perform { try session.renameProjectFile(url, to: enteredName) }
-                }
-            }
-            .disabled(!isValidName(enteredName))
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Other files that reference it aren’t changed.")
-        }
-        .alert("New Folder", isPresented: isPresenting($newFolderParent)) {
-            TextField("Name", text: $enteredName)
-            Button("Create") {
-                if let parent = newFolderParent {
-                    perform { try session.createFolder(named: enteredName, in: parent) }
-                }
-            }
-            .disabled(!isValidName(enteredName))
-            Button("Cancel", role: .cancel) {}
-        }
         .confirmationDialog(trashTitle, isPresented: Binding(get: { !trashCandidates.isEmpty }, set: { if !$0 { trashCandidates = [] } })) {
             Button("Move to Trash", role: .destructive) {
                 session.moveToTrash(trashCandidates)
@@ -75,7 +49,7 @@ struct ProjectSidebar: View {
         } message: {
             Text("You can put items back from the Trash in the Finder.")
         }
-        .alert("The file couldn’t be changed", isPresented: isPresenting($errorMessage)) {
+        .alert("The file couldn’t be changed", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "")
@@ -83,179 +57,51 @@ struct ProjectSidebar: View {
     }
 
     private func navigator(_ project: ProjectSnapshot) -> some View {
-        List(selection: $selection) {
-            if trimmedFilter.isEmpty {
-                if showsDocument(project) {
-                    Section("Document") {
-                        ForEach(project.parts) { part in
-                            DocumentPartRow(part: part, isCurrent: isCurrentURL(part.url))
-                                .tag(NavigatorItem.part(part.order))
-                                .draggable(part.url)
-                        }
-                    }
-                }
-                Section {
-                    OutlineGroup(project.tree.children ?? [], children: \.children) { file in
-                        ProjectRow(file: file, isMain: isMain(file, in: project), isCurrent: isCurrent(file))
-                            .tag(NavigatorItem.file(file.url))
-                            .draggable(file.url)
-                    }
-                } header: {
-                    if showsDocument(project) {
-                        Text("Files")
-                    }
-                }
-            } else {
-                let matches = matchingFiles(in: project)
-                if matches.isEmpty {
-                    Text("No Matching Files")
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(matches) { file in
-                    ProjectRow(file: file, isMain: isMain(file, in: project), isCurrent: isCurrent(file), detail: folderPath(of: file, in: project))
-                        .tag(NavigatorItem.file(file.url))
-                        .draggable(file.url)
-                }
-            }
-        }
-        .listStyle(.sidebar)
-        .contextMenu(forSelectionType: NavigatorItem.self) { items in
-            menu(for: urls(of: items, in: project), in: project)
-        } primaryAction: { items in
-            for url in urls(of: items, in: project) where !isFolder(url, in: project) {
-                if ProjectFileKind(url: url, isDirectory: false).opensInTexLab {
-                    // Already shown by selecting it; double-click or Return goes to the text.
-                    session.openProjectFile(url)
-                    session.editor.focus()
-                } else {
-                    NSWorkspace.shared.open(url)
-                }
-            }
-        }
+        ProjectNavigatorOutline(
+            session: session,
+            project: project,
+            filter: trimmedFilter,
+            shownURL: session.fileURL,
+            renameRequest: folderToName,
+            actions: actions
+        )
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomBar(project)
         }
-        .onAppear {
-            followCurrentFile(in: project)
-        }
-        .onChange(of: session.currentFile?.id) {
-            followCurrentFile(in: project)
-        }
-        .onChange(of: selection) { _, newValue in
-            // Selecting one text file shows it, as in Xcode.
-            guard newValue.count == 1, let item = newValue.first, let url = url(of: item, in: project),
-                  !isFolder(url, in: project), ProjectFileKind(url: url, isDirectory: false).opensInTexLab,
-                  !isCurrentURL(url) else { return }
-            session.openProjectFile(url)
-        }
     }
 
-    /// Whether the document has parts to list: the main file includes something.
-    private func showsDocument(_ project: ProjectSnapshot) -> Bool {
-        project.parts.count > 1
+    private var actions: ProjectNavigatorActions {
+        ProjectNavigatorActions(
+            newFile: { folder in
+                session.newFileFolder = folder
+                session.isShowingNewFileSheet = true
+            },
+            newFolder: { folder in
+                newFolder(in: folder)
+            },
+            moveToTrash: { urls in
+                trashCandidates = urls
+            },
+            showError: { error in
+                errorMessage = error.localizedDescription
+            },
+            didBeginRenaming: {
+                folderToName = nil
+            }
+        )
+    }
+
+    /// Makes “untitled folder” and lets the list name it, as the Finder does.
+    private func newFolder(in folder: URL) {
+        do {
+            folderToName = try session.createFolder(named: String(localized: "untitled folder"), in: folder)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private var trimmedFilter: String {
         filter.trimmingCharacters(in: .whitespaces)
-    }
-
-    /// Files whose name or path contains the filter, in path order.
-    private func matchingFiles(in project: ProjectSnapshot) -> [ProjectFile] {
-        project.tree.files
-            .filter { file in
-                file.name.localizedStandardContains(trimmedFilter)
-                    || PathUtilities.relativePath(of: file.url, from: project.folder).localizedStandardContains(trimmedFilter)
-            }
-            .sorted { PathUtilities.relativePath(of: $0.url, from: project.folder).localizedStandardCompare(PathUtilities.relativePath(of: $1.url, from: project.folder)) == .orderedAscending }
-    }
-
-    private func folderPath(of file: ProjectFile, in project: ProjectSnapshot) -> String? {
-        let path = PathUtilities.relativePath(of: file.url.deletingLastPathComponent(), from: project.folder)
-        return path.isEmpty || path == "." ? nil : path
-    }
-
-    private func url(of item: NavigatorItem, in project: ProjectSnapshot) -> URL? {
-        switch item {
-        case .part(let order):
-            project.parts.first { $0.order == order }?.url
-        case .file(let url):
-            url
-        }
-    }
-
-    /// The files and folders of the selected rows, each once.
-    private func urls(of items: Set<NavigatorItem>, in project: ProjectSnapshot) -> [URL] {
-        var seen: Set<String> = []
-        return items.compactMap { url(of: $0, in: project) }.filter { seen.insert(SourceMap.canonicalPath($0)).inserted }
-    }
-
-    // MARK: - Context menu
-
-    @ViewBuilder
-    private func menu(for urls: [URL], in project: ProjectSnapshot) -> some View {
-        let files = urls.filter { !isFolder($0, in: project) }
-        if !files.isEmpty {
-            Button(files.count == 1 ? "Open" : "Open \(files.count) Files") {
-                files.forEach { session.openProjectFile($0) }
-            }
-            if files.count == 1, let file = files.first, ProjectFileKind(url: file, isDirectory: false).opensInTexLab {
-                Button("Open in New Window") {
-                    session.openProjectFile(file, inNewWindow: true)
-                }
-            }
-            if files.count == 1, let file = files.first, !isCurrentURL(file),
-               session.projectFolder.flatMap({ ProjectReferences.reference(to: file, from: $0) }) != nil {
-                Button("Insert Reference at Insertion Point") {
-                    session.insertReference(to: file)
-                }
-            }
-            if files.count == 1, let file = files.first, ProjectFileKind(url: file, isDirectory: false) == .latex,
-               !isCurrentURL(file), project.mainFile.map({ SourceMap.canonicalPath($0) != SourceMap.canonicalPath(file) }) ?? true {
-                Button("Use as Main File for This Document") {
-                    session.useAsMainFile(file)
-                }
-            }
-            Divider()
-        }
-        Button("New File…") {
-            session.newFileFolder = targetFolder(for: urls, in: project)
-            session.isShowingNewFileSheet = true
-        }
-        Button("New Folder…") {
-            enteredName = String(localized: "untitled folder")
-            newFolderParent = targetFolder(for: urls, in: project)
-        }
-        if !urls.isEmpty {
-            Divider()
-            Button(urls.count == 1 ? "Copy Path" : "Copy Paths") {
-                Pasteboard.copy(urls.map { PathUtilities.relativePath(of: $0, from: project.folder) }.joined(separator: "\n"))
-            }
-            .help("The path from the main file’s folder, as \\includegraphics and \\input expect it")
-            Button(urls.count == 1 ? "Copy Full Path" : "Copy Full Paths") {
-                Pasteboard.copy(urls.map(\.filePath).joined(separator: "\n"))
-            }
-            let references = urls.compactMap { ProjectReferences.reference(to: $0, from: project.folder) }
-            if !references.isEmpty {
-                Button(references.count == 1 ? "Copy LaTeX Reference" : "Copy LaTeX References") {
-                    Pasteboard.copy(references.joined(separator: "\n"))
-                }
-                .help("The command that uses the file, such as \\includegraphics{…} or \\input{…}")
-            }
-            Divider()
-            Button("Show in Finder") {
-                session.showInFinder(urls)
-            }
-            if urls.count == 1, let url = urls.first {
-                Button("Rename…") {
-                    enteredName = url.lastPathComponent
-                    renamingURL = url
-                }
-            }
-            Divider()
-            Button("Move to Trash…", role: .destructive) {
-                trashCandidates = urls
-            }
-        }
     }
 
     private func bottomBar(_ project: ProjectSnapshot) -> some View {
@@ -265,9 +111,8 @@ struct ProjectSidebar: View {
                     session.newFileFolder = project.folder
                     session.isShowingNewFileSheet = true
                 }
-                Button("New Folder…") {
-                    enteredName = String(localized: "untitled folder")
-                    newFolderParent = project.folder
+                Button("New Folder") {
+                    newFolder(in: project.folder)
                 }
             } label: {
                 Image(systemName: "plus")
@@ -314,152 +159,10 @@ struct ProjectSidebar: View {
         }
     }
 
-    // MARK: - Helpers
-
-    /// Selects the file the editor shows — in the Document section if it's a part of the
-    /// document — unless it's already among the selection.
-    private func followCurrentFile(in project: ProjectSnapshot) {
-        guard let fileURL = session.fileURL else { return }
-        let path = SourceMap.canonicalPath(fileURL)
-        guard !selection.contains(where: { url(of: $0, in: project).map(SourceMap.canonicalPath) == path }) else { return }
-        if trimmedFilter.isEmpty, showsDocument(project),
-           let part = project.parts.first(where: { SourceMap.canonicalPath($0.url) == path }) {
-            selection = [.part(part.order)]
-        } else if let file = project.tree.files.first(where: { SourceMap.canonicalPath($0.url) == path }) {
-            selection = [.file(file.url)]
-        }
-    }
-
-    private func isMain(_ file: ProjectFile, in project: ProjectSnapshot) -> Bool {
-        guard let main = project.mainFile else { return false }
-        return SourceMap.canonicalPath(main) == SourceMap.canonicalPath(file.url)
-    }
-
-    private func isCurrent(_ file: ProjectFile) -> Bool {
-        isCurrentURL(file.url)
-    }
-
-    private func isCurrentURL(_ url: URL) -> Bool {
-        guard let fileURL = session.fileURL else { return false }
-        return SourceMap.canonicalPath(fileURL) == SourceMap.canonicalPath(url)
-    }
-
-    private func isFolder(_ url: URL, in project: ProjectSnapshot) -> Bool {
-        project.tree.folders.contains { $0.url == url }
-    }
-
-    /// The folder a new item goes in: the selected folder, or the selected file's folder.
-    private func targetFolder(for urls: [URL], in project: ProjectSnapshot) -> URL {
-        guard let url = urls.first else { return project.folder }
-        return isFolder(url, in: project) ? url : url.deletingLastPathComponent()
-    }
-
-    private func isValidName(_ name: String) -> Bool {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        return !trimmed.isEmpty && !trimmed.contains("/") && !trimmed.hasPrefix(".")
-    }
-
     private var trashTitle: String {
         trashCandidates.count == 1
             ? String(localized: "Move “\(trashCandidates[0].lastPathComponent)” to the Trash?")
             : String(localized: "Move \(trashCandidates.count) items to the Trash?")
-    }
-
-    private func perform(_ change: () throws -> Void) {
-        do {
-            try change()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func isPresenting<Value>(_ value: Binding<Value?>) -> Binding<Bool> {
-        Binding(get: { value.wrappedValue != nil }, set: { if !$0 { value.wrappedValue = nil } })
-    }
-}
-
-/// A row of the navigator: a part of the document, or a file or folder of the project.
-private enum NavigatorItem: Hashable {
-    case part(Int)
-    case file(URL)
-}
-
-/// A part of the document: the main file with the document's title, a chapter with its
-/// first heading, or a bibliography, indented as deeply as it is included.
-private struct DocumentPartRow: View {
-    var part: DocumentPart
-    var isCurrent: Bool
-
-    var body: some View {
-        Label {
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    Text(part.url.lastPathComponent)
-                        .fontWeight(isCurrent ? .semibold : .regular)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    if part.kind == .main {
-                        Text("Main")
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(.quaternary, in: Capsule())
-                            .accessibilityLabel("Main file")
-                    }
-                }
-                if let title = part.title {
-                    Text(title)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-        } icon: {
-            Image(systemName: part.systemImage)
-                .foregroundStyle(isCurrent ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
-        }
-        .padding(.leading, CGFloat(max(part.depth - 1, 0)) * 12)
-        .help(part.url.filePath)
-    }
-}
-
-private struct ProjectRow: View {
-    var file: ProjectFile
-    var isMain: Bool
-    var isCurrent: Bool
-    /// The folder it's in, when files are listed without their folders.
-    var detail: String?
-
-    var body: some View {
-        Label {
-            HStack(spacing: 6) {
-                Text(file.name)
-                    .fontWeight(isCurrent ? .semibold : .regular)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                if let detail {
-                    Text(verbatim: detail)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                        .truncationMode(.head)
-                }
-                if isMain {
-                    Text("Main")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(.quaternary, in: Capsule())
-                        .accessibilityLabel("Main file")
-                }
-            }
-        } icon: {
-            Image(systemName: file.kind.systemImage)
-                .foregroundStyle(file.isFolder ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-        }
-        .help(file.url.filePath)
     }
 }
 
