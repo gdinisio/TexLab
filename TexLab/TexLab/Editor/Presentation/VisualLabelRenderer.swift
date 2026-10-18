@@ -22,11 +22,20 @@ enum VisualLabelRenderer {
             let text = inlineText(label.text, font: font, bold: bold)
             // A little spare width, so rounding can never clip the last letter.
             return (CGSize(width: ceil(text.size().width) + 2, height: ceil(font.ascender - font.descender)), -font.descender)
-        case .chip:
+        case .chip, .inclusion:
             let text = chipText(label.text, font: font)
             let height = ceil(font.ascender - font.descender) + 2
             let width = ceil(chipPadding + chipIconWidth(font) + 3 + text.size().width + chipPadding + 2)
             return (CGSize(width: width, height: height), -font.descender + 1)
+        case .preview(_, let onPaper):
+            guard let image, image.size.width > 0, image.size.height > 0 else {
+                return (.zero, 0)
+            }
+            let artwork = previewSize(of: image, onPaper: onPaper, font: font, lineHeight: lineHeight, availableWidth: availableWidth)
+            let caption = captionText(label.text, font: font)
+            let captionWidth = chipIconWidth(font) + 4 + caption.size().width
+            let width = min(max(artwork.width, captionWidth), availableWidth)
+            return (CGSize(width: ceil(width), height: ceil(artwork.height + previewGap + caption.size().height + 8)), 4)
         case .environment(_, let italic):
             let headingFont = environmentFont(font, italic: italic)
             let text = NSAttributedString(string: label.text, attributes: [.font: headingFont])
@@ -60,6 +69,11 @@ enum VisualLabelRenderer {
             drawOnBaseline(text, font: font, in: rect, descent: -font.descender)
         case .chip(let systemImage):
             drawChip(label.text, systemImage: systemImage, in: rect, font: font)
+        case .inclusion:
+            drawChip(label.text, systemImage: "doc.text", in: rect, font: font)
+        case .preview(let systemImage, let onPaper):
+            guard let image, image.size.width > 0, image.size.height > 0 else { return }
+            drawPreview(label.text, image: image, systemImage: systemImage, onPaper: onPaper, in: rect, font: font)
         case .environment(_, let italic):
             let headingFont = environmentFont(font, italic: italic)
             let text = NSAttributedString(string: label.text, attributes: [
@@ -88,6 +102,67 @@ enum VisualLabelRenderer {
             image.draw(in: imageRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
             NSGraphicsContext.restoreGraphicsState()
         }
+    }
+
+    // MARK: - Included files
+
+    /// The space between an included file's artwork and its caption.
+    private static let previewGap: CGFloat = 6
+
+    /// The size an included file's artwork is drawn at: a picture as `\includegraphics`
+    /// pictures are, or a typeset drawing or table scaled like a formula, on its paper.
+    private static func previewSize(of image: NSImage, onPaper: Bool, font: NSFont, lineHeight: CGFloat, availableWidth: CGFloat) -> CGSize {
+        if onPaper {
+            let fitted = RenderedPaper.fittedSize(of: image.size, scale: font.pointSize / 10, availableWidth: availableWidth, lineHeight: lineHeight)
+            return CGSize(width: fitted.width + 2 * RenderedPaper.padding, height: fitted.height + 2 * RenderedPaper.padding)
+        }
+        let maxHeight = lineHeight * 12
+        let maxWidth = min(availableWidth * 0.9, 520)
+        let scale = min(maxHeight / image.size.height, maxWidth / image.size.width, 1.5)
+        return CGSize(width: ceil(image.size.width * scale), height: ceil(image.size.height * scale))
+    }
+
+    private static func captionText(_ string: String, font: NSFont) -> NSAttributedString {
+        NSAttributedString(string: string, attributes: [
+            .font: NSFont.systemFont(ofSize: font.pointSize - 1),
+            .foregroundColor: NSColor.secondaryLabelColor,
+        ])
+    }
+
+    /// The artwork centred at the top of `rect`, and the caption with the file's icon
+    /// centred beneath it, as a figure is printed.
+    private static func drawPreview(_ caption: String, image: NSImage, systemImage: String, onPaper: Bool, in rect: NSRect, font: NSFont) {
+        let text = captionText(caption, font: font)
+        let textSize = text.size()
+        // The artwork takes the height the caption leaves, keeping its proportions.
+        let paper = onPaper ? 2 * RenderedPaper.padding : 0
+        let artworkHeight = max(rect.height - previewGap - textSize.height - 8, 0)
+        let imageHeight = max(artworkHeight - paper, 0)
+        let imageWidth = imageHeight * image.size.width / image.size.height
+        let artwork = NSRect(x: rect.midX - (imageWidth + paper) / 2, y: rect.minY + 4, width: imageWidth + paper, height: artworkHeight)
+        if onPaper {
+            RenderedPaper.draw(image, in: artwork)
+        } else {
+            NSGraphicsContext.saveGraphicsState()
+            NSBezierPath(roundedRect: artwork, xRadius: 4, yRadius: 4).addClip()
+            image.draw(in: artwork, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+            NSGraphicsContext.restoreGraphicsState()
+        }
+
+        let iconSize = chipIconWidth(font)
+        let width = min(iconSize + 4 + textSize.width, rect.width)
+        var x = rect.midX - width / 2
+        let y = artwork.maxY + previewGap
+        if let symbol = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: iconSize - 3, weight: .medium)
+                .applying(NSImage.SymbolConfiguration(paletteColors: [.secondaryLabelColor]))) {
+            let size = symbol.size
+            symbol.draw(in: NSRect(x: x + (iconSize - size.width) / 2, y: y + (textSize.height - size.height) / 2, width: size.width, height: size.height),
+                        from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        }
+        x += iconSize + 4
+        text.draw(with: NSRect(x: x, y: y, width: max(rect.maxX - x, 0), height: textSize.height),
+                  options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine])
     }
 
     // MARK: - Styles

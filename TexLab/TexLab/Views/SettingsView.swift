@@ -312,16 +312,16 @@ private struct VisualEditorSettings: View {
             }
 
             Section {
-                Toggle("Show formulas typeset", isOn: $rendersMath)
+                Toggle("Show formulas, TikZ drawings and tables typeset", isOn: $rendersMath)
                 Toggle("Show images in place of \\includegraphics", isOn: $showsImages)
                 Toggle("Collapse the preamble", isOn: $collapsesPreamble)
             } header: {
                 Text("Content")
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Headings, lists, formatting, references and figures appear as they will look. Markup shows again wherever the insertion point is, so it can be edited.")
+                    Text("Headings, lists, formatting, references, included files and figures appear as they will look. Markup shows again wherever the insertion point is, so it can be edited.")
                     if rendersMath && canRenderMath == false {
-                        Label("Typesetting formulas needs a TeX distribution with the preview package, which MacTeX includes.", systemImage: "exclamationmark.triangle")
+                        Label("Typesetting formulas, drawings and tables needs a TeX distribution with the preview package, which MacTeX includes.", systemImage: "exclamationmark.triangle")
                     }
                 }
                 .foregroundStyle(.secondary)

@@ -66,8 +66,13 @@ final class Replacement {
     /// Draws the replacement in `rect` (flipped view coordinates).
     func draw(in rect: NSRect, font: NSFont) {
         switch kind {
-        case .math(let math, _):
-            drawTinted(math.image, in: rect)
+        case .math(let math, let region):
+            if region.isBlock {
+                // Drawings and tables keep their colours, on paper so they read in Dark Mode.
+                RenderedPaper.draw(math.image, in: rect)
+            } else {
+                drawTinted(math.image, in: rect)
+            }
         case .fold(let region, let thumbnail):
             FoldChip.draw(region, thumbnail: thumbnail, in: rect, font: font)
         case .hidden:
@@ -87,6 +92,41 @@ final class Replacement {
         rect.fill(using: .sourceAtop)
         context.endTransparencyLayer()
         context.restoreGState()
+    }
+}
+
+/// A typeset drawing or table, shown on a small piece of white paper as it will be printed,
+/// so its colours stay true and it reads in Dark Mode too.
+enum RenderedPaper {
+    /// The margin of paper around the drawing.
+    static let padding: CGFloat = 8
+
+    /// The size to draw artwork typeset at 10 pt, scaled like formulas to the editor's
+    /// text, and made smaller if need be to fit the editor's width and a screenful.
+    static func fittedSize(of size: CGSize, scale: CGFloat, availableWidth: CGFloat, lineHeight: CGFloat) -> CGSize {
+        guard size.width > 0, size.height > 0 else { return .zero }
+        let maxWidth = max(availableWidth * 0.95 - 2 * padding, 40)
+        let maxHeight = max(lineHeight * 24, 200)
+        let fitted = min(scale, maxWidth / size.width, maxHeight / size.height)
+        return CGSize(width: ceil(size.width * fitted), height: ceil(size.height * fitted))
+    }
+
+    /// Draws the paper filling `rect`, and the artwork inside its margin.
+    static func draw(_ image: NSImage, in rect: NSRect) {
+        let paper = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6)
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.12)
+        shadow.shadowOffset = NSSize(width: 0, height: -1)
+        shadow.shadowBlurRadius = 3
+        shadow.set()
+        NSColor.white.setFill()
+        paper.fill()
+        NSGraphicsContext.restoreGraphicsState()
+        NSColor.separatorColor.setStroke()
+        paper.lineWidth = 0.5
+        paper.stroke()
+        image.draw(in: rect.insetBy(dx: padding, dy: padding), from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
     }
 }
 

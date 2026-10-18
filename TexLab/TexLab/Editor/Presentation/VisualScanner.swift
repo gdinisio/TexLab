@@ -48,6 +48,12 @@ nonisolated struct VisualLabel: Sendable, Equatable {
         case titleBlock(author: String?)
         /// An `\includegraphics` image, drawn in place.
         case picture(path: String)
+        /// An `\input` or `\include`, shown as a chip naming the part it includes, or as
+        /// the figure, drawing or table the included file holds.
+        case inclusion(path: String)
+        /// What an included file shows: its picture, or its drawing or table typeset on a
+        /// piece of paper, with the text — its caption — beneath.
+        case preview(systemImage: String, onPaper: Bool)
     }
 
     var range: NSRange
@@ -57,8 +63,8 @@ nonisolated struct VisualLabel: Sendable, Equatable {
     var fillsLine: Bool {
         switch kind {
         case .environment(let centred, _): centred
-        case .titleBlock, .picture: true
-        case .inline, .chip: false
+        case .titleBlock, .picture, .preview: true
+        case .inline, .chip, .inclusion: false
         }
     }
 }
@@ -121,6 +127,7 @@ nonisolated enum VisualScanner {
     private static let escapePattern = regex(#"\\[&%$#_{}]"#)
     private static let typographyPattern = regex(#"---|--|``|''|\\(?:ldots|dots|textendash|textemdash|LaTeX|TeX)(?![A-Za-z])(?:\{\})?"#)
     private static let graphicsPattern = regex(#"\\includegraphics\*?\s*(?:\[[^\]]*\])?\s*\{([^{}]+)\}"#)
+    private static let inclusionPattern = regex(#"\\(?:input|include|subfile)\s*\{([^{}\n]+)\}"#)
     private static let maketitlePattern = regex(#"\\maketitle(?![A-Za-z])"#)
     private static let markerPattern = regex(
         #"\\(tableofcontents|listoffigures|listoftables|newpage|clearpage|cleardoublepage|pagebreak|appendix|printbibliography)(?![A-Za-z])\*?(?:\[[^\]\n]*\])?"#
@@ -211,6 +218,12 @@ nonisolated enum VisualScanner {
             for match in graphicsPattern.matches(in: string as String, range: body) where !exclusions.overlaps(match.range) {
                 let path = string.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespaces)
                 let label = VisualLabel(range: match.range, text: path, kind: .picture(path: path))
+                elements.append(VisualElement(range: match.range, label: label))
+            }
+            for match in inclusionPattern.matches(in: string as String, range: body) where !exclusions.overlaps(match.range) && !isEscaped(match.range.location, in: string) {
+                let path = string.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespaces)
+                guard !path.isEmpty else { continue }
+                let label = VisualLabel(range: match.range, text: path, kind: .inclusion(path: path))
                 elements.append(VisualElement(range: match.range, label: label))
             }
             if let title = titleBlock(in: string) {
@@ -493,6 +506,19 @@ nonisolated enum VisualScanner {
             elements.append(VisualElement(range: match.range, label: label))
         }
         return elements
+    }
+
+    // MARK: Included files
+
+    /// The paths of the files the body includes with `\input`, `\include` or `\subfile`,
+    /// as written.
+    static func inclusionPaths(in elements: [VisualElement]) -> Set<String> {
+        Set(elements.compactMap { element in
+            if case .inclusion(let path)? = element.label?.kind {
+                return path
+            }
+            return nil
+        })
     }
 
     // MARK: Title block

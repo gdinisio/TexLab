@@ -3,6 +3,41 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.33 — Previews in the Visual editor, and a glass sidebar
+
+- **TikZ drawings and tables typeset in the Visual editor.** `tikzpicture`, `circuitikz`
+  and `forest` drawings, and `tabular`, `tabular*`, `tabularx` and `tabulary` tables,
+  show as they will print, typeset with the document's own preamble (its packages,
+  macros and TikZ libraries) and drawn on a small piece of white paper so their colours
+  stay true in Dark Mode. Click one, or move the insertion point into it, to edit its
+  source; the outermost drawing or table is the one shown, so a table in a TikZ node is
+  part of its drawing. They're typeset in the background in a run of their own, a few
+  dozen at a time, so a slow drawing never holds up the formulas, and a drawing TeX
+  can't typeset stays as source while the others show. Drawings and tables were typeset
+  this way with pdfLaTeX, XeLaTeX and LuaLaTeX, each cropped to its own page, with a
+  broken one reported and skipped.
+- **Included files as chips and previews.** `\input`, `\include` and `\subfile` show as
+  chips like references', named by the part's first heading — "Introduction" rather
+  than `Sections/introduction` — and marked when the file isn't there. A file holding a
+  figure shows its picture with the caption beneath; one holding a TikZ drawing or a
+  table shows it typeset. Files open in the window are read with their unsaved changes;
+  others are read again only when they change. ⌘-click opens the file, as before.
+- Settings ▸ Visual Editor's "Show formulas typeset" now reads "Show formulas, TikZ
+  drawings and tables typeset", and turns all three on or off.
+- **Liquid Glass sidebar.** The row of navigator icons floats on a capsule of glass,
+  with the chosen navigator highlighted and the highlight sliding to the next one. The
+  Find field, the References picker and filter, the Project navigator's add button and
+  filter, the Outline's This File | Whole Document control and the Issues buttons float
+  on glass too, with the lists scrolling beneath them, instead of sitting in opaque bars.
+- **Outline:** the whole document's outline no longer shows each heading's file name on
+  the right; clicking a heading still goes to it in its file, and the tooltip still
+  names the file.
+- **Fixes the Find and Issues navigators sitting in the middle of the sidebar.** With no
+  results or no issues, the "Find in Project" or "No Issues" message didn't fill the
+  sidebar, so the search field (or the Issues buttons) and the message floated in the
+  middle together. Every navigator now fills the sidebar, with its field at the top,
+  its buttons at the bottom and its message in between.
+
 ## v1.32 — New files ready to use
 
 New File in Project offers many more kinds of file, each set up to use straight away.

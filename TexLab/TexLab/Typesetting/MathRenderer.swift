@@ -18,7 +18,9 @@ nonisolated struct RenderedMath: Sendable {
 }
 
 /// Typesets formulas with the user's TeX distribution, all in one run, so the editor can
-/// show them exactly as they will look in the PDF — with the document's own macros.
+/// show them exactly as they will look in the PDF — with the document's own macros. TikZ
+/// drawings and tables are typeset the same way, in a run of their own, so a slow or broken
+/// drawing never holds up the formulas.
 ///
 /// Each formula becomes one page through the `preview` package (part of MacTeX), whose
 /// `auctex` option reports every formula's height, depth and width in the log.
@@ -53,26 +55,34 @@ nonisolated enum MathRenderer {
         let ordered = snippets.sorted { $0.key < $1.key }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
-        // Try the document's own preamble first, so its macros and packages work. If it
-        // doesn't typeset at all (a preamble written for another class, say), fall back to
-        // standard math packages.
-        let preambles = [preamble.map(sanitized), minimalPreamble].compactMap { $0 }
-        for candidate in preambles {
-            if Task.isCancelled { return [:] }
-            if let results = await run(ordered, preamble: candidate, executable: executable, distribution: distribution, directory: directory, sourceDirectory: sourceDirectory) {
-                return results
+        var rendered: [String: RenderedMath] = [:]
+        for isBlock in [false, true] {
+            let group = ordered.filter { $0.value.isBlock == isBlock }
+            guard !group.isEmpty else { continue }
+            // Try the document's own preamble first, so its macros and packages work. If it
+            // doesn't typeset at all (a preamble written for another class, say), fall back
+            // to standard packages.
+            let preambles = [preamble.map(sanitized), isBlock ? blockPreamble : minimalPreamble].compactMap { $0 }
+            for candidate in preambles {
+                if Task.isCancelled { return rendered }
+                if let results = await run(group, preamble: candidate, jobName: isBlock ? "blocks" : "math", executable: executable, distribution: distribution, directory: directory, sourceDirectory: sourceDirectory) {
+                    rendered.merge(results) { _, new in new }
+                    break
+                }
             }
         }
-        return [:]
+        return rendered
     }
 
     // MARK: - Running TeX
 
     private static let minimalPreamble = "\\usepackage{amsmath}\n\\usepackage{amssymb}\n"
+    private static let blockPreamble = minimalPreamble + "\\usepackage{graphicx}\n\\usepackage{booktabs}\n\\usepackage{tabularx}\n\\usepackage{tikz}\n"
 
     private static func run(
         _ snippets: [(key: String, value: MathRegion)],
         preamble: String,
+        jobName: String,
         executable: URL,
         distribution: TeXDistribution,
         directory: URL,
@@ -81,19 +91,24 @@ nonisolated enum MathRenderer {
         var source = "\\documentclass{article}\n" + preamble + "\n"
         source += "\\usepackage[active,tightpage,auctex]{preview}\n\\setlength\\PreviewBorder{1pt}\n\\pagestyle{empty}\n\\begin{document}\n"
         for (_, region) in snippets {
-            let math = region.isDisplay ? "\\displaystyle " + region.snippet : region.snippet
-            source += "\\begin{preview}$" + math + "$\\end{preview}\n"
+            if region.isBlock {
+                // On lines of its own, so a comment at the end of a line ends there.
+                source += "\\begin{preview}\n" + region.snippet + "\n\\end{preview}\n"
+            } else {
+                let math = region.isDisplay ? "\\displaystyle " + region.snippet : region.snippet
+                source += "\\begin{preview}$" + math + "$\\end{preview}\n"
+            }
         }
         source += "\\end{document}\n"
 
-        let texFile = directory.appending(path: "math.tex")
+        let texFile = directory.appending(path: "\(jobName).tex")
         do {
             try Data(source.utf8).write(to: texFile)
         } catch {
             return nil
         }
-        for name in ["math.pdf", "math.log", "math.aux"] {
-            try? FileManager.default.removeItem(at: directory.appending(path: name))
+        for suffix in ["pdf", "log", "aux"] {
+            try? FileManager.default.removeItem(at: directory.appending(path: "\(jobName).\(suffix)"))
         }
 
         var environment = ProcessInfo.processInfo.environment
@@ -108,14 +123,14 @@ nonisolated enum MathRenderer {
             arguments: ["-interaction=nonstopmode", "-file-line-error", "-output-directory=\(directory.filePath)", texFile.filePath],
             in: directory,
             environment: environment,
-            outputFile: directory.appending(path: "math.console.txt"),
+            outputFile: directory.appending(path: "\(jobName).console.txt"),
             timeout: 60
         )
         guard result.launchError == nil, !result.wasCancelled, !result.timedOut,
-              let document = PDFDocument(url: directory.appending(path: "math.pdf")),
+              let document = PDFDocument(url: directory.appending(path: "\(jobName).pdf")),
               document.pageCount == snippets.count else { return nil }
 
-        let logData = (try? Data(contentsOf: directory.appending(path: "math.log"))) ?? Data()
+        let logData = (try? Data(contentsOf: directory.appending(path: "\(jobName).log"))) ?? Data()
         let report = PreviewReport(log: String(decoding: logData, as: UTF8.self))
 
         var rendered: [String: RenderedMath] = [:]

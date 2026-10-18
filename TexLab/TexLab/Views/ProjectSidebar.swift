@@ -38,9 +38,9 @@ struct ProjectSidebar: View {
             } else {
                 ProgressView()
                     .controlSize(.small)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .fillsNavigator()
         .confirmationDialog(trashTitle, isPresented: Binding(get: { !trashCandidates.isEmpty }, set: { if !$0 { trashCandidates = [] } })) {
             Button("Move to Trash", role: .destructive) {
                 session.moveToTrash(trashCandidates)
@@ -104,7 +104,7 @@ struct ProjectSidebar: View {
     }
 
     private func bottomBar(_ project: ProjectSnapshot) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Menu {
                 Button("New File…") {
                     session.showNewFileSheet(in: project.folder)
@@ -124,40 +124,30 @@ struct ProjectSidebar: View {
             .fixedSize()
             .help("Add a file or folder to the project")
 
-            HStack(spacing: 4) {
-                Image(systemName: "line.3.horizontal.decrease.circle")
-                    .foregroundStyle(trimmedFilter.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.accentColor))
-                    .accessibilityHidden(true)
-                TextField("Filter", text: $filter)
-                    .textFieldStyle(.plain)
-                if !filter.isEmpty {
-                    Button {
-                        filter = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Clear the filter")
-                    .accessibilityLabel("Clear the filter")
+            Divider()
+                .frame(height: 14)
+
+            Image(systemName: "line.3.horizontal.decrease")
+                .foregroundStyle(trimmedFilter.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.accentColor))
+                .accessibilityHidden(true)
+            TextField("Filter", text: $filter)
+                .textFieldStyle(.plain)
+                .help("Show only files whose name contains this text")
+            if !filter.isEmpty {
+                Button {
+                    filter = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.tertiary)
                 }
+                .buttonStyle(.plain)
+                .help("Clear the filter")
+                .accessibilityLabel("Clear the filter")
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(.background, in: RoundedRectangle(cornerRadius: 6))
-            .overlay {
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(.separator)
-            }
-            .help("Show only files whose name contains this text")
         }
         .font(.callout)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.bar)
-        .overlay(alignment: .top) {
-            Divider()
-        }
+        .navigatorGlass()
+        .padding(8)
     }
 
     private var trashTitle: String {

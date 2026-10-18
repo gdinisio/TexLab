@@ -157,6 +157,10 @@ final class DocumentSession {
     /// The preamble and engine the cached formulas were typeset with.
     @ObservationIgnored var mathCacheSignature = ""
     @ObservationIgnored var mathRenderTask: Task<Void, Never>?
+    /// What each `\input` of the shown file shows in the Visual editor, by its path.
+    @ObservationIgnored var inclusionPreviews: [String: InclusionPreview] = [:]
+    /// Previews of included files that aren't open, with the date the file had.
+    @ObservationIgnored var inclusionPreviewCache: [String: (date: Date?, path: String, preview: InclusionPreview)] = [:]
     @ObservationIgnored var needsAnotherMathRender = false
     @ObservationIgnored var hasScannedFolds = false
     @ObservationIgnored var projectRefreshTask: Task<Void, Never>?

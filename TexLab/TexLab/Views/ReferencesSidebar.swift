@@ -24,7 +24,16 @@ struct ReferencesSidebar: View {
     @State private var entrySelection: BibEntry.ID?
 
     var body: some View {
-        VStack(spacing: 0) {
+        Group {
+            switch kind {
+            case .labels:
+                labels
+            case .bibliography:
+                bibliography
+            }
+        }
+        .fillsNavigator()
+        .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 8) {
                 Picker("Show", selection: $kind) {
                     Text("Labels").tag(Kind.labels)
@@ -32,18 +41,29 @@ struct ReferencesSidebar: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                TextField(kind == .labels ? "Filter by label or caption" : "Filter by key, author, title or year", text: $search)
-                    .textFieldStyle(.roundedBorder)
+                HStack(spacing: 6) {
+                    Image(systemName: "line.3.horizontal.decrease")
+                        .foregroundStyle(search.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.accentColor))
+                        .accessibilityHidden(true)
+                    TextField(kind == .labels ? "Filter by label or caption" : "Filter by key, author, title or year", text: $search)
+                        .textFieldStyle(.plain)
+                    if !search.isEmpty {
+                        Button {
+                            search = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Clear the filter")
+                        .accessibilityLabel("Clear the filter")
+                    }
+                }
+                .navigatorGlass()
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            Divider()
-            switch kind {
-            case .labels:
-                labels
-            case .bibliography:
-                bibliography
-            }
+            .padding(.top, 4)
+            .padding(.bottom, 6)
         }
     }
 

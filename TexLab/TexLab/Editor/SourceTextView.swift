@@ -44,8 +44,10 @@ final class SourceTextView: NSTextView {
 
     /// Math found in the source, kept in step with edits.
     var mathRegions: [MathRegion] = []
-    /// Rendered formulas by `MathRegion.key`.
+    /// Rendered formulas, drawings and tables by `MathRegion.key`.
     var renderedMath: [String: MathImage] = [:]
+    /// What each `\input` shows, by the path it names.
+    var inclusionPreviews: [String: InclusionPreview] = [:]
     /// Environments that can be collapsed, kept in step with edits.
     var foldableRegions: [FoldableRegion] = []
     /// Collapsed environments.

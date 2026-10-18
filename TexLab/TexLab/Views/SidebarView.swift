@@ -32,29 +32,33 @@ struct SidebarView: View {
     }
 }
 
-/// The row of navigator icons above the sidebar, like Xcode's: the chosen one is tinted,
-/// and the Issues icon shows how many there are.
+/// The row of navigator icons above the sidebar, like Xcode's, floating on Liquid Glass:
+/// the chosen one is highlighted, and the Issues icon shows how many there are.
 private struct NavigatorBar: View {
     var session: DocumentSession
+    @Namespace private var highlight
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 2) {
             ForEach(SidebarTab.allCases) { tab in
                 NavigatorButton(
                     tab: tab,
                     isSelected: session.sidebarTab == tab,
                     badge: tab == .issues ? issuesCount : 0,
-                    hasErrors: session.errorCount > 0
+                    hasErrors: session.errorCount > 0,
+                    highlight: highlight
                 ) {
-                    session.sidebarTab = tab
+                    withAnimation(.snappy(duration: 0.25)) {
+                        session.sidebarTab = tab
+                    }
                 }
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .overlay(alignment: .bottom) {
-            Divider()
-        }
+        .padding(3)
+        .glassEffect(.regular, in: .capsule)
+        .padding(.horizontal, 10)
+        .padding(.top, 6)
+        .padding(.bottom, 4)
     }
 
     private var issuesCount: Int {
@@ -67,6 +71,8 @@ private struct NavigatorButton: View {
     var isSelected: Bool
     var badge: Int
     var hasErrors: Bool
+    /// Where the highlight of the chosen navigator slides between buttons.
+    var highlight: Namespace.ID
     var action: () -> Void
 
     @State private var isHovered = false
@@ -76,7 +82,17 @@ private struct NavigatorButton: View {
             Image(systemName: isSelected ? tab.selectedSystemImage : tab.systemImage)
                 .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                 .foregroundStyle(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
-                .frame(maxWidth: .infinity, minHeight: 24)
+                .frame(maxWidth: .infinity, minHeight: 26)
+                .background {
+                    if isSelected {
+                        Capsule()
+                            .fill(Color.accentColor.opacity(0.16))
+                            .matchedGeometryEffect(id: "selection", in: highlight)
+                    } else if isHovered {
+                        Capsule()
+                            .fill(.quaternary)
+                    }
+                }
                 .overlay(alignment: .topTrailing) {
                     if badge > 0 {
                         Text(verbatim: badge > 99 ? "99+" : "\(badge)")
@@ -85,18 +101,33 @@ private struct NavigatorButton: View {
                             .padding(.horizontal, 4)
                             .frame(minWidth: 14, minHeight: 14)
                             .background(hasErrors ? Color.red : Color.orange, in: Capsule())
-                            .offset(x: -2, y: -1)
+                            .offset(x: -1, y: -2)
                             .accessibilityHidden(true)
                     }
                 }
-                .background(isHovered && !isSelected ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: 5))
-                .contentShape(Rectangle())
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .help(tab.helpText)
         .accessibilityLabel(badge > 0 ? "\(tab.title), \(badge)" : tab.title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+extension View {
+    /// A navigator's search or filter field, or its row of buttons: a capsule of Liquid
+    /// Glass that floats over the list, like the navigator bar.
+    func navigatorGlass() -> some View {
+        padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .glassEffect(.regular, in: .capsule)
+    }
+
+    /// Fills the navigator, so a message such as “No Issues” sits in the middle of it and
+    /// the bars above and below stay at the edges.
+    func fillsNavigator() -> some View {
+        frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -167,6 +198,7 @@ struct OutlineSidebar: View {
                 fileOutline
             }
         }
+        .fillsNavigator()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if hasDocument {
                 Picker("Outline", selection: $showsWholeDocument) {
@@ -176,12 +208,9 @@ struct OutlineSidebar: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .controlSize(.small)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.bar)
-                .overlay(alignment: .top) {
-                    Divider()
-                }
+                .padding(3)
+                .glassEffect(.regular, in: .capsule)
+                .padding(8)
             }
         }
     }
@@ -288,23 +317,14 @@ private struct OutlineRow: View {
     var kind: OutlineItem.Kind
     var title: String
     var line: Int
-    /// The file the item is in, when it isn't the one on screen.
+    /// The file the item is in, when it isn't the one on screen, named in the tooltip.
     var fileName: String?
 
     var body: some View {
         Label {
-            HStack(spacing: 6) {
-                Text(title)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                if let fileName {
-                    Spacer(minLength: 4)
-                    Text(verbatim: fileName)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-            }
+            Text(title)
+                .lineLimit(1)
+                .truncationMode(.tail)
         } icon: {
             Image(systemName: kind.systemImage)
                 .foregroundStyle(.secondary)
@@ -362,6 +382,7 @@ struct IssuesSidebar: View {
                 .listStyle(.sidebar)
             }
         }
+        .fillsNavigator()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             HStack(spacing: 6) {
                 Toggle(isOn: $showsWarnings) {
@@ -385,12 +406,8 @@ struct IssuesSidebar: View {
             .buttonStyle(.borderless)
             .labelStyle(.iconOnly)
             .controlSize(.small)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(.bar)
-            .overlay(alignment: .top) {
-                Divider()
-            }
+            .navigatorGlass()
+            .padding(8)
         }
     }
 

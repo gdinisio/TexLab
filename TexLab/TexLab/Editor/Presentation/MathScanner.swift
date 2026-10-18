@@ -5,20 +5,23 @@
 
 import Foundation
 
-/// A piece of math in the source that the editor can show rendered.
+/// A piece of the source that the editor can show rendered: math, or a TikZ drawing or
+/// table, which is typeset as it is and drawn on a piece of paper.
 nonisolated struct MathRegion: Sendable, Equatable {
     /// The whole construct, including `$…$`, `\[…\]` or `\begin{…}…\end{…}`.
     var range: NSRange
-    /// The math between the delimiters.
+    /// The math between the delimiters, or the body of a drawing or table.
     var contentRange: NSRange
     var isDisplay: Bool
     /// Display math alone on its lines, drawn centred like the typeset output.
     var standsAlone: Bool
     /// The LaTeX TexLab typesets to draw the region.
     var snippet: String
+    /// A TikZ drawing or a table rather than math: typeset outside math mode, in colour.
+    var isBlock = false
 
-    /// Identifies the rendering of this math, so identical formulas share one image.
-    var key: String { (isDisplay ? "D:" : "I:") + snippet }
+    /// Identifies the rendering of this region, so identical formulas share one image.
+    var key: String { (isBlock ? "B:" : isDisplay ? "D:" : "I:") + snippet }
 
     func shifted(by delta: Int) -> MathRegion {
         var copy = self
@@ -50,9 +53,65 @@ nonisolated enum MathScanner {
         let body = NSRange(location: bodyStart, length: string.length - bodyStart)
         guard body.length > 0 else { return [] }
 
-        return LaTeXTokenizer.scan(string, range: body).regions.compactMap { span in
+        let scan = LaTeXTokenizer.scan(string, range: body)
+        let math = scan.regions.compactMap { span in
             Self.region(for: span.range, in: string)
         }
+        // Drawings and tables can't start in a comment or verbatim text, or inside math.
+        let excluded = scan.regions.map(\.range) + scan.tokens.filter { $0.kind == .comment || $0.kind == .verbatim }.map(\.range)
+        return blocks(in: string, range: body, excluding: excluded) + math
+    }
+
+    // MARK: - Drawings and tables
+
+    /// The environments shown typeset, as they are, outside math: TikZ drawings and tables.
+    private static let blockPattern = try! NSRegularExpression(
+        pattern: #"\\(begin|end)\s*\{(tikzpicture|circuitikz|forest|tabular\*?|tabularx|tabulary)\}"#
+    )
+
+    /// The outermost TikZ drawings and tables in `range`, each from its `\begin` to the
+    /// matching `\end`. A table in a drawing, or one table in another, is part of the outer one.
+    static func blocks(in string: NSString, range: NSRange, excluding excluded: [NSRange]) -> [MathRegion] {
+        var blocks: [MathRegion] = []
+        var open: (name: String, start: Int, contentStart: Int, depth: Int)?
+        for match in blockPattern.matches(in: string as String, range: range) {
+            let command = match.range
+            guard !excluded.contains(where: { NSIntersectionRange($0, command).length > 0 }),
+                  !isEscaped(command.location, in: string) else { continue }
+            let isBegin = string.substring(with: match.range(at: 1)) == "begin"
+            let name = string.substring(with: match.range(at: 2))
+            if var current = open {
+                guard name == current.name else { continue }
+                current.depth += isBegin ? 1 : -1
+                open = current
+                guard current.depth == 0 else { continue }
+                let whole = NSRange(location: current.start, length: NSMaxRange(command) - current.start)
+                let snippet = string.substring(with: whole).trimmingCharacters(in: .whitespacesAndNewlines)
+                blocks.append(MathRegion(
+                    range: whole,
+                    contentRange: NSRange(location: current.contentStart, length: command.location - current.contentStart),
+                    isDisplay: true,
+                    standsAlone: isAloneOnItsLines(whole, in: string),
+                    snippet: snippet,
+                    isBlock: true
+                ))
+                open = nil
+            } else if isBegin {
+                open = (name, command.location, NSMaxRange(command), 1)
+            }
+        }
+        return blocks
+    }
+
+    /// Whether the backslash at `location` is itself escaped, as in `\\begin`.
+    private static func isEscaped(_ location: Int, in string: NSString) -> Bool {
+        var count = 0
+        var index = location - 1
+        while index >= 0 && string.character(at: index) == Char.backslash {
+            count += 1
+            index -= 1
+        }
+        return count % 2 == 1
     }
 
     private static func region(for range: NSRange, in string: NSString) -> MathRegion? {

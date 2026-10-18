@@ -56,12 +56,14 @@ extension SourceTextView {
                 for markup in element.hidden where markup.length > 0 {
                     replacements.append(Replacement(range: markup, kind: .hidden, size: .zero, descent: 0, fillsLine: false, identity: "hidden"))
                 }
-                guard let label = element.label else { continue }
+                guard var label = element.label else { continue }
                 var image: NSImage?
                 if case .picture(let path) = label.kind {
                     guard configuration.showsImages else { continue }
                     image = thumbnail(for: path)
                     guard image != nil else { continue }
+                } else if case .inclusion(let path) = label.kind {
+                    (label, image) = resolvedInclusion(label, path: path)
                 }
                 let metrics = VisualLabelRenderer.metrics(for: label, image: image, font: font, lineHeight: lineHeight, availableWidth: availableWidth)
                 replacements.append(Replacement(
@@ -80,9 +82,25 @@ extension SourceTextView {
         if configuration.showsRenderedMath {
             // Formulas are typeset at 10 pt; scale them to the editor's text.
             let scale = font.pointSize / 10
+            let availableWidth = presentationWidth
             for region in mathRegions where NSMaxRange(region.range) <= length && !revealed.contains(region.range.location) {
                 guard let math = renderedMath[region.key],
                       !folds.contains(where: { NSIntersectionRange($0.range, region.range).length > 0 }) else { continue }
+                if region.isBlock {
+                    // A drawing or table, on a piece of paper that fits the editor.
+                    let fitted = RenderedPaper.fittedSize(of: math.size, scale: scale, availableWidth: availableWidth, lineHeight: lineHeight)
+                    let size = CGSize(width: fitted.width + 2 * RenderedPaper.padding, height: fitted.height + 2 * RenderedPaper.padding)
+                    let depth = math.size.height > 0 ? math.depth * fitted.height / math.size.height : 0
+                    replacements.append(Replacement(
+                        range: region.range,
+                        kind: .math(math, region: region),
+                        size: size,
+                        descent: depth + RenderedPaper.padding,
+                        fillsLine: region.standsAlone,
+                        identity: "block:\(region.key):\(scale):\(availableWidth.rounded())"
+                    ))
+                    continue
+                }
                 replacements.append(Replacement(
                     range: region.range,
                     kind: .math(math, region: region),
@@ -96,6 +114,21 @@ extension SourceTextView {
 
         manager.setReplacements(replacements)
         lineNumberRuler?.needsDisplay = true
+    }
+
+    /// What an `\input` shows: the figure, drawing or table of the file it includes when
+    /// there is one to show, or else a chip naming the part, like a reference's.
+    private func resolvedInclusion(_ label: VisualLabel, path: String) -> (VisualLabel, NSImage?) {
+        let preview = inclusionPreviews[path]
+        let caption = preview?.caption ?? preview?.title ?? path
+        if let preview, configuration.showsRenderedMath, let block = preview.block, let rendered = renderedMath[block.key] {
+            return (VisualLabel(range: label.range, text: caption, kind: .preview(systemImage: preview.systemImage, onPaper: true)), rendered.image)
+        }
+        if let preview, configuration.showsImages, let imagePath = preview.imagePath, let picture = thumbnail(for: imagePath) {
+            return (VisualLabel(range: label.range, text: caption, kind: .preview(systemImage: preview.systemImage, onPaper: false)), picture)
+        }
+        let title = preview?.title ?? (path as NSString).lastPathComponent
+        return (VisualLabel(range: label.range, text: title, kind: .chip(systemImage: preview?.systemImage ?? "doc.text")), nil)
     }
 
     /// Reveals the source of a formula when the insertion point moves into it, and expands
@@ -205,6 +238,13 @@ extension SourceTextView {
     /// Updates the rendered formulas available to draw.
     func setRenderedMath(_ images: [String: MathImage]) {
         renderedMath = images
+        updatePresentation()
+    }
+
+    /// Updates what each `\input` shows.
+    func setInclusionPreviews(_ previews: [String: InclusionPreview]) {
+        guard previews != inclusionPreviews else { return }
+        inclusionPreviews = previews
         updatePresentation()
     }
 

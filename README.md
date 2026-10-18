@@ -38,8 +38,9 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   control in the toolbar (⌃⌘1, ⌃⌘2), and Settings chooses which one documents open in.
   - **Code** shows the LaTeX source in the code font, with colouring and folding.
   - **Visual** is close to the typeset document, like Overleaf's Visual Editor: text in a
-    serif (or sans) typeface in a page-like column, large headings, rendered formulas
-    and images, lists and references as they will look, and the preamble collapsed.
+    serif (or sans) typeface in a page-like column, large headings, rendered formulas,
+    TikZ drawings, tables and images, lists, references and included files as they will
+    look, and the preamble collapsed.
     Markup appears, in the code font, wherever the insertion point is.
 - **Customisation** — the code font (any installed monospaced font) and size, line
   spacing, five colour themes (Xcode, Classic, Soft, High Contrast, Monochrome), and the
@@ -76,6 +77,17 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
     `\url` and `\href` as links; footnotes in small grey text.
   - `\includegraphics` shows the image itself; `---`, `--`, ``` `` ```, `''`, `\ldots`,
     `\LaTeX` and escapes such as `\&` show as the characters they produce.
+  - TikZ drawings (`tikzpicture`, `circuitikz`, `forest`) and tables (`tabular`,
+    `tabular*`, `tabularx`, `tabulary`) show typeset, with the document's own preamble,
+    on a small piece of white paper so their colours stay true in Dark Mode. Click one,
+    or move the insertion point into it, to edit its source. They're typeset in the
+    background in a run of their own, so a slow or broken drawing never holds up the
+    formulas, and one TeX can't typeset stays as source.
+  - `\input`, `\include` and `\subfile` show as chips like references', naming the part
+    by its first heading (a file that isn't there is marked). A file holding a figure
+    shows its picture with the caption beneath, and one holding a drawing or table
+    shows it typeset, so `\input{Figures/results}` looks like the figure. ⌘-click a chip
+    to open the file.
   - `\begin{document}` and `\end{document}` are hidden; `\tableofcontents`, lists of
     figures and tables and the bibliography show as headings; page breaks and
     `\appendix` as chips.
@@ -155,7 +167,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   chapter typesets the whole document, with the unsaved text of every open file.
 - **Navigators** — the sidebar has five, like Xcode's, chosen from the row of icons at its
   top or with ⌘1–⌘5: Project, Outline, Find, References and Issues; the Issues icon
-  shows how many there are.
+  shows how many there are. The row of icons, the search and filter fields and the bars
+  of buttons float on Liquid Glass over the lists, which scroll beneath them.
 - **Document section** — the project navigator lists the main file and the chapters it
   includes (`\input`, `\include`, `\subfile`, `\import`) in reading order, each with its
   first heading, nested as deeply as they are included, then the bibliographies; click
@@ -412,8 +425,11 @@ TexLab/TexLab/
   glyph as wide as the drawing, the rest get null glyphs, line breaks inside get zero
   advancement, and the line grows to fit. `MathRenderer` typesets every new formula in
   one TeX run with the `preview` package, whose `auctex` option reports each formula's
-  depth so it sits on the baseline; the session (`+Math`) caches images per formula and
-  preamble and renders in the background.
+  depth so it sits on the baseline, and TikZ drawings and tables (`MathRegion` with
+  `isBlock`) in a second run, outside math; the session (`+Math`) caches images per
+  formula and preamble and renders in the background. `InclusionPreview` works out what
+  an `\input` shows — the part's heading, or the included figure's picture, drawing or
+  table — from the file's text, which the session reads again only when it changes.
 - **Completion** — `CompletionEngine` (pure) decides what is being completed at the
   insertion point and ranks candidates from `CompletionSources`, which the session gathers
   from the file on screen and the project snapshot (labels with what they name, bibliography

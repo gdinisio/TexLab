@@ -183,6 +183,10 @@ final class EditorController {
         textView?.setRenderedMath(images)
     }
 
+    func setInclusionPreviews(_ previews: [String: InclusionPreview]) {
+        textView?.setInclusionPreviews(previews)
+    }
+
     func setVisualElements(_ elements: [VisualElement]) {
         textView?.setVisualElements(elements)
     }

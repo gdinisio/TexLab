@@ -14,12 +14,13 @@ struct FindSidebar: View {
     @State private var selection: SearchMatch.ID?
 
     var body: some View {
-        VStack(spacing: 0) {
-            searchField
-            Divider()
-            results
-        }
-        .onChange(of: session.findFieldFocusRequest, initial: true) {
+        results
+            .fillsNavigator()
+            // The field stays at the top, with the results scrolling under it.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                searchField
+            }
+            .onChange(of: session.findFieldFocusRequest, initial: true) {
             isSearchFieldFocused = true
         }
     }
@@ -57,16 +58,17 @@ struct FindSidebar: View {
                 .fixedSize()
                 .help("Search options")
             }
-            .padding(6)
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+            .navigatorGlass()
             if let summary {
                 Text(summary)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
             }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.top, 4)
+        .padding(.bottom, 6)
         .onChange(of: session.findOptions) {
             session.searchProject()
         }
