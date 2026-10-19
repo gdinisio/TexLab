@@ -3,6 +3,22 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.46 — A cleaner Welcome window, and Clear for recents
+
+- **Actions on one line.** Create New Project, Open Existing Project, Clone Git
+  Repository and New Document are each a symbol and a title, highlighted under the
+  pointer, as in Xcode, in a narrower column below a smaller icon. The subtitles and the
+  column of shortcuts are gone from the window; each action's help tag says what it does
+  and gives its shortcut. The launch checkbox is smaller and quieter.
+- **Recent projects in two lines.** Each row shows the thumbnail, the name and where the
+  project is. Its title and when it was last opened moved into its help tag, so rows are
+  all one height.
+- **Clear recents.** A bar of Liquid Glass below the list, like the navigators', holds
+  the filter field (it replaces the search field above the list) and Clear…. It asks
+  first, then forgets every project that isn't pinned; the projects themselves aren't
+  touched. Clear… is dimmed when only pinned projects are left. The context menu's
+  Clear Recent Projects… asks the same way.
+
 ## v1.45 — The project navigator is the folder
 
 - **Just the directory.** The project navigator no longer has a Document section

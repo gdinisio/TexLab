@@ -20,12 +20,12 @@ struct WelcomeView: View {
     var body: some View {
         HStack(spacing: 0) {
             actions
-                .frame(width: 440)
+                .frame(width: 420)
             Divider()
             RecentProjectsPane()
                 .frame(width: 340)
         }
-        .frame(height: 480)
+        .frame(height: 460)
         .overlay {
             if isDropTargeted {
                 RoundedRectangle(cornerRadius: 12)
@@ -50,60 +50,43 @@ struct WelcomeView: View {
         }
     }
 
+    /// The icon, name and version, then the four ways in, each one line; what each does,
+    /// and its shortcut, is in its help tag.
     private var actions: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 24)
+            Spacer()
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
-                .frame(width: 128, height: 128)
+                .frame(width: 112, height: 112)
                 .accessibilityHidden(true)
             Text(verbatim: "TexLab")
-                .font(.system(size: 36, weight: .semibold))
-                .padding(.top, 6)
+                .font(.system(size: 32, weight: .semibold))
+                .padding(.top, 4)
             Text(versionText)
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Spacer(minLength: 20)
-            VStack(alignment: .leading, spacing: 2) {
-                WelcomeAction(
-                    title: "Create New Project…",
-                    subtitle: "Choose a template, then where to save the folder",
-                    systemImage: "folder.badge.plus",
-                    shortcut: "⇧⌘N"
-                ) {
+            Spacer()
+            VStack(spacing: 2) {
+                WelcomeAction("Create New Project…", systemImage: "folder.badge.plus", help: "Choose a template, then where to save the project’s folder (⇧⌘N)") {
                     openWindow(id: NewProjectWindow.id)
                 }
-                WelcomeAction(
-                    title: "Open Existing Project…",
-                    subtitle: "A project folder, or a single LaTeX document",
-                    systemImage: "folder",
-                    shortcut: "⇧⌘O"
-                ) {
+                WelcomeAction("Open Existing Project…", systemImage: "folder", help: "Open a project folder or a single LaTeX document (⇧⌘O)") {
                     ProjectOpener.chooseAndOpen()
                 }
-                WelcomeAction(
-                    title: "Clone Git Repository…",
-                    subtitle: "From GitHub, GitLab or an Overleaf project",
-                    systemImage: "arrow.down.circle"
-                ) {
+                WelcomeAction("Clone Git Repository…", systemImage: "arrow.down.circle", help: "Clone a project from GitHub, GitLab or Overleaf") {
                     isShowingClone = true
                 }
-                WelcomeAction(
-                    title: "New Document",
-                    subtitle: "A single untitled document",
-                    systemImage: "doc.badge.plus",
-                    shortcut: "⌘N"
-                ) {
+                WelcomeAction("New Document", systemImage: "doc.badge.plus", help: "Start a single untitled document (⌘N)") {
                     NSDocumentController.shared.newDocument(nil)
                 }
             }
-            .padding(.horizontal, 32)
-            Spacer(minLength: 16)
+            .frame(width: 280)
+            Spacer()
             Toggle("Show this window when TexLab opens", isOn: $showsAtLaunch)
                 .toggleStyle(.checkbox)
-                .font(.callout)
+                .controlSize(.small)
                 .foregroundStyle(.secondary)
-                .padding(.bottom, 14)
+                .padding(.bottom, 16)
         }
     }
 
@@ -113,63 +96,55 @@ struct WelcomeView: View {
     }
 }
 
-/// A large action row, highlighted under the pointer like Xcode's.
+/// An action of the Welcome window: its symbol and title on one line, highlighted under the
+/// pointer, as in Xcode.
 private struct WelcomeAction: View {
     var title: LocalizedStringKey
-    var subtitle: LocalizedStringKey
     var systemImage: String
-    var shortcut: String?
+    var help: LocalizedStringKey
     var action: () -> Void
 
     @State private var isHovered = false
 
-    init(title: LocalizedStringKey, subtitle: LocalizedStringKey, systemImage: String, shortcut: String? = nil, action: @escaping () -> Void) {
+    init(_ title: LocalizedStringKey, systemImage: String, help: LocalizedStringKey, action: @escaping () -> Void) {
         self.title = title
-        self.subtitle = subtitle
         self.systemImage = systemImage
-        self.shortcut = shortcut
+        self.help = help
         self.action = action
     }
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Image(systemName: systemImage)
-                    .font(.title2)
+                    .font(.title3)
                     .foregroundStyle(.tint)
-                    .frame(width: 32)
+                    .frame(width: 26)
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.headline)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 8)
-                if let shortcut {
-                    Text(verbatim: shortcut)
-                        .font(.callout)
-                        .foregroundStyle(.tertiary)
-                        .accessibilityHidden(true)
-                }
+                Text(title)
+                    .font(.body.weight(.medium))
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
             .contentShape(Rectangle())
             .background(isHovered ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
+        .help(help)
     }
 }
 
-/// Recent projects, newest first, with pinned projects above them and a search field.
-/// Double-click or Return opens one; the context menu pins, reveals, locates or removes.
+/// Recent projects, newest first, with pinned projects above them. Double-click or Return
+/// opens one; the context menu pins, reveals, locates or removes it. Below the list, on
+/// Liquid Glass like the navigators' bars, a filter field and Clear, which forgets every
+/// project that isn't pinned — the projects themselves stay where they are.
 private struct RecentProjectsPane: View {
     @State private var recents = RecentProjects.shared
     @State private var selection: RecentProject.ID?
     @State private var query = ""
+    @State private var isConfirmingClear = false
 
     private var pinned: [RecentProject] {
         recents.pinned.filter { $0.matches(query) }
@@ -179,45 +154,65 @@ private struct RecentProjectsPane: View {
         recents.unpinned.filter { $0.matches(query) }
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            if !recents.items.isEmpty {
-                searchField
-            }
-            content
-        }
-        .background(.background.secondary)
+    /// Whether Clear has anything to forget: pinned projects stay.
+    private var canClear: Bool {
+        !recents.unpinned.isEmpty
     }
 
-    private var searchField: some View {
+    var body: some View {
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !recents.items.isEmpty {
+                    bottomBar
+                }
+            }
+            .background(.background.secondary)
+            .confirmationDialog("Clear the recent projects?", isPresented: $isConfirmingClear) {
+                Button("Clear", role: .destructive) {
+                    recents.clear()
+                    selection = nil
+                }
+            } message: {
+                if recents.pinned.isEmpty {
+                    Text("The list is emptied; the projects themselves stay where they are.")
+                } else {
+                    Text("Pinned projects stay; the others leave the list, and the projects themselves stay where they are.")
+                }
+            }
+    }
+
+    private var bottomBar: some View {
         HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
+            Image(systemName: "line.3.horizontal.decrease")
+                .foregroundStyle(query.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.accentColor))
                 .accessibilityHidden(true)
-            TextField("Search Recent Projects", text: $query)
+            TextField("Filter", text: $query)
                 .textFieldStyle(.plain)
+                .help("Show only projects whose name, title or location contains this text")
             if !query.isEmpty {
                 Button {
                     query = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("Clear the search")
-                .accessibilityLabel("Clear the search")
+                .help("Clear the filter")
+                .accessibilityLabel("Clear the filter")
             }
+            Divider()
+                .frame(height: 14)
+            Button("Clear…") {
+                isConfirmingClear = true
+            }
+            .buttonStyle(.borderless)
+            .disabled(!canClear)
+            .help("Forget the recent projects that aren’t pinned")
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(.background, in: RoundedRectangle(cornerRadius: 7))
-        .overlay {
-            RoundedRectangle(cornerRadius: 7)
-                .strokeBorder(.separator)
-        }
-        .padding(.horizontal, 12)
-        .padding(.top, 12)
-        .padding(.bottom, 4)
+        .font(.callout)
+        .navigatorGlass()
+        .padding(8)
     }
 
     @ViewBuilder
@@ -254,6 +249,7 @@ private struct RecentProjectsPane: View {
                 }
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
             .contextMenu(forSelectionType: RecentProject.ID.self) { ids in
                 menu(for: ids)
             } primaryAction: { ids in
@@ -294,10 +290,10 @@ private struct RecentProjectsPane: View {
                 recents.removeMissing()
             }
         }
-        Button("Clear Recent Projects") {
-            recents.clear()
+        Button("Clear Recent Projects…") {
+            isConfirmingClear = true
         }
-        .help("Pinned projects stay")
+        .disabled(!canClear)
     }
 
     private func open(_ ids: Set<RecentProject.ID>) {
@@ -348,8 +344,8 @@ private struct RecentProjectsPane: View {
     }
 }
 
-/// A recent project: a thumbnail of its typeset first page when there is one, its name,
-/// title and location, and when it was last opened.
+/// A recent project in two lines: a thumbnail of its typeset first page when there is one,
+/// its name and where it is. Its title and when it was last opened are in its help tag.
 private struct RecentProjectRow: View {
     var project: RecentProject
 
@@ -359,7 +355,7 @@ private struct RecentProjectRow: View {
         let exists = project.exists
         HStack(spacing: 10) {
             icon
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(verbatim: project.name)
                         .font(.headline)
@@ -371,29 +367,33 @@ private struct RecentProjectRow: View {
                             .accessibilityLabel("Pinned")
                     }
                 }
-                if let title = project.title, title != project.name {
-                    Text(verbatim: title)
-                        .font(.caption)
-                        .lineLimit(1)
-                }
                 Text(verbatim: exists ? project.location : String(localized: "Can’t be found"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.head)
             }
-            Spacer(minLength: 4)
-            Text(project.lastOpened, format: .relative(presentation: .named))
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
+            Spacer(minLength: 0)
         }
         .padding(.vertical, 3)
         .opacity(exists ? 1 : 0.5)
-        .help(exists ? project.location : String(localized: "This project can’t be found. It may have been moved or deleted."))
+        .help(helpText)
         .task(id: project.id) {
             thumbnail = await ProjectThumbnails.shared.thumbnail(for: project)
         }
+    }
+
+    private var helpText: String {
+        guard project.exists else {
+            return String(localized: "This project can’t be found. It may have been moved or deleted.")
+        }
+        var lines: [String] = []
+        if let title = project.title, title != project.name {
+            lines.append(title)
+        }
+        lines.append(project.location)
+        lines.append(String(localized: "Opened \(project.lastOpened.formatted(.relative(presentation: .named)))"))
+        return lines.joined(separator: "\n")
     }
 
     @ViewBuilder

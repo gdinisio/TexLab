@@ -14,16 +14,19 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 **Getting started**
 
-- **Welcome window** — like Xcode's: Create New Project, Open Existing Project (a folder
-  or a single document), Clone Git Repository, New Document, and your recent projects.
-  It appears when TexLab opens (Settings can turn that off), from Window ▸ Welcome to
-  TexLab (⇧⌘1), and when you click the Dock icon with no windows open. Drop a project
-  folder or a document on it to open it.
-- **Recent projects** — each shows a thumbnail of its typeset first page, its title,
-  where it is and when you last opened it. Search them, pin the ones you use most to
-  the top, and find a project that was moved with Locate…; the context menu also shows
-  it in the Finder, copies its path and removes it. File ▸ Open Recent Project lists
-  them too.
+- **Welcome window** — like Xcode's: the icon and version, then Create New Project,
+  Open Existing Project (a folder or a single document), Clone Git Repository and New
+  Document, one line each (their help tags say more and give the shortcuts), and your
+  recent projects beside them. It appears when TexLab opens (Settings can turn that
+  off), from Window ▸ Welcome to TexLab (⇧⌘1), and when you click the Dock icon with no
+  windows open. Drop a project folder or a document on it to open it.
+- **Recent projects** — each shows a thumbnail of its typeset first page, its name and
+  where it is; its title and when you last opened it are in its help tag. A bar of
+  Liquid Glass below the list filters them and has Clear…, which, after asking, forgets
+  every project that isn't pinned (the projects themselves stay where they are). Pin the
+  ones you use most to the top, and find a project that was moved with Locate…; the
+  context menu also shows it in the Finder, copies its path and removes it. File ▸ Open
+  Recent Project lists them too.
 - **Opening a folder** — File ▸ Open Project (⇧⌘O) opens a folder at its main file:
   `main.tex`, or its only complete document. When several documents could be the main
   file, TexLab asks which one (showing their titles) and remembers the answer; a folder
