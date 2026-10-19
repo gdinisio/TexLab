@@ -73,6 +73,10 @@ final class NavigatorNode: NSObject {
     var title = ""
     var url: URL?
     var systemImage = "doc"
+    /// What the file is, for its icon's colour and its description.
+    var kind = ProjectFileKind.other
+    /// The extension the name leaves out, as the icon stands for it; kept on renaming.
+    var hiddenExtension: String?
     /// A chapter's first heading, or a file's folder while filtering.
     var detail: String?
     var isHeader = false
@@ -214,10 +218,12 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
         func item(_ file: ProjectFile) -> NavigatorNode {
             let path = Self.plainPath(file.url)
             let item = node("item:" + path)
-            item.title = file.name
+            item.title = file.isFolder ? file.name : ProjectFileKind.displayName(of: file.url)
             item.url = file.url
             item.isFolder = file.isFolder
-            item.systemImage = file.kind.systemImage
+            item.kind = file.kind
+            item.hiddenExtension = !file.isFolder && file.kind.hidesExtension ? file.url.pathExtension : nil
+            item.systemImage = file.isFolder ? file.kind.systemImage : ProjectFileKind.systemImage(for: file.url)
             item.isMain = path == mainPath
             return item
         }
@@ -251,8 +257,10 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
                     let path = Self.plainPath(part.url)
                     guard seen.insert(path).inserted else { continue }
                     let partNode = node("part:" + path)
-                    partNode.title = part.url.lastPathComponent
+                    partNode.title = ProjectFileKind.displayName(of: part.url)
                     partNode.url = part.url
+                    partNode.kind = ProjectFileKind(url: part.url, isDirectory: false)
+                    partNode.hiddenExtension = partNode.kind.hidesExtension ? part.url.pathExtension : nil
                     partNode.isPart = true
                     partNode.systemImage = part.systemImage
                     partNode.detail = part.title
@@ -474,10 +482,20 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
             NSSound.beep()
             return
         }
+        var newName = name
+        if let hidden = state.node.hiddenExtension, !hidden.isEmpty,
+           ProjectFileKind(url: URL(filePath: name), isDirectory: false) == .other {
+            // The extension isn't shown, so it stays unless another one is typed.
+            newName += "." + hidden
+        }
+        guard newName != url.lastPathComponent else {
+            field.stringValue = state.node.title
+            return
+        }
         let actions = configuration?.actions
         Task {
             do {
-                try await session.renameProjectFile(url, to: name)
+                try await session.renameProjectFile(url, to: newName)
             } catch {
                 field.stringValue = state.node.title
                 actions?.showError(error)
@@ -798,6 +816,8 @@ final class NavigatorCellView: NSTableCellView {
     private let detail = NSTextField(labelWithString: "")
     private let badge = BadgeView(text: String(localized: "Main"))
     private var isFolder = false
+    private var hidesExtension = false
+    private var tint = NSColor.secondaryLabelColor
 
     init() {
         super.init(frame: .zero)
@@ -838,13 +858,24 @@ final class NavigatorCellView: NSTableCellView {
 
     func configure(with node: NavigatorNode) {
         isFolder = node.isFolder
+        hidesExtension = node.hiddenExtension != nil
+        tint = node.kind.tint
         icon.image = NSImage(systemSymbolName: node.systemImage, accessibilityDescription: nil)
         name.stringValue = node.title
         detail.stringValue = node.detail ?? ""
         detail.isHidden = node.detail == nil
         badge.isHidden = !node.isMain
+        // The whole name, extension and all, and where the file is.
         toolTip = node.url?.filePath
-        setAccessibilityLabel(node.isMain ? String(localized: "\(node.title), main file") : node.title)
+        // The icon says what the file is; VoiceOver says it in words.
+        var description = node.title
+        if let url = node.url, !node.isFolder {
+            description += ", " + ProjectFileKind.typeName(of: url)
+        }
+        if node.isMain {
+            description += ", " + String(localized: "main file")
+        }
+        setAccessibilityLabel(description)
         updateColors()
     }
 
@@ -854,16 +885,16 @@ final class NavigatorCellView: NSTableCellView {
         }
     }
 
-    /// Greys and the folder tint give way to the selection's colour when it's emphasized.
+    /// Each kind's colour gives way to the selection's when it's emphasized.
     private func updateColors() {
         let isEmphasized = backgroundStyle == .emphasized
-        icon.contentTintColor = isEmphasized ? .alternateSelectedControlTextColor : (isFolder ? .controlAccentColor : .secondaryLabelColor)
+        icon.contentTintColor = isEmphasized ? .alternateSelectedControlTextColor : tint
         detail.textColor = isEmphasized ? .alternateSelectedControlTextColor : .secondaryLabelColor
         badge.isEmphasized = isEmphasized
     }
 
     /// Makes the name editable in place, with the part before the extension selected, as
-    /// the Finder does.
+    /// the Finder does — all of it when the extension isn't shown.
     func beginEditing(delegate: NSTextFieldDelegate) {
         name.isEditable = true
         name.isSelectable = true
@@ -872,7 +903,7 @@ final class NavigatorCellView: NSTableCellView {
         name.backgroundColor = .textBackgroundColor
         window?.makeFirstResponder(name)
         let title = name.stringValue as NSString
-        let length = isFolder ? title.length : (title.deletingPathExtension as NSString).length
+        let length = isFolder || hidesExtension ? title.length : (title.deletingPathExtension as NSString).length
         name.currentEditor()?.selectedRange = NSRange(location: 0, length: length)
     }
 

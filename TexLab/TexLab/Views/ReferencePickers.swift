@@ -261,7 +261,7 @@ struct LabelRow: View {
     }
 
     private var location: String {
-        let file = label.file?.lastPathComponent ?? String(localized: "This document")
+        let file = label.file.map(ProjectFileKind.displayName(of:)) ?? String(localized: "This document")
         return "\(file):\(label.line)"
     }
 }

@@ -99,7 +99,12 @@ struct FindSidebar: View {
                                 .tag(match.id)
                         }
                     } header: {
-                        Label(file.name, systemImage: file.file.map { ProjectFileKind(url: $0, isDirectory: false).systemImage } ?? "doc.text")
+                        Label {
+                            Text(verbatim: file.name)
+                        } icon: {
+                            Image(systemName: file.file.map(ProjectFileKind.systemImage(for:)) ?? "doc.text")
+                                .foregroundStyle(file.file.map { ProjectFileKind(url: $0, isDirectory: false).tintColor } ?? ProjectFileKind.latex.tintColor)
+                        }
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }

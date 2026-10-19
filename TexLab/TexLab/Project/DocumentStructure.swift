@@ -28,7 +28,8 @@ nonisolated struct DocumentPart: Identifiable, Hashable, Sendable {
 
     var systemImage: String {
         switch kind {
-        case .main: "doc.richtext"
+        // The main file is a LaTeX file like the others, with a Main badge.
+        case .main: "doc.text"
         case .included: "doc.text"
         case .bibliography: "books.vertical"
         }

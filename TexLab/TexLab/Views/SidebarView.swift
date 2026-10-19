@@ -265,7 +265,7 @@ struct OutlineSidebar: View {
             }
         } else {
             List(DocumentStructure.tree(from: entries), children: \.children, selection: $documentSelection) { node in
-                OutlineRow(kind: node.entry.kind, title: node.entry.title, line: node.entry.line, fileName: isShown(node.entry.file) ? nil : node.entry.file.lastPathComponent)
+                OutlineRow(kind: node.entry.kind, title: node.entry.title, line: node.entry.line, fileName: isShown(node.entry.file) ? nil : ProjectFileKind.displayName(of: node.entry.file))
             }
             .listStyle(.sidebar)
             .onAppear {
@@ -449,9 +449,9 @@ struct IssuesSidebar: View {
         switch issue.source {
         case .file(let url)?:
             if let folder = session.project?.folder {
-                return PathUtilities.relativePath(of: url, from: folder)
+                return ProjectFileKind.displayPath(of: url, from: folder)
             }
-            return url.lastPathComponent
+            return ProjectFileKind.displayName(of: url)
         case .currentDocument?:
             return session.displayName
         case nil:

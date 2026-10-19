@@ -315,11 +315,27 @@ nonisolated private struct Pipeline {
 
     /// latexmk runs BibTeX or Biber, makeindex and repeated passes as needed. `-f` keeps
     /// going after recoverable errors so references stay up to date while writing.
+    ///
+    /// latexmk doesn't run a step again after it failed until that step's files change, so
+    /// a Biber that failed once — before it was installed, or before the .bib existed —
+    /// would leave the bibliography empty from then on, with "Nothing to do". When TeX
+    /// still asks for the bibliography and latexmk didn't try to make it, it runs again
+    /// with `-g`, which runs every step: the bibliography is made, or the console says why
+    /// it can't be.
     func runLatexmk() async -> ProcessRunner.Result {
+        let result = await latexmk(runningEveryStep: false)
+        guard result.launchError == nil, !result.wasCancelled, !result.timedOut, bibliographyIsPending,
+              !result.output.contains("Running 'biber"), !result.output.contains("Running 'bibtex") else { return result }
+        var forced = await latexmk(runningEveryStep: true)
+        forced.output = result.output + "\n" + forced.output
+        return forced
+    }
+
+    private func latexmk(runningEveryStep: Bool) async -> ProcessRunner.Result {
         guard let latexmk = request.distribution.executable("latexmk") else {
             return ProcessRunner.Result(launchError: String(localized: "latexmk was not found"))
         }
-        let arguments = ["-f", request.engine.latexmkOption] + commonOptions + [
+        let arguments = (runningEveryStep ? ["-g"] : []) + ["-f", request.engine.latexmkOption] + commonOptions + [
             "-outdir=\(build.filePath)",
             "-jobname=\(job)",
             sourceMap.mainInput.filePath,
@@ -391,6 +407,13 @@ nonisolated private struct Pipeline {
         let launchError = result.launchError.map { "\(tool.lastPathComponent): \($0)\n" } ?? ""
         transcript += "$ \(tool.lastPathComponent) \(arguments.joined(separator: " "))\n\(result.output)\(launchError)\n"
         return result
+    }
+
+    /// Whether TeX's latest log still asks for Biber or BibTeX, or misses the .bbl they make.
+    private var bibliographyIsPending: Bool {
+        guard let data = try? Data(contentsOf: build.appending(path: "\(job).log")) else { return false }
+        let log = String(decoding: data, as: UTF8.self)
+        return log.contains("Please (re)run Biber") || log.contains("Please (re)run BibTeX") || log.contains("No file \(job).bbl")
     }
 
     private func logAsksForRerun() -> Bool {

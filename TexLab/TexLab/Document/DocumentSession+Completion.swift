@@ -19,7 +19,7 @@ extension DocumentSession {
             CompletionSources.Label(key: label.key, context: label.context, fileName: nil, kind: label.kind)
         }
         let projectLabels = (project?.labels ?? []).map { label in
-            CompletionSources.Label(key: label.key, context: label.context, fileName: label.file?.lastPathComponent, kind: label.kind)
+            CompletionSources.Label(key: label.key, context: label.context, fileName: label.file.map(ProjectFileKind.displayName(of:)), kind: label.kind)
         }
         sources.labels = ownLabels + projectLabels
 
@@ -36,7 +36,7 @@ extension DocumentSession {
 
         let ownCommands = DefinitionFinder.commandDefinitions(in: text, file: nil)
         sources.commands = (ownCommands + (project?.commands ?? [])).map { command in
-            CompletionSources.Command(name: command.name, argumentCount: command.argumentCount, fileName: command.file?.lastPathComponent)
+            CompletionSources.Command(name: command.name, argumentCount: command.argumentCount, fileName: command.file.map(ProjectFileKind.displayName(of:)))
         }
         sources.environments = DefinitionFinder.environmentDefinitions(in: text).union(project?.environments ?? [])
         return sources

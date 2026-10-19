@@ -41,7 +41,7 @@ extension DocumentSession {
         }
         // The shown file is named, so its results still lead to it after switching files.
         let shownName = fileURL.map { url in
-            project.map { PathUtilities.relativePath(of: url, from: $0.folder) } ?? url.lastPathComponent
+            project.map { ProjectFileKind.displayPath(of: url, from: $0.folder) } ?? ProjectFileKind.displayName(of: url)
         } ?? displayName
         var sources: [(file: URL?, name: String, text: String?)] = [(fileURL, shownName, text)]
         if let fileURL, let project {
@@ -51,7 +51,7 @@ extension DocumentSession {
             for file in project.tree.files where file.kind == .latex || file.kind == .bibliography || file.kind == .package || file.kind == .text {
                 let path = SourceMap.canonicalPath(file.url)
                 guard path != current else { continue }
-                sources.append((file.url, PathUtilities.relativePath(of: file.url, from: project.folder), openTexts[path]))
+                sources.append((file.url, ProjectFileKind.displayPath(of: file.url, from: project.folder), openTexts[path]))
             }
         }
         isSearchingProject = true

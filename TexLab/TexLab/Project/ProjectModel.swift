@@ -38,7 +38,7 @@ nonisolated enum ProjectFileKind: Sendable, Equatable {
         case .folder: "folder"
         case .latex: "doc.text"
         case .bibliography: "books.vertical"
-        case .package: "gearshape"
+        case .package: "shippingbox"
         case .image: "photo"
         case .pdf: "doc.richtext"
         case .text: "doc.plaintext"
@@ -51,6 +51,64 @@ nonisolated enum ProjectFileKind: Sendable, Equatable {
         switch self {
         case .latex, .bibliography, .package, .text: true
         default: false
+        }
+    }
+
+    // MARK: - Names and icons
+
+    /// Whether files of this kind are shown without their extension, as in Xcode's
+    /// navigator: the icon says what they are.
+    var hidesExtension: Bool {
+        switch self {
+        case .latex, .bibliography, .package, .image, .pdf: true
+        case .folder, .text, .other: false
+        }
+    }
+
+    /// The name TexLab shows for the file at `url`: "introduction" for introduction.tex,
+    /// with the extension only when the icon doesn't stand for it, as for notes.txt.
+    static func displayName(of url: URL) -> String {
+        let name = url.lastPathComponent
+        guard ProjectFileKind(url: url, isDirectory: false).hidesExtension else { return name }
+        let shortened = url.deletingPathExtension().lastPathComponent
+        return shortened.isEmpty ? name : shortened
+    }
+
+    /// The file's path from `folder`, ending in its shown name: "Sections/introduction".
+    static func displayPath(of url: URL, from folder: URL) -> String {
+        let directory = (PathUtilities.relativePath(of: url, from: folder) as NSString).deletingLastPathComponent
+        let name = displayName(of: url)
+        return directory.isEmpty ? name : directory + "/" + name
+    }
+
+    /// The icon for the file at `url`: its kind's, with classes and bibliography styles
+    /// told apart from packages, since their names no longer say which they are.
+    static func systemImage(for url: URL) -> String {
+        switch url.pathExtension.lowercased() {
+        case "cls": "doc.badge.gearshape"
+        case "bst", "bbx", "cbx": "text.book.closed"
+        case "def": "gearshape"
+        default: ProjectFileKind(url: url, isDirectory: false).systemImage
+        }
+    }
+
+    /// What the file is, in words, for VoiceOver and help tags, as its shown name leaves out
+    /// the extension.
+    static func typeName(of url: URL) -> String {
+        switch url.pathExtension.lowercased() {
+        case "cls": return String(localized: "Document class")
+        case "bst", "bbx", "cbx": return String(localized: "Bibliography style")
+        default: break
+        }
+        switch ProjectFileKind(url: url, isDirectory: false) {
+        case .folder: return String(localized: "Folder")
+        case .latex: return String(localized: "LaTeX document")
+        case .bibliography: return String(localized: "Bibliography")
+        case .package: return String(localized: "Package")
+        case .image: return String(localized: "Image")
+        case .pdf: return String(localized: "PDF document")
+        case .text: return String(localized: "Text file")
+        case .other: return String(localized: "File")
         }
     }
 }

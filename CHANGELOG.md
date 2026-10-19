@@ -3,6 +3,32 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.42 — References that print, and files by name
+
+- **References print again after Biber has failed once.** latexmk remembers a step
+  that failed and doesn't run it again until that step's files change. So a Biber that
+  failed a single time left the bibliography empty from then on: a typeset before the
+  `.bib` existed, before Biber was installed, or one cut short. Every later typeset said
+  "Nothing to do", even with Biber working and nothing wrong with the document, and with
+  no error to report. When TeX's log still asks for Biber or BibTeX (or misses the
+  `.bbl`) and latexmk didn't try to run them, TexLab now runs latexmk again with `-g`,
+  which runs every step. The bibliography is made, or the console says why it can't be
+  and the issue quotes it. Reproduced with latexmk 4.83 and Biber 2.19: a failed run,
+  then "Nothing to do" with Biber restored, then `-g` makes the bibliography with no
+  citation left undefined.
+- **Files go by their names, and the icon says what they are.** As in Xcode, the
+  project navigator shows `introduction` rather than `introduction.tex`. Each kind has
+  its icon in its own colour: green for LaTeX, orange for bibliographies, purple for
+  packages (a box), classes and bibliography styles (each with its own symbol), teal for
+  images and red for PDFs. Text and other files keep their extension. The help tag gives
+  the whole file name, and VoiceOver reads the kind after the name. Renaming edits the
+  name alone and keeps the extension, unless another known one is typed, which changes
+  the type; typing the same name does nothing. The bar above the editor, its file menu
+  and Main button, the Find results, the Issues list, the outline, the reference pickers
+  and completion name files the same way. Places that act on the file itself, such as
+  Move to Trash and New File, still give the whole name. The main file's row in the
+  Document section uses the LaTeX icon, with its Main badge, rather than the PDF's.
+
 ## v1.41 — Why Biber couldn't run
 
 - **A Biber that can't start says why.** Biber that isn't on the search path, can't be

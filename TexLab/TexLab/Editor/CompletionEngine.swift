@@ -183,7 +183,7 @@ nonisolated enum CompletionEngine {
                     insertion: entry.key,
                     title: entry.key,
                     detail: citationDetail(entry),
-                    source: entry.file?.lastPathComponent,
+                    source: entry.file.map(ProjectFileKind.displayName(of:)),
                     systemImage: entry.systemImage
                 )
             }

@@ -255,7 +255,14 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   double-click to refer to it, drag it into the text, or go to its definition.
 - **Project navigator** — the first sidebar tab lists the files of the project's folder in
   a native sidebar outline, like Xcode's and the Finder's: LaTeX files, bibliographies,
-  packages, images and folders, with the main file marked. Click a file to show it in the
+  packages, images and folders, with the main file marked. As in Xcode, files go by their
+  names — `introduction`, not `introduction.tex` — and the icon says what each is, in its
+  kind's colour: green for LaTeX, orange for bibliographies, purple for packages, classes
+  and bibliography styles (each with its own symbol), teal for images and red for PDFs.
+  Other files keep their extension, the help tag shows the whole name and VoiceOver says
+  the kind. Renaming edits the name and keeps the extension unless you type another one.
+  The bar above the editor, Find, the Issues list and the reference pickers name files
+  the same way. Click a file to show it in the
   editor; the arrow keys and type-to-select step through files with the keyboard still in
   the list, and the selection follows the file on screen. Double-click or ⌘↓ goes to the
   file (images and PDFs open in their usual app), Return renames it in place, ⌘⌫ moves it
@@ -344,7 +351,9 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   `\addbibresource` naming a file that isn't there (or leaving out `.bib`), and, when
   TeX still asks for Biber at the end, that Biber isn't installed and how to install it,
   or why it couldn't run, in its own words — rather than citations quietly undefined and
-  an empty bibliography.
+  an empty bibliography. latexmk won't run Biber again after it failed until its files
+  change, so when the bibliography is still missing and latexmk didn't try, TexLab has it
+  run every step once more.
 - **Multi-file projects** — add `% !TEX root = main.tex` to a chapter and typesetting it
   typesets the whole project, including the chapter's unsaved text.
 - **Live preview** that keeps its place and zoom as the document changes.

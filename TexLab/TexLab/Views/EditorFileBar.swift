@@ -54,7 +54,7 @@ struct EditorFileBar: View {
                 Button {
                     session.showMainFile()
                 } label: {
-                    Label(main.lastPathComponent, systemImage: "doc.richtext")
+                    Label(ProjectFileKind.displayName(of: main), systemImage: "doc.text")
                         .labelStyle(.titleAndIcon)
                 }
                 .help("Show the main file, which typesets the whole document (⌃⌘↑)")
@@ -73,7 +73,7 @@ struct EditorFileBar: View {
     private var fileLabel: some View {
         HStack(spacing: 5) {
             Image(systemName: icon(for: session.currentDocument))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(tint(for: session.currentDocument))
             Text(verbatim: path(of: session.currentDocument))
                 .lineLimit(1)
                 .truncationMode(.head)
@@ -107,7 +107,7 @@ struct EditorFileBar: View {
         }
         Divider()
         if let current = session.currentDocument, session.documents.count > 1 {
-            Button("Close “\(current.state.name)”") {
+            Button("Close “\(path(of: current))”") {
                 session.closeDocument(current)
             }
         }
@@ -122,15 +122,21 @@ struct EditorFileBar: View {
         }
     }
 
-    /// The document's path from the project folder, or its name.
+    /// The document's path from the project folder, or its name, without the extension its
+    /// icon stands for.
     private func path(of document: TeXDocument?) -> String {
         guard let document, let url = document.state.url else { return document?.state.name ?? String(localized: "Untitled") }
-        guard let folder = session.project?.folder else { return document.state.name }
-        return PathUtilities.relativePath(of: url, from: folder)
+        guard let folder = session.project?.folder else { return ProjectFileKind.displayName(of: url) }
+        return ProjectFileKind.displayPath(of: url, from: folder)
     }
 
     private func icon(for document: TeXDocument?) -> String {
         guard let url = document?.state.url else { return "doc.text" }
-        return ProjectFileKind(url: url, isDirectory: false).systemImage
+        return ProjectFileKind.systemImage(for: url)
+    }
+
+    private func tint(for document: TeXDocument?) -> Color {
+        guard let url = document?.state.url else { return ProjectFileKind.latex.tintColor }
+        return ProjectFileKind(url: url, isDirectory: false).tintColor
     }
 }
