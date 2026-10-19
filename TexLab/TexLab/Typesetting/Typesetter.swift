@@ -223,7 +223,9 @@ nonisolated enum Typesetter {
         }
 
         var environment = ProcessRunner.toolEnvironment
-        environment["PATH"] = request.distribution.searchPath
+        // A Biber TexLab extracted, because the distribution's can't start, comes first.
+        let biberFolder = BiberSlice.existingFolder(for: request.distribution)
+        environment["PATH"] = Self.searchPath(request.distribution, biberFolder: biberFolder)
         environment["max_print_line"] = "10000"
         environment["error_line"] = "254"
         environment["half_error_line"] = "238"
@@ -233,13 +235,17 @@ nonisolated enum Typesetter {
             environment["TEXINPUTS"] = overlay.filePath + ":"
         }
 
-        let pipeline = Pipeline(request: request, sourceMap: sourceMap, environment: environment)
         let usesLatexmk = request.usesLatexmk && request.distribution.canRunLatexmk
-        let run: ProcessRunner.Result
-        if usesLatexmk {
-            run = await pipeline.runLatexmk()
-        } else {
-            run = await pipeline.runEngineDirectly()
+        var pipeline = Pipeline(request: request, sourceMap: sourceMap, environment: environment, biberFolder: biberFolder)
+        var run = usesLatexmk ? await pipeline.runLatexmk() : await pipeline.runEngineDirectly()
+        if run.output.contains(BiberSlice.failureMarker), biberFolder == nil, !run.wasCancelled,
+           let folder = BiberSlice.extract(for: request.distribution) {
+            // Biber couldn't extract its own slice with lipo; TexLab has, so run again with it.
+            environment["PATH"] = Self.searchPath(request.distribution, biberFolder: folder)
+            pipeline = Pipeline(request: request, sourceMap: sourceMap, environment: environment, biberFolder: folder)
+            var retry = usesLatexmk ? await pipeline.runLatexmk() : await pipeline.runEngineDirectly()
+            retry.output = run.output + "\n" + retry.output
+            run = retry
         }
 
         if let launchError = run.launchError {
@@ -287,6 +293,12 @@ nonisolated enum Typesetter {
         )
     }
 
+    /// The tools' search path, with the folder of an extracted Biber first.
+    private static func searchPath(_ distribution: TeXDistribution, biberFolder: URL?) -> String {
+        guard let biberFolder else { return distribution.searchPath }
+        return biberFolder.filePath + ":" + distribution.searchPath
+    }
+
     /// Text in its file's own encoding, so `inputenc` declarations still match. TeX
     /// engines can't all read UTF-16, so such files are typeset from UTF-8.
     private static func encoded(_ text: String, in encoding: String.Encoding) -> Data {
@@ -301,6 +313,8 @@ nonisolated private struct Pipeline {
     let request: TypesetRequest
     let sourceMap: SourceMap
     let environment: [String: String]
+    /// Where TexLab's own extracted Biber is, when the distribution's can't start.
+    let biberFolder: URL?
 
     private var build: URL { request.buildDirectory }
     private var job: String { request.jobName }
@@ -363,7 +377,7 @@ nonisolated private struct Pipeline {
         let fileManager = FileManager.default
         let aux = (try? String(contentsOf: build.appending(path: "\(job).aux"), encoding: .utf8)) ?? ""
         if fileManager.fileExists(atPath: build.appending(path: "\(job).bcf").filePath),
-           let biber = request.distribution.executable("biber") {
+           let biber = biberFolder.map({ $0.appending(path: "biber") }) ?? request.distribution.executable("biber") {
             let step = await runTool(biber, arguments: ["--output-directory", build.filePath, job], in: sourceMap.workingDirectory, transcript: &transcript)
             if step.wasCancelled { return step }
             needsMorePasses = true

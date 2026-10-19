@@ -66,23 +66,26 @@ nonisolated enum BibliographyLog {
         return nil
     }
 
-    /// The line that says what went wrong: the first that reads like an error or a usage
-    /// message, or else the first the tool printed. A usage message names its program on
-    /// its first line and lists options after it, so the end of the output says nothing.
+    /// The line that says what went wrong: the first that reads like an error, else the
+    /// first of a usage message — which names its program there and lists options after
+    /// it, so the end of the output says nothing — else the first the tool printed.
     private static func reason(in lines: ArraySlice<String>) -> String? {
         let said = lines
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty && !$0.hasPrefix("---") && !$0.contains("INFO - ") }
         guard let first = said.first else { return nil }
-        let line = said.first { line in
-            let lowercased = line.lowercased()
-            return failureWords.contains { lowercased.contains($0) }
-        } ?? first
+        func firstLine(containing words: [String]) -> String? {
+            said.first { line in
+                let lowercased = line.lowercased()
+                return words.contains { lowercased.contains($0) }
+            }
+        }
+        let line = firstLine(containing: failureWords) ?? firstLine(containing: ["usage:"]) ?? first
         return line.count > 300 ? String(line.prefix(300)) + "…" : line
     }
 
     private static let failureWords = [
-        "error", "usage:", "not found", "no such file", "cannot", "can't", "can’t", "could not",
+        "error", "not found", "no such file", "cannot", "can't", "can’t", "could not",
         "couldn't", "failed", "bad cpu type", "permission denied", "killed", "abort",
     ]
 

@@ -354,7 +354,9 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   an empty bibliography. Show Output opens what the tools printed, and any issue's
   message can be copied from its context menu. latexmk won't run Biber again after it failed until its files
   change, so when the bibliography is still missing and latexmk didn't try, TexLab has it
-  run every step once more.
+  run every step once more. TeX Live's universal Biber unpacks itself with `lipo`, which
+  fails with newer Xcode versions; TexLab then extracts the slice for the Mac's
+  processor itself and runs that.
 - **Multi-file projects** — add `% !TEX root = main.tex` to a chapter and typesetting it
   typesets the whole project, including the chapter's unsaved text.
 - **Live preview** that keeps its place and zoom as the document changes.

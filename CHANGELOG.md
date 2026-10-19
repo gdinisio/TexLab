@@ -3,6 +3,24 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.44 — Biber on new Macs
+
+- **Biber runs even when it can't unpack itself.** TeX Live's Biber for the Mac is a
+  universal binary that, as it starts, has `lipo` extract the slice for the Mac's
+  processor and runs it. The `lipo` of newer Xcode versions takes other options
+  (`-o` for `-output`), so Biber printed `lipo`'s usage and stopped — "extracting arm64
+  binary with lipo failed (wstatus=256)" — leaving every citation undefined, in TexLab
+  as in Terminal. When Biber says so, TexLab now extracts the slice itself: it reads the
+  universal binary's header and copies the slice out, byte for byte as `lipo -thin`
+  would, without `lipo`. It then typesets again with that copy, which, being thin, starts
+  directly. The copy is kept in TexLab's caches (`Tools/biber-arm64-…`), named after the
+  original's size and date, so later typesets use it at once and an updated Biber gets
+  a fresh one. Checked against universal binaries made with `llvm-lipo`, with 32- and
+  64-bit headers and a payload after each slice as Biber carries: every slice matched
+  `lipo -thin` exactly.
+- When a tool fails, the issue quotes the line that reads like an error ahead of a
+  usage message: "extracting arm64 binary with lipo failed" rather than "usage: lipo".
+
 ## v1.43 — Tool failures you can read
 
 - **The line that says what happened.** When Biber or BibTeX can't run, the issue used
