@@ -252,6 +252,8 @@ nonisolated enum Typesetter {
         let logData = (try? Data(contentsOf: build.appending(path: "\(job).log"))) ?? Data()
         let log = String(decoding: logData, as: UTF8.self)
         var entries = LaTeXLogParser.parse(log)
+        // Why the bibliography is empty, which TeX's own log doesn't say.
+        entries.insert(contentsOf: BibliographyLog.entries(log: log, buildDirectory: build, jobName: job, distribution: request.distribution), at: 0)
 
         // Use the PDF if this run wrote it, or if the run succeeded without needing to
         // (latexmk does nothing when no source has changed since the last run).

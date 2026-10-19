@@ -339,6 +339,11 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   (which writes a `% !TEX program` comment other editors understand — into the main file
   when a chapter is on screen) or by default in Settings. latexmk is used when installed; otherwise TexLab runs BibTeX/Biber, makeindex
   and repeated passes itself.
+- **Bibliography problems explained** — what Biber and BibTeX report goes into the Issues
+  navigator with TeX's own: a mistake in a `.bib` file at its line, an
+  `\addbibresource` naming a file that isn't there (or leaving out `.bib`), and, when
+  TeX still asks for Biber at the end, that Biber isn't installed and how to install it —
+  rather than citations quietly undefined and an empty bibliography.
 - **Multi-file projects** — add `% !TEX root = main.tex` to a chapter and typesetting it
   typesets the whole project, including the chapter's unsaved text.
 - **Live preview** that keeps its place and zoom as the document changes.

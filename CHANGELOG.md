@@ -3,6 +3,35 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.40 — Why the bibliography is empty
+
+A document using biblatex could typeset with every citation undefined and an empty
+bibliography, and TexLab said nothing: TeX's log only asks for Biber to be run.
+Biber's and BibTeX's own logs (`.blg`) say what went wrong, and TexLab now reads them.
+
+- **Biber's and BibTeX's errors and warnings are issues.** A syntax error or runaway
+  string in a `.bib` file shows at its line in that file (Biber names a temporary copy;
+  TexLab puts it down to the data source Biber was reading), as do BibTeX's "I was
+  expecting a `,' or a `}'" and repeated entries. "Too many commas in name" and other
+  errors found while the style runs, missing database or style files, and BibTeX's
+  empty-field warnings are listed too. Unfound citation keys aren't repeated, as LaTeX
+  already marks each one where it's cited.
+- **A missing `.bib` explained.** Biber's "Cannot find 'references'!" becomes "Biber
+  can't find “references”. \addbibresource needs the file's extension, as in
+  \addbibresource{references.bib}"; with the extension, it says the path is taken from
+  the main file's folder.
+- **A missing Biber explained.** When TeX still asks for Biber at the end and the TeX
+  distribution has no Biber, the issue says so and gives the command to install it
+  (`sudo tlmgr install biber`, or TeX Live Utility). TexLab used to skip Biber
+  without a word when it wasn't there. If Biber is installed but TeX still asks for
+  it, a warning points to the log.
+- **Typeset with Errors.** A bibliography that couldn't be made now counts as an error,
+  so the status says so instead of a green tick over an empty bibliography.
+
+Checked against real logs from Biber 2.19 and BibTeX 0.99d: a missing `.bib`, a
+missing extension, syntax errors and runaway strings, a missing database, nothing
+cited, and too many commas in a name.
+
 ## v1.39 — biblatex loaded over several lines
 
 - **No more "\addbibresource needs biblatex" when it's loaded.** The package check read
