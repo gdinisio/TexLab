@@ -181,7 +181,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   packages are known — symbols, amsmath and mathtools, graphicx, xcolor, hyperref,
   cleveref, booktabs, siunitx, TikZ and pgfplots, listings, biblatex and natbib, and more
   — each checked with TeX Live to be missing from plain LaTeX and defined by the package
-  offered. Packages the class loads (Beamer loads amsmath, amssymb and hyperref, say),
+  offered. `\usepackage` counts however it's written, options and lists over several
+  lines included. Packages the class loads (Beamer loads amsmath, amssymb and hyperref, say),
   packages other packages load (mathtools loads amsmath), the project's own packages and
   preamble files, and commands the project defines all count; with a class it doesn't
   know, the check stays quiet. Settings ▸ Editor turns it off.

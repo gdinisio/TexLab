@@ -168,6 +168,7 @@ nonisolated enum PackageRequirements {
         "tcolorbox": ["pgf", "graphicx", "xcolor"],
         "hyperref": ["url", "nameref"],
         "biblatex": ["url"],
+        "biblatex-chicago": ["biblatex", "nameref", "url"],
         "subcaption": ["caption"],
         "tabularx": ["array"],
         "siunitx": ["amstext", "array", "color"],
@@ -211,17 +212,17 @@ nonisolated enum PackageRequirements {
     }
 
     /// The packages `text` loads with `\usepackage` or `\RequirePackage`, outside comments.
+    /// The text is read whole, without its comments, rather than line by line: options and
+    /// lists of packages often run over several lines, as biblatex's do.
     static func packagesLoaded(by text: String) -> Set<String> {
+        let code = text.components(separatedBy: "\n").map { LaTeXText.stripComment($0) }.joined(separator: "\n")
+        let string = code as NSString
         var packages: Set<String> = []
-        for line in text.components(separatedBy: "\n") {
-            let code = LaTeXText.stripComment(line)
-            let string = code as NSString
-            for match in packagePattern.matches(in: code, range: NSRange(location: 0, length: string.length)) {
-                for name in string.substring(with: match.range(at: 1)).split(separator: ",") {
-                    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty {
-                        packages.insert(trimmed)
-                    }
+        for match in packagePattern.matches(in: code, range: NSRange(location: 0, length: string.length)) {
+            for name in string.substring(with: match.range(at: 1)).split(separator: ",") {
+                let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    packages.insert(trimmed)
                 }
             }
         }

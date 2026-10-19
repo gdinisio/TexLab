@@ -202,22 +202,8 @@ extension DocumentSession {
         return location ?? string.lineRange(for: NSRange(location: beginLocation, length: 0)).location
     }
 
-    private static let packagePattern = try! NSRegularExpression(
-        pattern: #"\\(?:usepackage|RequirePackage)\s*(?:\[[^\]]*\])?\s*\{([^{}]*)\}"#
-    )
-
-    /// The packages a preamble loads, outside comments.
+    /// The packages a preamble loads, outside comments, as the package check reads them.
     static func loadedPackages(in preamble: String) -> Set<String> {
-        let string = preamble as NSString
-        var packages: Set<String> = []
-        for match in packagePattern.matches(in: preamble, range: NSRange(location: 0, length: string.length)) {
-            let lineStart = string.lineRange(for: NSRange(location: match.range.location, length: 0)).location
-            let prefix = string.substring(with: NSRange(location: lineStart, length: match.range.location - lineStart))
-            guard LaTeXText.stripComment(prefix) == prefix else { continue }
-            for name in string.substring(with: match.range(at: 1)).split(separator: ",") {
-                packages.insert(name.trimmingCharacters(in: .whitespacesAndNewlines))
-            }
-        }
-        return packages
+        PackageRequirements.packagesLoaded(by: preamble)
     }
 }

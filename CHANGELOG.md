@@ -3,6 +3,17 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.39 — biblatex loaded over several lines
+
+- **No more "\addbibresource needs biblatex" when it's loaded.** The package check read
+  the preamble line by line, so a `\usepackage` whose options run over several lines —
+  the usual way to load biblatex, with `backend`, `style` and `sorting` on lines of their
+  own — went unseen, and so did a list of packages split over lines or a package name on
+  the line after its options. The preamble is now read whole, without its comments, as
+  TeX reads it; each of these was checked with pdfLaTeX to load biblatex. Add Package,
+  its Loaded marks and the package offers all read packages this one way.
+- **biblatex-chicago** counts as loading biblatex, as it does in TeX Live.
+
 ## v1.38 — A toolbar laid out like Xcode's
 
 The window's toolbar is laid out the way Xcode's is: what's done to the whole document
