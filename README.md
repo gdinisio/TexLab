@@ -43,15 +43,22 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
     look, and the preamble collapsed.
     Markup appears, in the code font, wherever the insertion point is.
 - **Bibliographies, read and edited like Xcode's Info editor** — a `.bib` file in the
-  Visual editor is a table: each entry a row with its citation key, its kind — Journal
-  Article, Book, Conference Paper, Website, PhD Thesis… — chosen from a menu, and a
-  summary ("Knuth · 1984 · The TeXbook"); open it to see its fields by name — Authors,
-  Title, Journal, Year, Publisher, Organization, URL — and edit them in place, as Xcode
-  shows "Bundle display name" for `CFBundleDisplayName`.
-  - The fields an entry's kind needs are always listed, ready to fill in, and an entry
-    missing any is marked; Add Field offers the ones its kind usually has, and more.
-  - Add Entry, Duplicate Entry, Delete (or the Delete key), Copy Citation and a filter by
-    key, author, title or year; a link opens a URL or DOI in the browser. Accents and
+  Visual editor is a column of cards, a page wide like the Visual editor's text: each
+  entry's card shows its kind with an icon in that kind's colour, its citation key, a
+  summary ("Knuth · 1984 · The TeXbook") and the kind — Journal Article, Book,
+  Conference Paper, Website, PhD Thesis… — as a menu to change it. Open a card to see
+  its fields by name — Authors, Title, Journal, Year, Publisher, Organization, URL — in a
+  column of labels and values, as Xcode shows "Bundle display name" for
+  `CFBundleDisplayName`.
+  - Values read as text and are edited in place: hovering shows a soft field, clicking
+    edits it with a ring around it, Return or clicking away writes it, Esc puts it back.
+    Long values — titles, authors, abstracts, notes — wrap onto more lines.
+  - The fields an entry's kind needs come first and are always listed, ready to fill in
+    with an orange dot until they are; the card says how many are left. Add Field offers
+    the ones its kind usually has, and more, and hovering a field shows a − to remove it.
+  - Add Entry (which brings the new card into view), Duplicate Entry, Delete, Copy
+    Citation and Show in Code from the card's ⋯ menu or its context menu, and a filter
+    by key, author, title or year; a link opens a URL or DOI in the browser. Accents and
     dashes read as they print (M{\"u}ller as Müller), and each field says how to write
     it where it isn't obvious, such as names separated with "and".
   - BibTeX stays behind it: each change is written into the text as an undoable edit

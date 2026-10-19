@@ -3,6 +3,32 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.37 — A cleaner bibliography editor
+
+The Visual bibliography editor keeps its structure — entries that open to show their
+fields, BibTeX behind them — with a cleaner look that matches the rest of TexLab, in
+place of a striped table.
+
+- **Cards in a page-wide column.** Each entry is a card with rounded corners in a column
+  as wide as the Visual editor's page, rather than a row of a full-width table with
+  alternating stripes and column headers. Its header shows the kind as an icon in that
+  kind's colour (blue for articles, orange for books, purple for conference papers, teal
+  for websites, indigo for theses), the citation key, a one-line summary, how many
+  required fields are still to fill in, and the kind as a quiet menu.
+- **Labels and values.** An open card lists its fields as a column of labels beside
+  their values, with no grid lines. Values read as text: hovering shows a soft field,
+  clicking edits it with a ring around it, Return or clicking away writes it, and Esc
+  puts it back. Titles, authors, abstracts, notes and other long values wrap onto more
+  lines instead of running off the end of a cell.
+- **Editing where you look.** A required field still to fill in has an orange dot and
+  says Required; hovering any other field shows a − to remove it, as in Xcode's Info
+  editor; Add Field sits at the foot of the card; and the card's ⋯ menu (or its context
+  menu) copies the citation or key, duplicates the entry, shows it in Code or deletes it.
+  A new entry is opened and brought into view.
+- **Glass controls.** Add Entry, the filter, Open All / Close All and BibTeX Names float
+  on Liquid Glass above the cards, like the sidebar's controls, with the cards scrolling
+  beneath.
+
 ## v1.36 — Packages when they're needed, and a toolbar that makes sense
 
 - **Offers the package a command needs.** Type `\mathbb{R}` without amssymb, or

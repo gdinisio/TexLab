@@ -7,82 +7,69 @@ import AppKit
 import Foundation
 import SwiftUI
 
-/// A row of the bibliography table: an entry, or one of its fields.
-private struct BibliographyRow: Identifiable, Hashable {
-    enum Kind: Hashable {
-        case entry
-        /// A field the entry has; `occurrence` tells apart a name used twice.
-        case field(name: String, occurrence: Int)
-        /// A field the entry's type needs that it doesn't have yet.
-        case missing(String)
-        case addField
-        /// An entry that doesn't end properly, left to the Code editor.
-        case incomplete
-    }
-
-    var entry: Int
-    var kind: Kind
-
-    var id: Self { self }
-}
-
-/// A bibliography in the Visual editor, like Xcode's Info editor: each entry a row with its
-/// citation key, its kind — Journal Article, Book, Website… — and a summary; open it to
-/// see and edit its fields by name — Authors, Title, Journal, Year — with the fields its
-/// kind needs ready to fill in. BibTeX stays behind it: every change is an undoable edit
-/// to the text, which the Code editor shows as it is.
+/// A bibliography in the Visual editor, in the spirit of Xcode's Info editor but laid out
+/// to read: each entry a card in a page-wide column, with its kind, citation key and a
+/// summary; open it to see its fields by name — Authors, Title, Journal, Year — in a
+/// column of labels and values, the ones its kind needs ready to fill in. Values look
+/// like text until they're edited, and long ones wrap. BibTeX stays behind it: every
+/// change is an undoable edit to the text, which the Code editor shows as it is.
 struct BibliographyEditor: View {
     var session: DocumentSession
 
     @State private var file = BibliographyFile()
     @State private var expandedKeys: Set<String> = []
-    @State private var selection: Set<BibliographyRow> = []
     @State private var filter = ""
     @State private var loadedURL: URL?
+    /// An entry just added, to bring into view once it's in the file.
+    @State private var revealedEntry: Int?
     /// The entry an Other Field… is being added to, and its name.
     @State private var otherFieldEntry: Int?
     @State private var otherFieldName = ""
     @AppStorage("bibliographyShowsBibTeXNames") private var showsBibTeXNames = false
 
+    /// A readable line length, like the Visual editor's page.
+    private static let columnWidth: CGFloat = 760
+
     var body: some View {
-        VStack(spacing: 0) {
-            bar
-            Divider()
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .onChange(of: session.textRevision, initial: true) {
-            reload()
-        }
-        // Undo and Redo go to the bibliography's history while the table has the focus, as
-        // they do in the Code editor.
-        .onCommand(Selector(("undo:"))) {
-            session.undoBibliographyEdit()
-        }
-        .onCommand(Selector(("redo:"))) {
-            session.redoBibliographyEdit()
-        }
-        .alert("Add Another Field", isPresented: Binding(get: { otherFieldEntry != nil }, set: { if !$0 { otherFieldEntry = nil } })) {
-            TextField("Name", text: $otherFieldName)
-            Button("Add") {
-                let name = otherFieldName.trimmingCharacters(in: .whitespaces).lowercased()
-                if let id = otherFieldEntry, let entry = self.entry(id), !name.isEmpty, name.allSatisfy({ $0.isLetter || $0.isNumber || "-_.:".contains($0) }) {
-                    addField(name, value: "", to: entry)
-                } else {
-                    NSSound.beep()
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(nsColor: .textBackgroundColor))
+            .safeAreaInset(edge: .top, spacing: 0) {
+                bar
+            }
+            .onChange(of: session.textRevision, initial: true) {
+                reload()
+            }
+            // Undo and Redo go to the bibliography's history, as they do in the Code
+            // editor, when no field is being edited.
+            .onCommand(Selector(("undo:"))) {
+                session.undoBibliographyEdit()
+            }
+            .onCommand(Selector(("redo:"))) {
+                session.redoBibliographyEdit()
+            }
+            .alert("Add Another Field", isPresented: Binding(get: { otherFieldEntry != nil }, set: { if !$0 { otherFieldEntry = nil } })) {
+                TextField("Name", text: $otherFieldName)
+                Button("Add") {
+                    let name = otherFieldName.trimmingCharacters(in: .whitespaces).lowercased()
+                    if let id = otherFieldEntry, let entry = self.entry(id), !name.isEmpty, name.allSatisfy({ $0.isLetter || $0.isNumber || "-_.:".contains($0) }) {
+                        addField(name, value: "", to: entry)
+                    } else {
+                        NSSound.beep()
+                    }
+                    otherFieldName = ""
                 }
-                otherFieldName = ""
+                Button("Cancel", role: .cancel) {
+                    otherFieldName = ""
+                }
+            } message: {
+                Text("The field’s name as BibTeX writes it, such as “isbn” or “eprint”.")
             }
-            Button("Cancel", role: .cancel) {
-                otherFieldName = ""
-            }
-        } message: {
-            Text("The field’s name as BibTeX writes it, such as “isbn” or “eprint”.")
-        }
     }
 
     // MARK: - Bar
 
+    /// Add Entry, the filter and the count, floating on glass over the cards.
     private var bar: some View {
         HStack(spacing: 10) {
             addEntryMenu
@@ -105,38 +92,35 @@ struct BibliographyEditor: View {
                 }
             }
             .navigatorGlass()
-            .frame(maxWidth: 360)
-            Spacer()
+            .frame(maxWidth: 340)
+            Spacer(minLength: 8)
             Text(countDescription)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
-            ControlGroup {
-                Button {
+            Button {
+                if expandedKeys.isEmpty {
                     expandedKeys = Set(file.entries.map(expansionKey))
-                } label: {
-                    Label("Expand All", systemImage: "rectangle.expand.vertical")
-                }
-                .help("Show every entry’s fields")
-                Button {
+                } else {
                     expandedKeys = []
-                } label: {
-                    Label("Collapse All", systemImage: "rectangle.compress.vertical")
                 }
-                .help("Show only the entries")
+            } label: {
+                Label(expandedKeys.isEmpty ? "Open All" : "Close All", systemImage: expandedKeys.isEmpty ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
             }
+            .buttonStyle(.glass)
             .labelStyle(.iconOnly)
-            .fixedSize()
+            .help(expandedKeys.isEmpty ? "Show every entry’s fields" : "Show only the entries")
             Toggle(isOn: $showsBibTeXNames) {
                 Label("BibTeX Names", systemImage: "curlybraces")
             }
             .toggleStyle(.button)
+            .buttonStyle(.glass)
             .labelStyle(.iconOnly)
-            .help("Show fields and kinds of entry by their BibTeX names, such as “booktitle” and “inproceedings”")
+            .help("Show fields and kinds by their BibTeX names, such as “booktitle” and “inproceedings”")
         }
-        .controlSize(.small)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .controlSize(.regular)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
     }
 
     private var addEntryMenu: some View {
@@ -151,6 +135,8 @@ struct BibliographyEditor: View {
         } label: {
             Label("Add Entry", systemImage: "plus")
         }
+        .menuStyle(.button)
+        .buttonStyle(.glass)
         .fixedSize()
         .help("Add a book, article, website or other entry to the bibliography")
     }
@@ -164,7 +150,7 @@ struct BibliographyEditor: View {
         return count == 1 ? String(localized: "1 entry") : String(localized: "\(count) entries")
     }
 
-    // MARK: - Table
+    // MARK: - Cards
 
     @ViewBuilder
     private var content: some View {
@@ -179,207 +165,255 @@ struct BibliographyEditor: View {
         } else if visibleEntries.isEmpty {
             ContentUnavailableView.search(text: filter)
         } else {
-            table
-        }
-    }
-
-    private var table: some View {
-        Table(of: BibliographyRow.self, selection: $selection) {
-            TableColumn("Key") { row in
-                keyCell(row)
-            }
-            .width(min: 120, ideal: 210)
-            TableColumn("Type") { row in
-                typeCell(row)
-            }
-            .width(min: 90, ideal: 170, max: 260)
-            TableColumn("Value") { row in
-                valueCell(row)
-            }
-        } rows: {
-            ForEach(visibleEntries) { entry in
-                DisclosureTableRow(BibliographyRow(entry: entry.id, kind: .entry), isExpanded: expansion(of: entry)) {
-                    ForEach(rows(of: entry)) { row in
-                        TableRow(row)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(visibleEntries) { entry in
+                            card(for: entry)
+                                .id(entry.id)
+                        }
+                    }
+                    .frame(maxWidth: Self.columnWidth)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity)
+                }
+                .onChange(of: file.entries.count) {
+                    guard let id = revealedEntry, file.entries.indices.contains(id) else { return }
+                    revealedEntry = nil
+                    withAnimation {
+                        proxy.scrollTo(id, anchor: .center)
                     }
                 }
             }
         }
-        .contextMenu(forSelectionType: BibliographyRow.self) { rows in
-            menu(for: rows)
-        } primaryAction: { rows in
-            // Double-click an entry to open or close it.
-            for row in rows where row.kind == .entry {
-                if let entry = self.entry(row.entry) {
+    }
+
+    /// An entry: its header, and when open, its fields and Add Field.
+    private func card(for entry: BibliographyEntry) -> some View {
+        let isExpanded = expandedKeys.contains(expansionKey(entry))
+        return VStack(alignment: .leading, spacing: 0) {
+            header(for: entry, isExpanded: isExpanded)
+            if isExpanded {
+                Divider()
+                    .padding(.leading, 58)
+                if entry.isComplete {
+                    fields(of: entry)
+                } else {
+                    incomplete(entry)
+                }
+            }
+        }
+        .background(.quinary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(.separator.opacity(0.5))
+        }
+        .contextMenu {
+            actions(for: entry)
+        }
+    }
+
+    private func header(for entry: BibliographyEntry, isExpanded: Bool) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: BibliographyCatalog.systemImage(ofType: entry.type))
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(Self.tint(forType: entry.type))
+                .frame(width: 32, height: 32)
+                .background(Self.tint(forType: entry.type).opacity(0.14), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .onTapGesture {
                     toggle(entry)
                 }
-            }
-        }
-        .onDeleteCommand {
-            delete(selection)
-        }
-    }
-
-    /// An entry's rows: the fields its kind needs, in the usual order — filled in or ready
-    /// to be — then its other fields as the file has them, and Add Field.
-    private func rows(of entry: BibliographyEntry) -> [BibliographyRow] {
-        guard entry.isComplete else {
-            return [BibliographyRow(entry: entry.id, kind: .incomplete)]
-        }
-        var rows: [BibliographyRow] = []
-        var shown: Set<Int> = []
-        let required = BibliographyCatalog.type(entry.type)?.required ?? []
-        for group in required {
-            if let index = entry.fields.firstIndex(where: { group.contains($0.name) }) {
-                rows.append(fieldRow(entry, index))
-                shown.insert(index)
-            } else if let name = group.first {
-                rows.append(BibliographyRow(entry: entry.id, kind: .missing(name)))
-            }
-        }
-        for index in entry.fields.indices where !shown.contains(index) {
-            rows.append(fieldRow(entry, index))
-        }
-        rows.append(BibliographyRow(entry: entry.id, kind: .addField))
-        return rows
-    }
-
-    private func fieldRow(_ entry: BibliographyEntry, _ index: Int) -> BibliographyRow {
-        let name = entry.fields[index].name
-        let occurrence = entry.fields[..<index].filter { $0.name == name }.count
-        return BibliographyRow(entry: entry.id, kind: .field(name: name, occurrence: occurrence))
-    }
-
-    // MARK: - Cells
-
-    @ViewBuilder
-    private func keyCell(_ row: BibliographyRow) -> some View {
-        if let entry = self.entry(row.entry) {
-            switch row.kind {
-            case .entry:
-                HStack(spacing: 6) {
-                    Image(systemName: BibliographyCatalog.systemImage(ofType: entry.type))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 16)
-                        .accessibilityHidden(true)
-                    CommitField(value: entry.key, prompt: String(localized: "Key"), isMonospaced: true) { key in
-                        file.problem(withKey: key, for: entry)
-                    } commit: { key in
-                        setKey(key, of: entry)
-                    }
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                ValueField(value: entry.key, prompt: String(localized: "Key"), font: .body.monospaced().weight(.semibold)) { key in
+                    file.problem(withKey: key, for: entry)
+                } commit: { key in
+                    setKey(key, of: entry)
                 }
-            case .field(let name, _):
-                fieldName(name)
-            case .missing(let name):
-                fieldName(name)
+                .help("The citation key, as \\cite{…} names this entry")
+                Text(verbatim: entry.summary.isEmpty ? String(localized: "No author, year or title yet") : entry.summary)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
-            case .addField:
-                Menu {
-                    addFieldItems(for: entry)
-                } label: {
-                    Label("Add Field", systemImage: "plus")
-                }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-                .foregroundStyle(.secondary)
-            case .incomplete:
-                Label("Incomplete Entry", systemImage: "exclamationmark.triangle")
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.leading, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        toggle(entry)
+                    }
+            }
+            let missing = BibliographyCatalog.missingFields(of: entry)
+            if entry.isComplete && !missing.isEmpty {
+                Text("\(missing.count) to fill in")
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(.orange)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(.orange.opacity(0.12), in: Capsule())
+                    .help(String(localized: "Still to fill in: \(missing.map(BibliographyCatalog.fieldTitle).formatted(.list(type: .and)))"))
             }
+            typeMenu(for: entry)
+            Menu {
+                actions(for: entry)
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .accessibilityLabel("Actions")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Copy, duplicate, show in Code or delete this entry")
+            Button {
+                toggle(entry)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .frame(width: 16, height: 16)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .help(isExpanded ? "Hide the fields" : "Show the fields")
+            .accessibilityLabel(isExpanded ? "Hide the fields" : "Show the fields")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    /// The kind of entry, as a quiet menu: "Journal Article ⌄".
+    private func typeMenu(for entry: BibliographyEntry) -> some View {
+        Menu {
+            Picker("Kind", selection: typeBinding(of: entry)) {
+                ForEach(BibliographyCatalog.types) { type in
+                    Label(showsBibTeXNames ? type.name : type.title, systemImage: type.systemImage)
+                        .tag(type.name)
+                }
+                if BibliographyCatalog.type(entry.type) == nil {
+                    Text(verbatim: entry.type)
+                        .tag(entry.normalizedType)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Text(verbatim: showsBibTeXNames ? entry.normalizedType : BibliographyCatalog.title(ofType: entry.type))
+                .font(.callout)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("The kind of entry, which decides the fields it needs")
+    }
+
+    /// The fields, labels in a column and values beside them: those the entry's kind needs
+    /// first, filled in or waiting, then its others as the file has them.
+    private func fields(of entry: BibliographyEntry) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(rows(of: entry), id: \.self) { row in
+                switch row {
+                case .field(let index):
+                    let field = entry.fields[index]
+                    FieldRow(
+                        label: label(for: field.name),
+                        help: BibliographyCatalog.fieldHelp(field.name) ?? field.name,
+                        value: field.value,
+                        prompt: nil,
+                        wraps: Self.wrappingFields.contains(field.name),
+                        isRequired: BibliographyCatalog.isRequired(field.name, inType: entry.type),
+                        link: BibliographyCatalog.link(forField: field.name, value: field.value)
+                    ) { value in
+                        setValue(value, of: field, in: entry)
+                    } remove: {
+                        apply([file.removing(field, from: entry)], actionName: String(localized: "Remove \(BibliographyCatalog.fieldTitle(field.name))"))
+                    }
+                case .missing(let name):
+                    FieldRow(
+                        label: label(for: name),
+                        help: BibliographyCatalog.fieldHelp(name) ?? name,
+                        value: "",
+                        prompt: String(localized: "Required"),
+                        wraps: Self.wrappingFields.contains(name),
+                        isRequired: true,
+                        link: nil
+                    ) { value in
+                        addField(name, value: value, to: entry)
+                    }
+                }
+            }
+            Menu {
+                addFieldItems(for: entry)
+            } label: {
+                Label("Add Field", systemImage: "plus.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .foregroundStyle(.secondary)
+            .padding(.leading, FieldRow.labelWidth + 16)
+            .padding(.top, 6)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    private func incomplete(_ entry: BibliographyEntry) -> some View {
+        HStack(spacing: 8) {
+            Label("This entry doesn’t end with a closing brace.", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+            Button("Show in Code") {
+                session.showBibliographySource(at: entry.range)
+            }
+            .buttonStyle(.link)
+        }
+        .padding(14)
+    }
+
+    private func label(for name: String) -> String {
+        showsBibTeXNames ? name : BibliographyCatalog.fieldTitle(name)
+    }
+
+    /// Fields whose values run long, which wrap onto more lines.
+    private static let wrappingFields: Set<String> = [
+        "title", "booktitle", "author", "editor", "abstract", "note", "annote", "keywords", "howpublished", "organization", "journal", "journaltitle", "publisher",
+    ]
+
+    /// A colour for each kind of entry, so a long bibliography is easy to scan.
+    private static func tint(forType type: String) -> Color {
+        switch BibliographyCatalog.type(type)?.name ?? type.lowercased() {
+        case "article": .blue
+        case "book", "inbook", "incollection", "booklet": .orange
+        case "inproceedings", "proceedings": .purple
+        case "online", "software", "dataset": .teal
+        case "phdthesis", "mastersthesis": .indigo
+        case "techreport", "manual": .brown
+        default: .gray
         }
     }
 
-    private func fieldName(_ name: String) -> some View {
-        Text(verbatim: showsBibTeXNames ? name : BibliographyCatalog.fieldTitle(name))
-            .help(showsBibTeXNames ? BibliographyCatalog.fieldTitle(name) : name)
-    }
+    // MARK: - Menus
 
     @ViewBuilder
-    private func typeCell(_ row: BibliographyRow) -> some View {
-        if let entry = self.entry(row.entry) {
-            switch row.kind {
-            case .entry:
-                Picker("Type", selection: typeBinding(of: entry)) {
-                    ForEach(BibliographyCatalog.types) { type in
-                        Label(showsBibTeXNames ? type.name : type.title, systemImage: type.systemImage)
-                            .tag(type.name)
-                    }
-                    if BibliographyCatalog.type(entry.type) == nil {
-                        Text(verbatim: entry.type)
-                            .tag(entry.normalizedType)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
-            case .field(let name, _):
-                Text(BibliographyCatalog.fieldKind(name))
-                    .foregroundStyle(.secondary)
-            case .missing(let name):
-                Text(BibliographyCatalog.fieldKind(name))
-                    .foregroundStyle(.tertiary)
-            case .addField, .incomplete:
-                EmptyView()
+    private func actions(for entry: BibliographyEntry) -> some View {
+        if entry.isComplete {
+            Menu("Add Field") {
+                addFieldItems(for: entry)
             }
+            Divider()
         }
-    }
-
-    @ViewBuilder
-    private func valueCell(_ row: BibliographyRow) -> some View {
-        if let entry = self.entry(row.entry) {
-            switch row.kind {
-            case .entry:
-                HStack(spacing: 6) {
-                    Text(verbatim: entry.summary)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    let missing = BibliographyCatalog.missingFields(of: entry)
-                    if entry.isComplete && !missing.isEmpty {
-                        Spacer(minLength: 4)
-                        Image(systemName: "exclamationmark.circle")
-                            .foregroundStyle(.orange)
-                            .help(String(localized: "Still to fill in: \(missing.map(BibliographyCatalog.fieldTitle).formatted(.list(type: .and)))"))
-                            .accessibilityLabel(String(localized: "Missing fields"))
-                    }
-                }
-            case .field(let name, let occurrence):
-                if let field = entry.fields.filter({ $0.name == name }).dropFirst(occurrence).first {
-                    HStack(spacing: 4) {
-                        CommitField(value: field.value, prompt: nil, isMonospaced: false) { value in
-                            BibliographyFile.problem(withValue: value)
-                        } commit: { value in
-                            setValue(value, of: field, in: entry)
-                        }
-                        .help(BibliographyCatalog.fieldHelp(name) ?? "")
-                        if let link = BibliographyCatalog.link(forField: name, value: field.value) {
-                            Link(destination: link) {
-                                Image(systemName: "arrow.up.forward.square")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Open in your browser")
-                        }
-                    }
-                }
-            case .missing(let name):
-                CommitField(value: "", prompt: String(localized: "Required"), isMonospaced: false) { value in
-                    BibliographyFile.problem(withValue: value)
-                } commit: { value in
-                    addField(name, value: value, to: entry)
-                }
-                .help(BibliographyCatalog.fieldHelp(name) ?? "")
-            case .addField:
-                EmptyView()
-            case .incomplete:
-                HStack(spacing: 8) {
-                    Text("This entry doesn’t end with a closing brace.")
-                        .foregroundStyle(.secondary)
-                    Button("Show in Code") {
-                        session.showBibliographySource(at: entry.range)
-                    }
-                    .buttonStyle(.link)
-                }
-            }
+        Button("Copy Citation") {
+            Pasteboard.copy("\\cite{\(entry.key)}")
+        }
+        Button("Copy Key") {
+            Pasteboard.copy(entry.key)
+        }
+        Button("Duplicate Entry") {
+            duplicate(entry)
+        }
+        Button("Show in Code") {
+            session.showBibliographySource(at: entry.range)
+        }
+        Divider()
+        Button("Delete Entry", role: .destructive) {
+            apply([file.removing(entry, in: session.text as NSString)], actionName: String(localized: "Delete Entry"))
         }
     }
 
@@ -388,14 +422,14 @@ struct BibliographyEditor: View {
         let suggested = BibliographyCatalog.suggestedFields(for: entry)
         let own = Set(BibliographyCatalog.type(entry.type).map { $0.required.flatMap { $0 } + $0.optional } ?? [])
         ForEach(suggested.filter(own.contains), id: \.self) { name in
-            Button(showsBibTeXNames ? name : BibliographyCatalog.fieldTitle(name)) {
+            Button(label(for: name)) {
                 addField(name, value: "", to: entry)
             }
         }
         Divider()
         Menu("More") {
             ForEach(suggested.filter { !own.contains($0) }, id: \.self) { name in
-                Button(showsBibTeXNames ? name : BibliographyCatalog.fieldTitle(name)) {
+                Button(label(for: name)) {
                     addField(name, value: "", to: entry)
                 }
             }
@@ -406,46 +440,31 @@ struct BibliographyEditor: View {
         }
     }
 
-    @ViewBuilder
-    private func menu(for rows: Set<BibliographyRow>) -> some View {
-        let entries = selectedEntries(rows)
-        if entries.count == 1, let entry = entries.first {
-            if entry.isComplete {
-                Menu("Add Field") {
-                    addFieldItems(for: entry)
-                }
-                Divider()
-            }
-            Button("Copy Citation") {
-                Pasteboard.copy("\\cite{\(entry.key)}")
-            }
-            Button("Copy Key") {
-                Pasteboard.copy(entry.key)
-            }
-            Button("Duplicate Entry") {
-                duplicate(entry)
-            }
-            Button("Show in Code") {
-                session.showBibliographySource(at: entry.range)
-            }
-        }
-        let fields = rows.filter { if case .field = $0.kind { true } else { false } }
-        if !fields.isEmpty {
-            Divider()
-            Button(fields.count == 1 ? String(localized: "Remove Field") : String(localized: "Remove \(fields.count) Fields")) {
-                delete(fields)
-            }
-        }
-        let entryRows = rows.filter { $0.kind == .entry }
-        if !entryRows.isEmpty {
-            Divider()
-            Button(entryRows.count == 1 ? String(localized: "Delete Entry") : String(localized: "Delete \(entryRows.count) Entries"), role: .destructive) {
-                delete(entryRows)
-            }
-        }
+    // MARK: - Entries
+
+    private enum Row: Hashable {
+        /// A field the entry has, by its place among the entry's fields.
+        case field(Int)
+        /// A field the entry's kind needs that it doesn't have yet.
+        case missing(String)
     }
 
-    // MARK: - Entries
+    private func rows(of entry: BibliographyEntry) -> [Row] {
+        var rows: [Row] = []
+        var shown: Set<Int> = []
+        for group in BibliographyCatalog.type(entry.type)?.required ?? [] {
+            if let index = entry.fields.firstIndex(where: { group.contains($0.name) }) {
+                rows.append(.field(index))
+                shown.insert(index)
+            } else if let name = group.first {
+                rows.append(.missing(name))
+            }
+        }
+        for index in entry.fields.indices where !shown.contains(index) {
+            rows.append(.field(index))
+        }
+        return rows
+    }
 
     private var visibleEntries: [BibliographyEntry] {
         let query = filter.trimmingCharacters(in: .whitespaces)
@@ -461,34 +480,19 @@ struct BibliographyEditor: View {
         file.entries.indices.contains(id) ? file.entries[id] : nil
     }
 
-    private func selectedEntries(_ rows: Set<BibliographyRow>) -> [BibliographyEntry] {
-        Set(rows.map(\.entry)).compactMap { self.entry($0) }.sorted { $0.id < $1.id }
-    }
-
     /// What keeps an entry open across edits: its key, which moves with it.
     private func expansionKey(_ entry: BibliographyEntry) -> String {
         entry.key.isEmpty ? "#\(entry.id)" : entry.key.lowercased()
     }
 
-    private func expansion(of entry: BibliographyEntry) -> Binding<Bool> {
-        let key = expansionKey(entry)
-        return Binding {
-            expandedKeys.contains(key)
-        } set: { isExpanded in
-            if isExpanded {
-                expandedKeys.insert(key)
-            } else {
-                expandedKeys.remove(key)
-            }
-        }
-    }
-
     private func toggle(_ entry: BibliographyEntry) {
         let key = expansionKey(entry)
-        if expandedKeys.contains(key) {
-            expandedKeys.remove(key)
-        } else {
-            expandedKeys.insert(key)
+        withAnimation(.snappy(duration: 0.2)) {
+            if expandedKeys.contains(key) {
+                expandedKeys.remove(key)
+            } else {
+                expandedKeys.insert(key)
+            }
         }
     }
 
@@ -505,7 +509,6 @@ struct BibliographyEditor: View {
         let parsed = BibliographyFile.parse(session.text)
         if loadedURL != session.fileURL {
             loadedURL = session.fileURL
-            selection = []
             // A short bibliography opens with every entry's fields in view.
             expandedKeys = parsed.entries.count <= 6 ? Set(parsed.entries.map(expansionKey)) : []
         }
@@ -546,53 +549,112 @@ struct BibliographyEditor: View {
         let key = file.uniqueKey(type)
         filter = ""
         expandedKeys.insert(key.lowercased())
+        revealedEntry = file.entries.count
         apply([file.appending(type: type, key: key, to: session.text as NSString)], actionName: String(localized: "Add Entry"))
-        selection = [BibliographyRow(entry: file.entries.count, kind: .entry)]
     }
 
     private func duplicate(_ entry: BibliographyEntry) {
         apply([file.duplicating(entry, in: session.text as NSString)], actionName: String(localized: "Duplicate Entry"))
     }
+}
 
-    /// Removes the selected fields, or deletes the selected entries with their fields.
-    private func delete(_ rows: Set<BibliographyRow>) {
-        let text = session.text as NSString
-        let entryIDs = Set(rows.filter { $0.kind == .entry }.map(\.entry))
-        var edits = entryIDs.compactMap { self.entry($0) }.map { file.removing($0, in: text) }
-        for row in rows where !entryIDs.contains(row.entry) {
-            guard case .field(let name, let occurrence) = row.kind, let entry = self.entry(row.entry),
-                  let field = entry.fields.filter({ $0.name == name }).dropFirst(occurrence).first else { continue }
-            edits.append(file.removing(field, from: entry))
+/// A field: its name in the label column, its value beside it, and — on hover — a button
+/// to remove it, as Xcode's Info editor has. A field the entry's kind needs is marked.
+private struct FieldRow: View {
+    static let labelWidth: CGFloat = 120
+
+    var label: String
+    var help: String
+    var value: String
+    var prompt: String?
+    var wraps: Bool
+    var isRequired: Bool
+    var link: URL?
+    var commit: (String) -> Void
+    var remove: (() -> Void)? = nil
+
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            HStack(spacing: 4) {
+                if isRequired && value.isEmpty {
+                    Circle()
+                        .fill(.orange)
+                        .frame(width: 6, height: 6)
+                        .accessibilityLabel("Required")
+                }
+                Text(verbatim: label)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(width: Self.labelWidth, alignment: .trailing)
+            .help(help)
+            ValueField(value: value, prompt: prompt, font: .body, wraps: wraps) { value in
+                BibliographyFile.problem(withValue: value)
+            } commit: { value in
+                commit(value)
+            }
+            .help(help)
+            HStack(spacing: 2) {
+                if let link {
+                    Link(destination: link) {
+                        Image(systemName: "arrow.up.forward.square")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Open in your browser")
+                }
+                if let remove {
+                    Button(action: remove) {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .opacity(isHovered ? 1 : 0)
+                    .help("Remove this field")
+                    .accessibilityLabel("Remove \(label)")
+                }
+            }
+            .frame(width: 40, alignment: .leading)
         }
-        guard !edits.isEmpty else {
-            NSSound.beep()
-            return
-        }
-        selection = []
-        apply(edits, actionName: entryIDs.isEmpty ? String(localized: "Remove Field") : String(localized: "Delete Entry"))
+        .onHover { isHovered = $0 }
     }
 }
 
-/// A value edited in place, written when Return is pressed or the field is left, like a
-/// cell of Xcode's Info editor. Esc puts back what was there. A value that can't be
-/// written, such as one with unmatched braces, stays in the field, in red, until it can.
-private struct CommitField: View {
+/// A value edited in place: it reads as text, shows a soft field on hover and a ring when
+/// edited, and is written when Return is pressed or the field is left. Esc puts back what
+/// was there. A value that can't be written, such as one with unmatched braces, stays in
+/// the field, in red, until it can.
+private struct ValueField: View {
     var value: String
     var prompt: String?
-    var isMonospaced: Bool
+    var font: Font
+    var wraps = false
     var validate: (String) -> String?
     var commit: (String) -> Void
 
     @State private var draft = ""
     @State private var problem: String?
+    @State private var isHovered = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        TextField("", text: $draft, prompt: prompt.map { Text($0) })
+        field
             .textFieldStyle(.plain)
-            .font(isMonospaced ? .body.monospaced() : .body)
+            .font(font)
             .foregroundStyle(problem == nil ? AnyShapeStyle(.primary) : AnyShapeStyle(Color.red))
             .focused($isFocused)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(isFocused ? AnyShapeStyle(.background) : isHovered ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.clear))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(problem != nil ? Color.red.opacity(0.7) : isFocused ? Color.accentColor.opacity(0.7) : .clear, lineWidth: 1)
+            }
+            .onHover { isHovered = $0 }
             .help(problem ?? "")
             .onAppear {
                 draft = value
@@ -614,6 +676,16 @@ private struct CommitField: View {
                 problem = nil
                 isFocused = false
             }
+    }
+
+    @ViewBuilder
+    private var field: some View {
+        if wraps {
+            TextField("", text: $draft, prompt: prompt.map { Text($0) }, axis: .vertical)
+                .lineLimit(1...6)
+        } else {
+            TextField("", text: $draft, prompt: prompt.map { Text($0) })
+        }
     }
 
     private func save() {
