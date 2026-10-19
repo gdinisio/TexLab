@@ -23,6 +23,15 @@ nonisolated enum ProcessRunner {
         }
     }
 
+    /// The app's environment for the tools it runs, without the dynamic linker's settings
+    /// that Xcode adds when it runs TexLab — its debugging libraries and build folders —
+    /// which would otherwise be loaded into TeX, Biber and git too.
+    static var toolEnvironment: [String: String] {
+        ProcessInfo.processInfo.environment.filter { key, _ in
+            !key.hasPrefix("DYLD_") && !key.hasPrefix("__XPC_DYLD_")
+        }
+    }
+
     static func run(
         _ executable: URL,
         arguments: [String],

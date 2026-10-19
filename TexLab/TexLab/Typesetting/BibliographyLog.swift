@@ -10,8 +10,9 @@ import Foundation
 /// installed, or a mistake in a `.bib` file, leaves every citation undefined with nothing
 /// to say why.
 nonisolated enum BibliographyLog {
-    /// Issues for the bibliography of a typesetting run whose final TeX log is `log`.
-    static func entries(log: String, buildDirectory: URL, jobName: String, distribution: TeXDistribution) -> [LogEntry] {
+    /// Issues for the bibliography of a typesetting run whose final TeX log is `log`, and
+    /// whose console output — latexmk's, or TexLab's own transcript — is `console`.
+    static func entries(log: String, console: String, buildDirectory: URL, jobName: String, distribution: TeXDistribution) -> [LogEntry] {
         // Only for a document with a bibliography: TeX names the .bbl it read or missed,
         // so an old .blg in the build folder doesn't speak for a document without one.
         guard log.contains("\(jobName).bbl") else { return [] }
@@ -29,12 +30,48 @@ nonisolated enum BibliographyLog {
             if distribution.executable(executable) == nil {
                 let message = String(localized: "The bibliography is empty because \(tool) isn’t installed in the TeX distribution at \(distribution.binDirectory.filePath). Install it with TeX Live Utility, or in Terminal with “sudo tlmgr install \(executable)”.")
                 entries.insert(LogEntry(severity: .error, message: message, file: nil, line: nil), at: 0)
+            } else if let reason = failure(of: executable, in: console) {
+                // It couldn't start, or stopped before writing its log.
+                var message = String(localized: "The bibliography is empty because \(tool) couldn’t run: \(reason)")
+                if reason.localizedCaseInsensitiveContains("Bad CPU type") {
+                    message += " " + String(localized: "This \(tool) is built for Intel Macs; install Rosetta in Terminal with “softwareupdate --install-rosetta”.")
+                }
+                entries.insert(LogEntry(severity: .error, message: message, file: nil, line: nil), at: 0)
             } else {
                 let message = String(localized: "The bibliography may be empty or out of date: TeX still asks for \(tool) to be run. Its output is in the log.")
                 entries.insert(LogEntry(severity: .warning, message: message, file: nil, line: nil), at: 0)
             }
         }
         return entries
+    }
+
+    // MARK: - The console
+
+    /// What `tool` printed as it failed, from latexmk's console — between "Running 'biber"
+    /// and "Error return from 'biber" — or TexLab's own transcript, after "$ biber". A tool
+    /// that couldn't start leaves only that: "biber: command not found", "Bad CPU type in
+    /// executable".
+    static func failure(of tool: String, in console: String) -> String? {
+        let lines = console.components(separatedBy: "\n")
+        if let errorIndex = lines.lastIndex(where: { $0.hasPrefix("Latexmk: Error return from '\(tool)") }) {
+            let start = lines[..<errorIndex].lastIndex(where: { $0.hasPrefix("Running '\(tool)") }).map { $0 + 1 } ?? errorIndex
+            return reason(in: lines[start..<errorIndex])
+        }
+        if let start = lines.lastIndex(where: { $0.hasPrefix("$ \(tool) ") }) {
+            let end = lines[(start + 1)...].firstIndex(where: { $0.hasPrefix("$ ") }) ?? lines.endIndex
+            return reason(in: lines[(start + 1)..<end])
+        }
+        return nil
+    }
+
+    /// The last lines a tool printed, without latexmk's rules and Biber's progress.
+    private static func reason(in lines: ArraySlice<String>) -> String? {
+        let said = lines
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("---") && !$0.contains("INFO - ") }
+        guard !said.isEmpty else { return nil }
+        let reason = said.suffix(3).joined(separator: " ")
+        return reason.count > 300 ? String(reason.prefix(300)) + "…" : reason
     }
 
     // MARK: - Biber

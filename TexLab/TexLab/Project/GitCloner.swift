@@ -32,7 +32,7 @@ nonisolated enum GitCloner {
 
     /// Clones `address` into `destination`, which must not exist yet.
     static func clone(_ address: String, into destination: URL) async -> ProcessRunner.Result {
-        var environment = ProcessInfo.processInfo.environment
+        var environment = ProcessRunner.toolEnvironment
         // Nobody can type a password into a process without a terminal; fail at once
         // instead, and let the keychain supply saved passwords.
         environment["GIT_TERMINAL_PROMPT"] = "0"

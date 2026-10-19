@@ -3,6 +3,23 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.41 — Why Biber couldn't run
+
+- **A Biber that can't start says why.** Biber that isn't on the search path, can't be
+  executed, or is built for another processor writes no log of its own: its only words
+  are in the console, such as "biber: command not found" or "Bad CPU type in
+  executable", followed by latexmk's "Error return from 'biber'". TexLab now quotes them
+  in the issue — "The bibliography is empty because Biber couldn't run: …" — and, for an
+  Intel-only Biber, says how to install Rosetta. Without latexmk, a tool that fails to
+  start is recorded in TexLab's own transcript the same way; it used to be skipped
+  without a word.
+- **Tools don't inherit Xcode's dynamic-linker settings.** When TexLab runs from Xcode,
+  its environment carries `DYLD_` variables for Xcode's debugging libraries and build
+  folders. TeX, Biber, the formula previews and git now run without them.
+
+Checked with latexmk against a missing and an unrunnable Biber, a successful run (which
+reports nothing), and TexLab's own transcript.
+
 ## v1.40 — Why the bibliography is empty
 
 A document using biblatex could typeset with every citation undefined and an empty

@@ -222,7 +222,7 @@ nonisolated enum Typesetter {
             return failure(.couldNotStart(error.localizedDescription))
         }
 
-        var environment = ProcessInfo.processInfo.environment
+        var environment = ProcessRunner.toolEnvironment
         environment["PATH"] = request.distribution.searchPath
         environment["max_print_line"] = "10000"
         environment["error_line"] = "254"
@@ -253,7 +253,7 @@ nonisolated enum Typesetter {
         let log = String(decoding: logData, as: UTF8.self)
         var entries = LaTeXLogParser.parse(log)
         // Why the bibliography is empty, which TeX's own log doesn't say.
-        entries.insert(contentsOf: BibliographyLog.entries(log: log, buildDirectory: build, jobName: job, distribution: request.distribution), at: 0)
+        entries.insert(contentsOf: BibliographyLog.entries(log: log, console: run.output, buildDirectory: build, jobName: job, distribution: request.distribution), at: 0)
 
         // Use the PDF if this run wrote it, or if the run succeeded without needing to
         // (latexmk does nothing when no source has changed since the last run).
@@ -387,7 +387,9 @@ nonisolated private struct Pipeline {
             environment: environment,
             outputFile: build.appending(path: "\(job).console.txt")
         )
-        transcript += "$ \(tool.lastPathComponent) \(arguments.joined(separator: " "))\n\(result.output)\n"
+        // A tool that couldn't start says why, as latexmk's shell would.
+        let launchError = result.launchError.map { "\(tool.lastPathComponent): \($0)\n" } ?? ""
+        transcript += "$ \(tool.lastPathComponent) \(arguments.joined(separator: " "))\n\(result.output)\(launchError)\n"
         return result
     }
 

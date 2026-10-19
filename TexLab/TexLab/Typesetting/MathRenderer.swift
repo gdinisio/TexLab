@@ -117,7 +117,7 @@ nonisolated enum MathRenderer {
             try? FileManager.default.removeItem(at: directory.appending(path: "\(jobName).\(suffix)"))
         }
 
-        var environment = ProcessInfo.processInfo.environment
+        var environment = ProcessRunner.toolEnvironment
         environment["PATH"] = distribution.searchPath
         environment["max_print_line"] = "10000"
         if let sourceDirectory {
