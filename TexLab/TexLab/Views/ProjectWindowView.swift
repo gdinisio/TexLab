@@ -53,11 +53,12 @@ struct ProjectWindowView: View {
             } trailing: {
                 PreviewPane(session: session)
             }
+            // The content's toolbar, so no tool or space ever sits over the sidebar.
+            .toolbar(id: toolbarID) {
+                EditorToolbar(session: session)
+            }
         }
         .frame(minWidth: 640, minHeight: 400)
-        .toolbar(id: toolbarID) {
-            EditorToolbar(session: session)
-        }
         .focusedSceneValue(\.documentSession, session)
         .sheet(isPresented: $session.isShowingLog) {
             LogView(session: session)
@@ -86,9 +87,9 @@ struct ProjectWindowView: View {
             session.isPreviewVisible = showsPreview
             session.start()
         }
-        .onChange(of: session.windowSubtitle, initial: true) { _, subtitle in
-            // The title is the shown document's, set by the document system.
-            session.windowController?.window?.subtitle = subtitle
+        .onChange(of: session.projectName, initial: true) {
+            // The document system sets the title, asking the window controller for it.
+            session.windowController?.synchronizeWindowTitleWithDocumentName()
         }
         .onChange(of: session.isPreviewVisible) { _, newValue in
             showsPreview = newValue

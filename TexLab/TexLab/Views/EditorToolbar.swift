@@ -9,47 +9,57 @@ import SwiftUI
 
 /// The document window's toolbar, customisable with View ▸ Customize Toolbar.
 ///
-/// It reads left to right as the window does: what's for writing over the editor, what's
-/// for the PDF over the preview.
+/// It belongs to the window's content beside the sidebar, so no tool or space ever sits
+/// over the sidebar, and hiding the sidebar hides none.
 ///
-/// - Writing: Code | Visual, then what's inserted most — headings, figures, tables, math
-///   and symbols. References and citations are a few keystrokes with completion, so they
-///   wait in the palette with theorems, lists, formatting and slides.
-/// - The project: Add Package.
-/// - Output, over the preview: Typeset — which turns into Stop while TeX runs — beside
-///   the Preview button, the two things done to the PDF most.
-/// - Share, last, as in every Mac document window.
+/// - Leading, before the project's name: Typeset — which turns into Stop while TeX runs —
+///   and Code | Visual, what's done to the whole document, as Xcode puts Run before its
+///   project's name.
+/// - Trailing: how typesetting went, with the errors and warnings; then what's inserted
+///   most — headings, figures, tables, math, theorems, symbols and packages; and last the
+///   Preview button and Share, as in other Mac document windows.
 ///
-/// Every item stays in the window's toolbar proper, never over the sidebar, so hiding the
-/// sidebar never hides a tool. With Liquid Glass, items side by side share one capsule
-/// and a space starts a new one: the default set is in four groups, and dragging Space
-/// from the palette between any two items separates them, while items dragged next to
-/// each other join.
+/// References and citations are a few keystrokes with completion, so they wait in the
+/// palette with lists, formatting and slides. With Liquid Glass, items side by side share
+/// one capsule and a space starts a new one: the trailing items are in three groups, and
+/// dragging Space from the palette between any two items separates them, while items
+/// dragged next to each other join.
 struct EditorToolbar: CustomizableToolbarContent {
     var session: DocumentSession
 
     var body: some CustomizableToolbarContent {
-        WritingToolbarItems(session: session)
+        DocumentActionToolbarItems(session: session)
+        TypesettingToolbarItems(session: session)
         ToolbarSpacer(.fixed)
+        WritingToolbarItems(session: session)
         ProjectToolbarItems(session: session)
         ToolbarSpacer(.fixed)
-        OutputToolbarItems(session: session)
-        ToolbarSpacer(.fixed)
+        ViewToolbarItems(session: session)
         DocumentToolbarItems(session: session)
     }
 }
 
 // MARK: - Groups
 
-/// Over the editor: how the source is shown, and what's inserted into it.
+/// Before the title: typesetting the document, and how the editor shows it.
+private struct DocumentActionToolbarItems: CustomizableToolbarContent {
+    var session: DocumentSession
+
+    var body: some CustomizableToolbarContent {
+        ToolbarItem(id: "typeset", placement: .navigation) {
+            TypesetToolbarButton(session: session)
+        }
+        ToolbarItem(id: "editorMode", placement: .navigation) {
+            EditorModePicker(session: session)
+        }
+    }
+}
+
+/// What's inserted into the source.
 private struct WritingToolbarItems: CustomizableToolbarContent {
     var session: DocumentSession
 
     var body: some CustomizableToolbarContent {
-        ToolbarItem(id: "editorMode") {
-            EditorModePicker(session: session)
-        }
-        ToolbarSpacer(.fixed)
         StructureToolbarItems(session: session)
         ContentToolbarItems(session: session)
         MathToolbarItems(session: session)
@@ -59,23 +69,13 @@ private struct WritingToolbarItems: CustomizableToolbarContent {
     }
 }
 
-/// Over the preview: typesetting and the PDF.
-private struct OutputToolbarItems: CustomizableToolbarContent {
-    var session: DocumentSession
-
-    var body: some CustomizableToolbarContent {
-        TypesettingToolbarItems(session: session)
-        ViewToolbarItems(session: session)
-    }
-}
-
-/// Typesetting and issues.
+/// How typesetting went, and the rest of typesetting.
 private struct TypesettingToolbarItems: CustomizableToolbarContent {
     var session: DocumentSession
 
     var body: some CustomizableToolbarContent {
-        ToolbarItem(id: "typeset") {
-            TypesetToolbarButton(session: session)
+        ToolbarItem(id: "status") {
+            TypesetStatusView(session: session)
         }
         ToolbarItem(id: "stopTypesetting", showsByDefault: false) {
             ToolButton("Stop", systemImage: "stop.fill", help: "Stop typesetting (⌘.)") {
@@ -128,7 +128,7 @@ private struct TypesettingToolbarItems: CustomizableToolbarContent {
     }
 }
 
-/// Headings, all together or one by one.
+/// Headings and lists, all together or one by one.
 private struct StructureToolbarItems: CustomizableToolbarContent {
     var session: DocumentSession
 
@@ -142,6 +142,16 @@ private struct StructureToolbarItems: CustomizableToolbarContent {
                 Label("Heading", systemImage: "textformat.size")
             }
             .help("Insert a chapter, section or other heading")
+        }
+        ToolbarItem(id: "list", showsByDefault: false) {
+            Menu {
+                ForEach(SnippetCatalog.lists) { snippet in
+                    SnippetButton(session: session, snippet: snippet)
+                }
+            } label: {
+                Label("List", systemImage: "list.bullet")
+            }
+            .help("Insert a bulleted, numbered or description list")
         }
         ToolbarItem(id: "chapter", showsByDefault: false) {
             SnippetButton(session: session, snippet: SnippetCatalog.chapter, help: "Insert a chapter")
@@ -238,7 +248,7 @@ private struct MathToolbarItems: CustomizableToolbarContent {
         ToolbarItem(id: "fraction", showsByDefault: false) {
             SnippetButton(session: session, snippet: SnippetCatalog.fraction, help: "Insert a fraction; a selection becomes the numerator")
         }
-        ToolbarItem(id: "theorem", showsByDefault: false) {
+        ToolbarItem(id: "theorem") {
             Menu {
                 ForEach(TheoremKind.allCases) { kind in
                     Button(kind.title) {
@@ -549,7 +559,7 @@ struct EditorModePicker: View {
         .fixedSize()
         .disabled(!session.hasVisualEditor)
         .help(session.isBibliography
-            ? "Code shows the BibTeX; Visual shows its entries as a table to read and edit (⌃⌘1, ⌃⌘2)"
+            ? "Code shows the BibTeX; Visual shows its entries to read and edit (⌃⌘1, ⌃⌘2)"
             : "Code shows the LaTeX source; Visual shows it close to the typeset document (⌃⌘1, ⌃⌘2)")
     }
 }
@@ -612,13 +622,7 @@ private struct IssueCountToolbarButton: View {
                     .symbolRenderingMode(.multicolor)
             }
         }
-        .help(issueSummary)
-    }
-
-    private var issueSummary: String {
-        let errors = session.errorCount == 1 ? String(localized: "1 error") : String(localized: "\(session.errorCount) errors")
-        let warnings = session.warningCount == 1 ? String(localized: "1 warning") : String(localized: "\(session.warningCount) warnings")
-        return String(localized: "\(errors) and \(warnings): show them in the Issues navigator")
+        .help(TypesetStatusView.issueSummary(errors: session.errorCount, warnings: session.warningCount))
     }
 }
 

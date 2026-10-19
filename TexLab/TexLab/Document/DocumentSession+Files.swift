@@ -13,12 +13,17 @@ import UniformTypeIdentifiers
 /// the project in this window's editor, each where it was left, and the preview keeps
 /// showing the whole document. Each file is a document of its own, which saves itself.
 extension DocumentSession {
-    /// The window's subtitle: the project, and how typesetting went.
-    var windowSubtitle: String {
-        let summary = status.summary
-        guard let folder = project?.folder ?? (fileURL == nil ? nil : documentDirectory) else { return summary }
-        let name = folder.lastPathComponent
-        return summary.isEmpty ? name : "\(name) — \(summary)"
+    /// The window's title, as Xcode's is its project's: the project's name as the Welcome
+    /// window lists it — the folder's for a project of several files, the document's for
+    /// one on its own. The bar above the editor names the file shown. Nil before the
+    /// document is saved, when the window goes by the document's name.
+    var projectName: String? {
+        guard let project else { return nil }
+        let sources = project.tree.files.filter { $0.kind == .latex || $0.kind == .bibliography }
+        if sources.count > 1 {
+            return project.folder.lastPathComponent
+        }
+        return (project.mainFile ?? fileURL)?.deletingPathExtension().lastPathComponent
     }
 
     /// The name of the document the editor shows.

@@ -52,6 +52,119 @@ struct TypesetToolbarButton: View {
     }
 }
 
+/// How typesetting went, like Xcode's activity view: the outcome, which shows the log when
+/// clicked, then the errors and warnings, which show the Issues navigator.
+struct TypesetStatusView: View {
+    var session: DocumentSession
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button {
+                session.isShowingLog = true
+            } label: {
+                HStack(spacing: 6) {
+                    icon
+                        .frame(width: 16, height: 16)
+                    Text(verbatim: title)
+                        .lineLimit(1)
+                }
+            }
+            .help(statusHelp)
+
+            if session.errorCount > 0 || session.warningCount > 0 {
+                Button {
+                    session.showIssues()
+                } label: {
+                    HStack(spacing: 6) {
+                        if session.errorCount > 0 {
+                            count(session.errorCount, systemImage: "xmark.octagon.fill")
+                        }
+                        if session.warningCount > 0 {
+                            count(session.warningCount, systemImage: "exclamationmark.triangle.fill")
+                        }
+                    }
+                }
+                .help(Self.issueSummary(errors: session.errorCount, warnings: session.warningCount))
+            }
+        }
+        .buttonStyle(.plain)
+        .font(.callout)
+        .padding(.horizontal, 6)
+        .frame(minWidth: 140, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var icon: some View {
+        if session.isTypesetting {
+            ProgressView()
+                .controlSize(.small)
+        } else {
+            Image(systemName: symbolName)
+                .foregroundStyle(symbolColor)
+        }
+    }
+
+    private var symbolName: String {
+        switch session.status {
+        case .idle: "doc.text"
+        case .running: "hourglass"
+        case .succeeded: "checkmark.circle.fill"
+        case .failed: "xmark.octagon.fill"
+        case .cancelled: "stop.circle"
+        case .timedOut: "clock.badge.exclamationmark"
+        case .empty: "doc"
+        case .texNotFound, .couldNotStart: "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var symbolColor: Color {
+        switch session.status {
+        case .succeeded: .green
+        case .failed: .red
+        case .timedOut: .orange
+        case .texNotFound, .couldNotStart: .yellow
+        case .idle, .running, .cancelled, .empty: .secondary
+        }
+    }
+
+    /// The outcome in a few words; the issue counts beside it say how many errors.
+    private var title: String {
+        switch session.status {
+        case .idle: String(localized: "Ready")
+        case .failed(_, true): String(localized: "Typeset with Errors")
+        default: session.status.summary
+        }
+    }
+
+    private var statusHelp: String {
+        var lines = [title]
+        if case .couldNotStart(let reason) = session.status {
+            lines.append(reason)
+        }
+        if let date = session.lastTypesetDate, !session.isTypesetting {
+            lines.append(String(localized: "Last typeset at \(date.formatted(date: .omitted, time: .shortened)) with \(session.engine.displayName)."))
+        }
+        lines.append(String(localized: "Click to see the log."))
+        return lines.joined(separator: "\n")
+    }
+
+    private func count(_ number: Int, systemImage: String) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: systemImage)
+                .symbolRenderingMode(.multicolor)
+            Text(number, format: .number)
+                .monospacedDigit()
+        }
+    }
+
+    /// "2 errors and 1 warning: …", for the counts' help.
+    static func issueSummary(errors: Int, warnings: Int) -> String {
+        let errorText = errors == 1 ? String(localized: "1 error") : String(localized: "\(errors) errors")
+        let warningText = warnings == 1 ? String(localized: "1 warning") : String(localized: "\(warnings) warnings")
+        return String(localized: "\(errorText) and \(warningText): show them in the Issues navigator")
+    }
+}
+
 /// Chooses the engine by writing a `% !TEX program` comment into the document, or
 /// removing it to use the default from Settings.
 struct EnginePicker: View {

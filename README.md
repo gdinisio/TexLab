@@ -153,23 +153,26 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   between them), opens the list for its argument where that helps, and accepting an
   environment closes it.
 - **Customisable toolbar** — View ▸ Customize Toolbar offers more than 50 tools to drag
-  in, so each writer can lay it out their way. The default set reads left to right as
-  the window does, in four groups of Liquid Glass:
-  - over the editor, Code | Visual, then Heading, Figure, Table, Math and Symbols;
-  - Add Package;
-  - over the preview, Typeset and Preview — Typeset is Stop while TeX runs, like Xcode's
-    Run, and holding it offers the engine, automatic typesetting, the log and a clean
-    start;
-  - Share.
+  in, so each writer can lay it out their way. The default set, like Xcode's:
+  - at the leading edge, before the window's title, Typeset and Code | Visual — Typeset
+    is Stop while TeX runs, like Xcode's Run, and holding it offers the engine, automatic
+    typesetting, the log and a clean start;
+  - the title, which is the project's name; the bar above the editor names the file shown;
+  - at the trailing edge, in three groups of Liquid Glass: the status — "Typeset · 12
+    pages", "Typesetting…" with a spinner, or what went wrong, beside the number of errors
+    and warnings; click it for the log, or the counts for the Issues navigator — then
+    Heading, Figure, Table, Math, Theorem, Symbols and Add Package, and last Preview and
+    Share.
 
   Items side by side share one capsule; dragging Space from the palette between two
-  items separates them, and dragging items next to each other groups them. No tool sits
-  over the sidebar, so hiding it hides none. The palette adds Cite and Reference (quick
-  to type with completion), individual headings; images, lists, footnotes, links,
-  quotes and code listings; inline, display, numbered and aligned math, matrices,
-  fractions and theorems; text styles, comments and indentation; Beamer slides, columns
-  and blocks; Stop, the engine, issues and an issue count, the log, zoom, folding, find,
-  go to line and word count; and export, print, New File and Show in Finder.
+  items separates them, and dragging items next to each other groups them. No tool or
+  space sits over the sidebar, so hiding it hides none. The palette adds Cite and
+  Reference (quick to type with completion), a List menu and individual headings; images,
+  lists, footnotes, links, quotes and code listings; inline, display, numbered and
+  aligned math, matrices and fractions; text styles, comments and indentation; Beamer
+  slides, columns and blocks; Stop, the engine, issues and an issue count, the log, zoom,
+  folding, find, go to line and word count; and export, print, New File and Show in
+  Finder.
 - **Packages a command needs** — type `\mathbb{R}` without amssymb, or
   `\begin{align}` without amsmath, and a small bar of Liquid Glass above the line asks
   "\mathbb needs the amssymb package. Add amssymb · Not Now"; typing carries on, and
@@ -220,8 +223,9 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   with the arrow keys) and the editor shows it, while the preview keeps showing the whole
   document. Search results, issues, ⌘-clicks in the PDF and Jump to Definition open files
   the same way, and so does opening a chapter from the Finder or Open Recent while its
-  project is open. The window is the shown file's window: its title, proxy icon and edited
-  dot are that file's, and File ▸ Save, Rename, Move To, Duplicate and Revert To act on it.
+  project is open. The window's title is the project's name, as in Xcode, and otherwise
+  the window is the shown file's: its proxy icon and edited dot are that file's, and
+  File ▸ Save, Rename, Move To, Duplicate and Revert To act on it.
   Every file is a Mac document that saves itself and keeps versions, its own undo history,
   insertion point, scroll position and folds, and picks up changes other apps make. The
   bar above the editor goes back and forward through the files you've shown (⌃⌘← and
@@ -458,8 +462,9 @@ TexLab/TexLab/
   toolbar it bridges; each open window has its own toolbar identifier, as AppKit links
   toolbars that share one and SwiftUI's bridge inserts items one by one). A project's documents share it: showing one moves the window
   controller to that document (`removeWindowController` / `addWindowController`), so
-  the title, proxy icon, edited dot and the File menu's document commands follow the file
-  on screen, as in Xcode. A document opened from the Finder or Open Recent finds its
+  the proxy icon, edited dot and the File menu's document commands follow the file on
+  screen, while `windowTitle(forDocumentDisplayName:)` gives the project's name, as in
+  Xcode. A document opened from the Finder or Open Recent finds its
   window by its main file, or by the folder for a bibliography or package. Closing the
   window asks each document to close (`canClose`, which autosaves), and closing a
   document shows another; the window remembers its other open files for state
@@ -544,7 +549,9 @@ TexLab/TexLab/
   as one file.
 - **Toolbar and navigators** — `EditorToolbar` is SwiftUI `CustomizableToolbarContent`,
   split into groups of related tools so AppKit's customisation palette offers them all,
-  with `ToolbarSpacer`s between the default groups so each has its own glass;
+  attached to the split view's detail column so nothing lands over the sidebar, with
+  Typeset and Code | Visual in the `.navigation` placement before the title and
+  `ToolbarSpacer`s between the trailing groups so each has its own glass;
   tools insert through `DocumentSession+Insert`, which adds the packages and definitions
   they need. `ProjectSearch` and `ReferenceScanner` back the Find and References
   navigators and the Cite and Reference pickers. `DefinitionFinder` reads what is under

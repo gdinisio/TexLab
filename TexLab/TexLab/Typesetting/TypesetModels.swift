@@ -62,7 +62,7 @@ nonisolated struct Issue: Identifiable, Hashable, Sendable {
     }
 }
 
-/// Where typesetting stands, as shown in the window subtitle and the preview.
+/// Where typesetting stands, as shown in the toolbar and the preview.
 nonisolated enum TypesetStatus: Equatable, Sendable {
     /// The document hasn't been typeset in this window yet.
     case idle

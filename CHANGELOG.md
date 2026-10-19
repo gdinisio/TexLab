@@ -3,6 +3,35 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.38 — A toolbar laid out like Xcode's
+
+The window's toolbar is laid out the way Xcode's is: what's done to the whole document
+leads, the project's name follows, and the tools and how typesetting went sit at the
+trailing edge.
+
+- **Typeset and Code | Visual lead.** They sit at the leading edge of the window's
+  content, just after the sidebar, before the title — Typeset where Xcode has Run (Stop
+  while TeX runs; hold it for the engine, automatic typesetting, the log and a clean
+  start), then the editor's mode.
+- **The project's name as the title.** The title is the project's, as the Welcome window
+  lists it: the folder's name for a project of several files, the document's for one on
+  its own. The bar above the editor, with its back and forward arrows, names the file
+  shown. The proxy icon, edited dot and File menu still act on that file. The subtitle,
+  which repeated the folder and the typesetting outcome, is gone.
+- **A status item.** At the start of the trailing tools, like Xcode's activity view:
+  "Ready", "Typesetting…" with a spinner, "Typeset · 12 pages" with a green tick,
+  "Typeset with Errors", or what went wrong, with the time and engine in its help.
+  Beside it, the number of errors and warnings. Click the status for the log, or the
+  counts for the Issues navigator.
+- **Theorem in the default set**, beside Math, which defines the theorem in the preamble
+  if needed. A List menu (bulleted, numbered, description) joins the palette.
+- **The default trailing set**, in three groups of Liquid Glass: the status; Heading,
+  Figure, Table, Math, Theorem, Symbols and Add Package; and Preview and Share, last.
+- **No spaces over the sidebar.** The toolbar belongs to the editor and preview rather
+  than the whole split view, so the spaces between groups stay with their groups instead
+  of collecting over the sidebar. The toolbar has a new identifier so this layout applies
+  once; customise it again from View ▸ Customize Toolbar.
+
 ## v1.37 — A cleaner bibliography editor
 
 The Visual bibliography editor keeps its structure — entries that open to show their

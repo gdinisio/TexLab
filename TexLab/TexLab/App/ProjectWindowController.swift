@@ -13,16 +13,17 @@ import SwiftUI
 ///
 /// A file of a project that has a window opens there, from the Finder, File ▸ Open Recent,
 /// the navigator, a search result or an issue alike. While the window shows a document it
-/// is that document's window, the way AppKit means it: the title, proxy icon and edited dot
-/// are the file's, and File ▸ Save, Rename, Move To, Duplicate and Revert To act on it. Each
-/// document saves itself; closing the window closes the project's documents with it.
+/// is that document's window, the way AppKit means it: the proxy icon and edited dot are
+/// the file's, and File ▸ Save, Rename, Move To, Duplicate and Revert To act on it; the
+/// title is the project's, as in Xcode. Each document saves itself; closing the window
+/// closes the project's documents with it.
 final class ProjectWindowController: NSWindowController, NSWindowDelegate {
     /// The open project windows, in the order they opened.
     private(set) static var all: [ProjectWindowController] = []
 
     private static let frameAutosaveName = "TexLabProjectWindow"
     /// Named afresh when the default set changes, so every window starts from it once.
-    private static let toolbarID = "TexLabWindowToolbar"
+    private static let toolbarID = "TexLabProjectToolbar"
     private static let windowIdentifier = NSUserInterfaceItemIdentifier("TexLabProjectWindow")
     private static let openFilesKey = "TexLabOpenFiles"
 
@@ -119,7 +120,7 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate {
         let host = NSHostingController(rootView: ProjectWindowView(session: session, toolbarID: Self.toolbarID(forSlot: slot)))
         // SwiftUI's minimum sizes limit the window; the user sizes it.
         host.sizingOptions = [.minSize]
-        // The toolbar comes from the SwiftUI view; the title is the document's.
+        // The toolbar comes from the SwiftUI view; the title from the document system.
         host.sceneBridgingOptions = [.toolbars]
         window.contentViewController = host
         window.setContentSize(NSSize(width: 1280, height: 820))
@@ -192,6 +193,12 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate {
         setDocumentEdited(document.isDocumentEdited)
         document.refreshState()
         invalidateRestorableState()
+    }
+
+    /// The project's name, rather than the shown file's: the bar above the editor names
+    /// the file. A document on its own, or not yet saved, keeps its name.
+    override func windowTitle(forDocumentDisplayName displayName: String) -> String {
+        session.projectName ?? displayName
     }
 
     /// Adds a document to the window without showing it, as when reopening the window.
