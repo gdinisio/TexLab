@@ -111,6 +111,9 @@ extension DocumentSession {
         switch fix {
         case .addPackage(let package):
             addMissingPackage(package)
+        case .showOutput:
+            logShowsConsole = true
+            isShowingLog = true
         }
     }
 

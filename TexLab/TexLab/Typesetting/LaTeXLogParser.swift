@@ -22,6 +22,8 @@ nonisolated struct LogEntry: Hashable, Sendable {
     /// The file as the log names it: relative to the working directory, or absolute.
     var file: String?
     var line: Int?
+    /// What would fix it or show more, offered with the issue.
+    var fix: IssueFix? = nil
 }
 
 /// Extracts errors, warnings and bad boxes from TeX logs.

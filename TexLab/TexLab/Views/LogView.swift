@@ -10,18 +10,17 @@ import SwiftUI
 
 /// The full TeX log and tool output, for problems the Issues list can't explain.
 struct LogView: View {
-    var session: DocumentSession
+    @Bindable var session: DocumentSession
 
     @Environment(\.dismiss) private var dismiss
-    @State private var showsConsole = false
 
     private var text: String {
-        showsConsole ? session.console : session.log
+        session.logShowsConsole ? session.console : session.log
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Output", selection: $showsConsole) {
+            Picker("Output", selection: $session.logShowsConsole) {
                 Text("TeX Log").tag(false)
                 Text("Console Output").tag(true)
             }

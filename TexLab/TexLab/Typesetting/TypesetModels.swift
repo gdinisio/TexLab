@@ -5,17 +5,18 @@
 
 import Foundation
 
-/// A problem found while typesetting, or while typing, attached to a source file and line
-/// when known.
-/// A change that fixes an issue, offered with it.
+/// A change that fixes an issue, or shows more of it, offered with it.
 nonisolated enum IssueFix: Hashable, Sendable {
     /// Load a package the document uses.
     case addPackage(String)
+    /// Show what a tool printed, for a failure TeX's log doesn't describe.
+    case showOutput
 
     /// The button's title.
     var title: String {
         switch self {
         case .addPackage(let package): String(localized: "Add \(package)")
+        case .showOutput: String(localized: "Show Output")
         }
     }
 
@@ -23,10 +24,13 @@ nonisolated enum IssueFix: Hashable, Sendable {
     var help: String {
         switch self {
         case .addPackage(let package): String(localized: "Add \\usepackage{\(package)} to the preamble")
+        case .showOutput: String(localized: "Show everything the typesetting tools printed")
         }
     }
 }
 
+/// A problem found while typesetting, or while typing, attached to a source file and line
+/// when known.
 nonisolated struct Issue: Identifiable, Hashable, Sendable {
     let id: Int
     var severity: LogEntry.Severity
@@ -41,7 +45,7 @@ nonisolated struct Issue: Identifiable, Hashable, Sendable {
     /// The file name shown next to the message.
     var fileName: String? {
         switch source {
-        case .file(let url)?: url.lastPathComponent
+        case .file(let url)?: ProjectFileKind.displayName(of: url)
         case .currentDocument?, nil: nil
         }
     }

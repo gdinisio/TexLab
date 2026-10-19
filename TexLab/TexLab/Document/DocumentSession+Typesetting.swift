@@ -234,7 +234,7 @@ extension DocumentSession {
                 if source == .currentDocument, let url = sourceMap.currentDocumentURL {
                     source = .file(url)
                 }
-                return Issue(id: index, severity: entry.severity, message: entry.message, source: source, line: entry.line)
+                return Issue(id: index, severity: entry.severity, message: entry.message, source: source, line: entry.line, fix: entry.fix)
             }
             .sorted { lhs, rhs in
                 lhs.severity != rhs.severity ? lhs.severity > rhs.severity : lhs.id < rhs.id

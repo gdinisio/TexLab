@@ -3,6 +3,7 @@
 //  TexLab
 //
 
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -419,6 +420,14 @@ struct IssuesSidebar: View {
                 IssueRow(issue: issue, documentName: session.displayName, showsFile: showsFile)
             }
             .buttonStyle(.plain)
+            // The whole message, however long.
+            .help(issue.displayMessage)
+            .contextMenu {
+                Button("Copy Message") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(issue.displayMessage, forType: .string)
+                }
+            }
             if let fix = issue.fix {
                 // Like an Xcode Fix-It.
                 Button(fix.title) {

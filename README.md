@@ -351,7 +351,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   `\addbibresource` naming a file that isn't there (or leaving out `.bib`), and, when
   TeX still asks for Biber at the end, that Biber isn't installed and how to install it,
   or why it couldn't run, in its own words — rather than citations quietly undefined and
-  an empty bibliography. latexmk won't run Biber again after it failed until its files
+  an empty bibliography. Show Output opens what the tools printed, and any issue's
+  message can be copied from its context menu. latexmk won't run Biber again after it failed until its files
   change, so when the bibliography is still missing and latexmk didn't try, TexLab has it
   run every step once more.
 - **Multi-file projects** — add `% !TEX root = main.tex` to a chapter and typesetting it

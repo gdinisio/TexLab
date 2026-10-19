@@ -3,6 +3,23 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.43 — Tool failures you can read
+
+- **The line that says what happened.** When Biber or BibTeX can't run, the issue used
+  to quote the last lines of its output. For a usage message, those are the end of its
+  option list (`-o <output_file> -segalign …`), which doesn't say which program printed
+  it. The issue now quotes the first line that reads like an error or a usage message
+  ("usage: lipo …", "command not found", "Bad CPU type in executable", "Can't locate …"),
+  or else the first line. It also gives the path of the program TexLab ran, in case
+  something else answers to its name.
+- **Show Output.** These issues have a Show Output button, like a Fix-It, that opens the
+  log sheet at the console output, where everything the tools printed can be read and
+  copied. The sheet remembers which tab was last shown.
+- **Issues you can copy.** Hovering an issue shows its whole message, however long,
+  and its context menu has Copy Message.
+- The Issues list names a file the way the navigator does, without the extension its
+  icon stands for.
+
 ## v1.42 — References that print, and files by name
 
 - **References print again after Biber has failed once.** latexmk remembers a step

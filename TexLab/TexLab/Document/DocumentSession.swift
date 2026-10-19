@@ -132,6 +132,8 @@ final class DocumentSession {
     var sidebarTab: SidebarTab = .project
     var isPreviewVisible = true
     var isShowingLog = false
+    /// Whether the log sheet shows the tools' console output rather than TeX's log.
+    var logShowsConsole = false
     var isShowingSymbols = false
     var isImportingImage = false
     var imageImportPurpose: ImageImportPurpose = .figure

@@ -31,15 +31,17 @@ nonisolated enum BibliographyLog {
                 let message = String(localized: "The bibliography is empty because \(tool) isn’t installed in the TeX distribution at \(distribution.binDirectory.filePath). Install it with TeX Live Utility, or in Terminal with “sudo tlmgr install \(executable)”.")
                 entries.insert(LogEntry(severity: .error, message: message, file: nil, line: nil), at: 0)
             } else if let reason = failure(of: executable, in: console) {
-                // It couldn't start, or stopped before writing its log.
-                var message = String(localized: "The bibliography is empty because \(tool) couldn’t run: \(reason)")
+                // It couldn't start, or stopped before writing its log. Its path says which
+                // program ran, in case another one answers to its name.
+                let path = distribution.executable(executable)?.filePath ?? executable
+                var message = String(localized: "The bibliography is empty because \(tool) (\(path)) couldn’t run: \(reason)")
                 if reason.localizedCaseInsensitiveContains("Bad CPU type") {
                     message += " " + String(localized: "This \(tool) is built for Intel Macs; install Rosetta in Terminal with “softwareupdate --install-rosetta”.")
                 }
-                entries.insert(LogEntry(severity: .error, message: message, file: nil, line: nil), at: 0)
+                entries.insert(LogEntry(severity: .error, message: message, file: nil, line: nil, fix: .showOutput), at: 0)
             } else {
-                let message = String(localized: "The bibliography may be empty or out of date: TeX still asks for \(tool) to be run. Its output is in the log.")
-                entries.insert(LogEntry(severity: .warning, message: message, file: nil, line: nil), at: 0)
+                let message = String(localized: "The bibliography may be empty or out of date: TeX still asks for \(tool) to be run.")
+                entries.insert(LogEntry(severity: .warning, message: message, file: nil, line: nil, fix: .showOutput), at: 0)
             }
         }
         return entries
@@ -64,15 +66,25 @@ nonisolated enum BibliographyLog {
         return nil
     }
 
-    /// The last lines a tool printed, without latexmk's rules and Biber's progress.
+    /// The line that says what went wrong: the first that reads like an error or a usage
+    /// message, or else the first the tool printed. A usage message names its program on
+    /// its first line and lists options after it, so the end of the output says nothing.
     private static func reason(in lines: ArraySlice<String>) -> String? {
         let said = lines
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty && !$0.hasPrefix("---") && !$0.contains("INFO - ") }
-        guard !said.isEmpty else { return nil }
-        let reason = said.suffix(3).joined(separator: " ")
-        return reason.count > 300 ? String(reason.prefix(300)) + "…" : reason
+        guard let first = said.first else { return nil }
+        let line = said.first { line in
+            let lowercased = line.lowercased()
+            return failureWords.contains { lowercased.contains($0) }
+        } ?? first
+        return line.count > 300 ? String(line.prefix(300)) + "…" : line
     }
+
+    private static let failureWords = [
+        "error", "usage:", "not found", "no such file", "cannot", "can't", "can’t", "could not",
+        "couldn't", "failed", "bad cpu type", "permission denied", "killed", "abort",
+    ]
 
     // MARK: - Biber
 
