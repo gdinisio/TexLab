@@ -19,21 +19,8 @@ nonisolated struct DocumentPart: Identifiable, Hashable, Sendable {
     var order: Int
     var url: URL
     var kind: Kind
-    /// How deeply it is included: 0 for the main file, 1 for a chapter it inputs.
-    var depth: Int
-    /// The first heading in the file, or the document's title for the main file.
-    var title: String?
 
     var id: Int { order }
-
-    var systemImage: String {
-        switch kind {
-        // The main file is a LaTeX file like the others, with a Main badge.
-        case .main: "doc.text"
-        case .included: "doc.text"
-        case .bibliography: "books.vertical"
-        }
-    }
 }
 
 /// A heading, frame or float of the whole document, with the file it is in.
@@ -54,8 +41,7 @@ nonisolated struct DocumentOutlineNode: Identifiable, Hashable, Sendable {
 }
 
 /// Follows a document from its main file through the files it includes, in the order TeX
-/// reads them, for the project navigator's Document section and the outline of the whole
-/// document.
+/// reads them, for the outline of the whole document.
 nonisolated enum DocumentStructure {
     private static let inclusionPattern = try! NSRegularExpression(
         pattern: #"\\(?:input|include|subfile)\s*\{([^{}]+)\}|\\(sub)?import\*?\s*\{([^{}]*)\}\s*\{([^{}]+)\}"#
@@ -80,10 +66,7 @@ nonisolated enum DocumentStructure {
             guard parts.count < maximumParts, !visited.contains(path), let text = read(url) else { return }
             visited.insert(path)
             let items = OutlineParser.flatten(OutlineParser.parse(text))
-            let title = depth == 0
-                ? ProjectIndex.title(in: text)
-                : items.first(where: { $0.kind.canContainItems })?.title
-            parts.append(DocumentPart(order: parts.count, url: url, kind: depth == 0 ? .main : .included, depth: depth, title: title))
+            parts.append(DocumentPart(order: parts.count, url: url, kind: depth == 0 ? .main : .included))
             bibliographies += self.bibliographies(in: text, mainFolder: mainFolder)
 
             // Headings in reading order, with each included file's headings where it is read.
@@ -107,7 +90,7 @@ nonisolated enum DocumentStructure {
         var seenBibliographies: Set<String> = []
         for bibliography in bibliographies where parts.count < maximumParts {
             guard seenBibliographies.insert(SourceMap.canonicalPath(bibliography)).inserted else { continue }
-            parts.append(DocumentPart(order: parts.count, url: bibliography, kind: .bibliography, depth: 1, title: nil))
+            parts.append(DocumentPart(order: parts.count, url: bibliography, kind: .bibliography))
         }
         return (parts, outline)
     }

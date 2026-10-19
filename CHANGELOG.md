@@ -3,6 +3,17 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.45 — The project navigator is the folder
+
+- **Just the directory.** The project navigator no longer has a Document section
+  listing the main file and its chapters, with their first headings, above a Files
+  section. The chapters and their headings were already in the Outline navigator, so
+  the project navigator now shows the project folder alone, as Xcode's and the Finder's
+  sidebars do, with no section headers. The main file keeps its Main badge, and the
+  selection still follows the file on screen.
+- Dropping files onto the empty space below the list puts them in the project folder,
+  as dropping them onto a file at the top level does.
+
 ## v1.44 — Biber on new Macs
 
 - **Biber runs even when it can't unpack itself.** TeX Live's Biber for the Mac is a

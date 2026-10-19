@@ -409,7 +409,7 @@ final class DocumentSession {
             outline = newOutline
             flatOutline = newFlatOutline
             updateCurrentOutlineItem()
-            // The whole document's outline and the chapters' headings come from the project.
+            // The whole document's outline comes from the project.
             if headingsChanged, (project?.parts.count ?? 0) > 1 {
                 refreshProject()
             }

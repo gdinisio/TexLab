@@ -237,13 +237,11 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   top or with ⌘1–⌘5: Project, Outline, Find, References and Issues; the Issues icon
   shows how many there are. The row of icons, the search and filter fields and the bars
   of buttons float on Liquid Glass over the lists, which scroll beneath them.
-- **Document section** — the project navigator lists the main file and the chapters it
-  includes (`\input`, `\include`, `\subfile`, `\import`) in reading order, each with its
-  first heading, nested as deeply as they are included, then the bibliographies; click
-  one to write in it. A filter field at the bottom finds any file of the project by name.
 - **Outline of the whole document** — the Outline navigator can show the file on screen
-  or the whole document across all its files, in reading order; selecting a heading in
-  another chapter opens that chapter at it.
+  or the whole document across all its files (`\input`, `\include`, `\subfile`,
+  `\import`), in reading order; selecting a heading in another chapter opens that chapter
+  at it. The project navigator keeps to the folder, so the document's structure is in
+  one place.
 - **Jump to Definition** — ⌘-click (or ⌃⌘J, or the context menu) goes from a reference
   to its `\label`, from a citation to its bibliography entry, from `\input`,
   `\includegraphics` or `\bibliography` to the file, from a command to its
@@ -255,7 +253,9 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   double-click to refer to it, drag it into the text, or go to its definition.
 - **Project navigator** — the first sidebar tab lists the files of the project's folder in
   a native sidebar outline, like Xcode's and the Finder's: LaTeX files, bibliographies,
-  packages, images and folders, with the main file marked. As in Xcode, files go by their
+  packages, images and folders, with the main file marked — the folder as it is on disk,
+  while the Outline navigator has the document's structure. A filter field at the bottom
+  finds any file of the project by name. As in Xcode, files go by their
   names — `introduction`, not `introduction.tex` — and the icon says what each is, in its
   kind's colour: green for LaTeX, orange for bibliographies, purple for packages, classes
   and bibliography styles (each with its own symbol), teal for images and red for PDFs.

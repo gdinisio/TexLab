@@ -7,9 +7,8 @@ import AppKit
 import Foundation
 import SwiftUI
 
-/// The project navigator, like Xcode's. The Document section lists the main file and the
-/// files it includes, in reading order and inside the file that includes them, each with
-/// its first heading, then its bibliographies; Files lists the project folder. The list is
+/// The project navigator, like Xcode's: the project folder's files and folders, with the
+/// main file marked. The document's structure is the Outline navigator's. The list is
 /// AppKit's sidebar outline (see `ProjectNavigatorOutline`); below it, + adds files and
 /// folders and the filter field finds files by name.
 struct ProjectSidebar: View {

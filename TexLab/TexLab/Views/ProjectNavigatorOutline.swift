@@ -65,9 +65,8 @@ struct ProjectNavigatorOutline: NSViewRepresentable {
     }
 }
 
-/// A row of the navigator: a section, a part of the document, or a file or folder.
-/// Rows keep their identity across updates, so the list keeps its open folders and
-/// selection while the project changes.
+/// A row of the navigator: a file or folder of the project. Rows keep their identity across
+/// updates, so the list keeps its open folders and selection while the project changes.
 final class NavigatorNode: NSObject {
     let key: String
     var title = ""
@@ -77,11 +76,9 @@ final class NavigatorNode: NSObject {
     var kind = ProjectFileKind.other
     /// The extension the name leaves out, as the icon stands for it; kept on renaming.
     var hiddenExtension: String?
-    /// A chapter's first heading, or a file's folder while filtering.
+    /// The file's folder, while filtering.
     var detail: String?
-    var isHeader = false
     var isFolder = false
-    var isPart = false
     var isMain = false
     var children: [NavigatorNode] = []
 
@@ -99,7 +96,7 @@ final class NavigatorNode: NSObject {
     }
 
     var isExpandable: Bool {
-        isHeader || !children.isEmpty
+        !children.isEmpty
     }
 }
 
@@ -114,14 +111,10 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
     private var builtProject: ProjectSnapshot?
     private var builtFilter = ""
     private var followedURL: URL?
-    private var hasOpenedDocumentSection = false
     private var autosaveFolder: String?
     private var isSelectingProgrammatically = false
     private var renaming: (node: NavigatorNode, isCancelled: Bool)?
     private var handledRenameRequest: URL?
-
-    private static let documentKey = "header:document"
-    private static let filesKey = "header:files"
 
     private var session: DocumentSession? {
         configuration?.session
@@ -166,13 +159,6 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
             let selectedKeys = Set(selectedNodes().map(\.key))
             rebuild(configuration.project, filter: configuration.filter)
             outlineView.reloadData()
-            for root in roots where root.isHeader {
-                outlineView.expandItem(root)
-            }
-            if !hasOpenedDocumentSection, let document = nodes[Self.documentKey] {
-                hasOpenedDocumentSection = true
-                outlineView.expandItem(document, expandChildren: true)
-            }
             restoreExpandedFolders(of: configuration.project)
             select(selectedKeys.compactMap { nodes[$0] })
             followShownFile(force: true)
@@ -246,45 +232,8 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
                 return match
             }
         } else {
-            let files = (project.tree.children ?? []).map(tree)
-            if project.parts.count > 1 {
-                let document = node(Self.documentKey)
-                document.isHeader = true
-                document.title = String(localized: "Document")
-                var stack: [(depth: Int, node: NavigatorNode)] = []
-                var seen: Set<String> = []
-                for part in project.parts {
-                    let path = Self.plainPath(part.url)
-                    guard seen.insert(path).inserted else { continue }
-                    let partNode = node("part:" + path)
-                    partNode.title = ProjectFileKind.displayName(of: part.url)
-                    partNode.url = part.url
-                    partNode.kind = ProjectFileKind(url: part.url, isDirectory: false)
-                    partNode.hiddenExtension = partNode.kind.hidesExtension ? part.url.pathExtension : nil
-                    partNode.isPart = true
-                    partNode.systemImage = part.systemImage
-                    partNode.detail = part.title
-                    partNode.isMain = part.kind == .main
-                    // Each part sits inside the one that includes it.
-                    while let last = stack.last, last.depth >= part.depth {
-                        stack.removeLast()
-                    }
-                    let parent = stack.last?.node ?? document
-                    parent.children.append(partNode)
-                    newParents[partNode.key] = parent
-                    stack.append((part.depth, partNode))
-                }
-                let filesHeader = node(Self.filesKey)
-                filesHeader.isHeader = true
-                filesHeader.title = String(localized: "Files")
-                filesHeader.children = files
-                for file in files {
-                    newParents[file.key] = filesHeader
-                }
-                roots = [document, filesHeader]
-            } else {
-                roots = files
-            }
+            // The folder as it is; the Outline navigator has the document's structure.
+            roots = (project.tree.children ?? []).map(tree)
         }
         nodes = used
         parents = newParents
@@ -325,8 +274,8 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
         isSelectingProgrammatically = false
     }
 
-    /// Selects the file the editor shows — in the Document section if it's a part of the
-    /// document — unless it's among the selection already, opening folders to reveal it.
+    /// Selects the file the editor shows, unless it's among the selection already, opening
+    /// folders to reveal it.
     private func followShownFile(force: Bool) {
         guard let outlineView, let url = configuration?.shownURL else { return }
         guard force || url != followedURL else { return }
@@ -342,20 +291,15 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
     }
 
     private func node(showing url: URL) -> NavigatorNode? {
-        let plain = Self.plainPath(url)
-        if let part = nodes["part:" + plain] {
-            return part
-        }
-        if let item = nodes["item:" + plain] {
+        if let item = nodes["item:" + Self.plainPath(url)] {
             return item
         }
         // The same file by another path, through a symbolic link.
         let canonical = SourceMap.canonicalPath(url)
-        let matches = nodes.values.filter { !$0.isHeader && $0.url.map(SourceMap.canonicalPath) == canonical }
-        return matches.first(where: \.isPart) ?? matches.first
+        return nodes.values.first { $0.url.map(SourceMap.canonicalPath) == canonical }
     }
 
-    /// Opens the folders and parts that contain `node`.
+    /// Opens the folders that contain `node`.
     private func reveal(_ node: NavigatorNode) {
         guard let outlineView else { return }
         var ancestors: [NavigatorNode] = []
@@ -385,7 +329,7 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
     @objc private func openClickedRow(_ sender: Any?) {
         guard let outlineView, outlineView.clickedRow >= 0,
               let node = outlineView.item(atRow: outlineView.clickedRow) as? NavigatorNode else { return }
-        if node.isHeader || (node.isFolder && node.isExpandable) {
+        if node.isFolder && node.isExpandable {
             if outlineView.isItemExpanded(node) {
                 outlineView.collapseItem(node)
             } else {
@@ -413,7 +357,7 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
 
     /// ⌘↓: goes to the selected file.
     func openSelection() {
-        let files = selectedNodes().filter { !$0.isHeader && !$0.isFolder }.compactMap(\.url)
+        let files = selectedNodes().filter { !$0.isFolder }.compactMap(\.url)
         guard !files.isEmpty else {
             NSSound.beep()
             return
@@ -427,7 +371,7 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
 
     /// Return: renames the selected row in place.
     func renameSelection() {
-        let selection = selectedNodes().filter { !$0.isHeader && $0.url != nil }
+        let selection = selectedNodes().filter { $0.url != nil }
         guard selection.count == 1, let node = selection.first else {
             NSSound.beep()
             return
@@ -436,7 +380,7 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
     }
 
     private func beginRenaming(_ node: NavigatorNode) {
-        guard let outlineView, !node.isHeader, node.url != nil else { return }
+        guard let outlineView, node.url != nil else { return }
         reveal(node)
         let row = outlineView.row(forItem: node)
         guard row >= 0 else { return }
@@ -507,7 +451,7 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
 
     /// ⌘⌫: asks to move the selected items to the Trash.
     func trashSelection() {
-        let urls = selectedNodes().filter { !$0.isHeader }.compactMap(\.url)
+        let urls = selectedNodes().compactMap(\.url)
         guard !urls.isEmpty else {
             NSSound.beep()
             return
@@ -548,40 +492,26 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
 
     // MARK: - Rows
 
-    func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
-        (item as? NavigatorNode)?.isHeader ?? false
-    }
-
-    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-        !((item as? NavigatorNode)?.isHeader ?? true)
-    }
-
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
         guard let node = item as? NavigatorNode else { return nil }
-        if node.isHeader {
-            let cell = (outlineView.makeView(withIdentifier: NavigatorHeaderView.identifier, owner: self) as? NavigatorHeaderView) ?? NavigatorHeaderView()
-            cell.textField?.stringValue = node.title
-            return cell
-        }
         let cell = (outlineView.makeView(withIdentifier: NavigatorCellView.identifier, owner: self) as? NavigatorCellView) ?? NavigatorCellView()
         cell.configure(with: node)
         return cell
     }
 
     func outlineView(_ outlineView: NSOutlineView, typeSelectStringFor tableColumn: NSTableColumn?, item: Any) -> String? {
-        guard let node = item as? NavigatorNode, !node.isHeader else { return nil }
-        return node.title
+        (item as? NavigatorNode)?.title
     }
 
     // MARK: - Context menu
 
     /// The rows a context menu acts on: the selection if the clicked row is in it, or the
-    /// clicked row; none for a click on a section or below the rows.
+    /// clicked row; none for a click below the rows.
     private func menuTargets() -> [NavigatorNode] {
         guard let outlineView, outlineView.clickedRow >= 0,
-              let clicked = outlineView.item(atRow: outlineView.clickedRow) as? NavigatorNode, !clicked.isHeader else { return [] }
+              let clicked = outlineView.item(atRow: outlineView.clickedRow) as? NavigatorNode else { return [] }
         if outlineView.selectedRowIndexes.contains(outlineView.clickedRow) {
-            return selectedNodes().filter { !$0.isHeader }
+            return selectedNodes()
         }
         return [clicked]
     }
@@ -677,7 +607,7 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
     // MARK: - Dragging
 
     func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
-        guard let node = item as? NavigatorNode, !node.isHeader, let url = node.url else { return nil }
+        guard let url = (item as? NavigatorNode)?.url else { return nil }
         return url as NSURL
     }
 
@@ -726,29 +656,19 @@ final class ProjectNavigatorCoordinator: NSObject, NSOutlineViewDataSource, NSOu
     }
 
     /// The folder a drop on `item` puts files in, and the row to highlight: a folder, the
-    /// folder of a file, or the project folder. The Document section lists files where
-    /// they are, so it takes no drops.
+    /// folder of a file, or the project folder.
     private func dropTarget(for item: Any?) -> (folder: URL, row: NavigatorNode?)? {
         guard let project = configuration?.project else { return nil }
         guard let node = item as? NavigatorNode else {
-            return (project.folder, nodes[Self.filesKey])
-        }
-        if node.isHeader {
-            return node.key == Self.filesKey ? (project.folder, node) : nil
-        }
-        if node.isPart {
-            return nil
+            return (project.folder, nil)
         }
         if node.isFolder, let url = node.url {
             return (url, node)
         }
-        guard let parent = parents[node.key] else {
-            return (project.folder, nil)
-        }
-        if parent.isFolder, let url = parent.url {
+        if let parent = parents[node.key], parent.isFolder, let url = parent.url {
             return (url, parent)
         }
-        return parent.key == Self.filesKey ? (project.folder, parent) : nil
+        return (project.folder, nil)
     }
 
     private func draggedURLs(_ info: NSDraggingInfo) -> [URL] {
@@ -780,34 +700,8 @@ final class NavigatorOutlineView: NSOutlineView {
     }
 }
 
-/// A section title: Document or Files.
-final class NavigatorHeaderView: NSTableCellView {
-    static let identifier = NSUserInterfaceItemIdentifier("NavigatorHeader")
-
-    init() {
-        super.init(frame: .zero)
-        identifier = Self.identifier
-        let label = NSTextField(labelWithString: "")
-        label.font = .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .semibold)
-        label.textColor = .secondaryLabelColor
-        label.lineBreakMode = .byTruncatingTail
-        label.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(label)
-        textField = label
-        NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 2),
-            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -4),
-            label.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("Navigator rows are made in code")
-    }
-}
-
-/// A file, folder or part of the document: its icon and name, a detail in grey — the
-/// chapter's first heading, or its folder while filtering — and a Main badge.
+/// A file or folder: its icon and name, its folder in grey while filtering, and a Main
+/// badge.
 final class NavigatorCellView: NSTableCellView {
     static let identifier = NSUserInterfaceItemIdentifier("NavigatorItem")
 
