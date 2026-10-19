@@ -75,6 +75,7 @@ nonisolated enum SettingsKey {
     static let rendersMathInEditor = "rendersMathInEditor"
     static let showsImagesInline = "showsImagesInline"
     static let previewsWhileEditing = "previewsWhileEditing"
+    static let offersMissingPackages = "offersMissingPackages"
     static let collapsesPreambleInVisual = "collapsesPreambleInVisual"
     static let foldsFloatsOnOpen = "foldsFloatsOnOpen"
     static let foldsPreambleOnOpen = "foldsPreambleOnOpen"
@@ -119,6 +120,7 @@ nonisolated enum AppSettings {
     static let rendersMathInEditor = true
     static let showsImagesInline = true
     static let previewsWhileEditing = true
+    static let offersMissingPackages = true
     static let collapsesPreambleInVisual = true
     static let foldsFloatsOnOpen = false
     static let foldsPreambleOnOpen = false
@@ -161,6 +163,7 @@ nonisolated enum AppSettings {
             SettingsKey.rendersMathInEditor: rendersMathInEditor,
             SettingsKey.showsImagesInline: showsImagesInline,
             SettingsKey.previewsWhileEditing: previewsWhileEditing,
+            SettingsKey.offersMissingPackages: offersMissingPackages,
             SettingsKey.collapsesPreambleInVisual: collapsesPreambleInVisual,
             SettingsKey.foldsFloatsOnOpen: foldsFloatsOnOpen,
             SettingsKey.foldsPreambleOnOpen: foldsPreambleOnOpen,

@@ -3,6 +3,58 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.36 — Packages when they're needed, and a toolbar that makes sense
+
+- **Offers the package a command needs.** Type `\mathbb{R}` without amssymb, or
+  `\begin{align}` without amsmath, and a small bar of Liquid Glass appears just above the
+  line: "\mathbb needs the amssymb package. Add amssymb · Not Now". Typing carries on
+  underneath and nothing is added without a click; Add puts `\usepackage{amssymb}` after
+  the preamble's other packages (in the main file for a part of a project) as an
+  undoable edit, and Not Now stops asking about that package while the window is open.
+  The bar goes once the insertion point leaves the line. (`\mathrm`, like other commands
+  LaTeX has itself, never asks.)
+  - Each such use is also a live issue in the Issues navigator, with an Add button like
+    an Xcode Fix-It, and the editor's context menu offers Add \usepackage{…} on the
+    command.
+  - Nearly 300 commands and environments of about 70 packages are known: amssymb's and
+    amsfonts' letters and symbols, amsmath's and mathtools', amsthm, mathrsfs, bm,
+    graphicx, xcolor, hyperref and url, cleveref, booktabs, multirow, TikZ, pgfplots,
+    tikz-cd, siunitx, listings, minted, enumitem, geometry, fancyhdr, caption and
+    subcaption, csquotes, biblatex and natbib, todonotes, cancel, mhchem, physics,
+    setspace, glossaries and more. Each was checked with TeX Live to be undefined in a
+    plain article and defined by the package offered; three the kernel has already
+    (`\mho`, `\selectlanguage`, `\foreignlanguage`) were left out.
+  - What the document loads already counts: packages its class loads (Beamer loads
+    amsmath, amssymb, amsthm, graphicx, hyperref and xcolor; amsart amsmath; memoir
+    booktabs), packages other packages load (mathtools loads amsmath, tikz graphicx and
+    xcolor, hyperref url), packages and classes of the project's own, files the preamble
+    inputs, and commands and environments the project defines. With a class it doesn't
+    know, or a preamble file it can't read, the check stays quiet. Comments and verbatim
+    text don't count; math does.
+  - Settings ▸ Editor ▸ "Offer to add the package a command needs" turns it off.
+- **Add Package.** A toolbar item, and Insert ▸ Package…, list common packages with what
+  each is for, mark those the document already loads (itself, through its class or
+  through another package), and add any other by name, with options such as
+  `margin=2cm`. More packages have descriptions in completion too.
+- **A new default toolbar**, laid out left to right as the window is:
+  - over the editor, Code | Visual, then Heading, Figure, Table, Math and Symbols;
+  - Add Package;
+  - over the preview, Typeset and Preview, the two things done to the PDF most;
+  - Share.
+
+  Typeset is now Stop while TeX runs, like Xcode's Run, and holding it offers the engine,
+  Typeset Automatically, the log and Clean Build Files. Cite and Reference left the
+  default set — `\cite{` and `\ref{` are quick to type with completion — and stay in the
+  palette. Nothing is placed over the sidebar any more: Code | Visual and Typeset were
+  in leading places that macOS puts over the sidebar, so hiding the sidebar could hide
+  them, and a tool dragged there (Theorem, say) went with it. The palette gains an Issues
+  count that opens the Issues navigator.
+- **Grouping.** The default set comes in four groups separated by spaces, so each has its
+  own Liquid Glass capsule. Items side by side share a capsule: drag Space from the
+  palette between two items to separate them, or drag items next to each other to group
+  them. The toolbar starts from the new default set once; customise it again with View ▸
+  Customize Toolbar.
+
 ## v1.35 — Bibliographies like Xcode's Info editor
 
 - **A Visual editor for bibliographies.** A `.bib` file in the Visual editor is shown as a

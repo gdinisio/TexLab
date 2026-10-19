@@ -134,6 +134,15 @@ extension DocumentSession {
         }
     }
 
+    /// Adds `\usepackage[options]{name}`, as Add Package does, unless the document loads it.
+    func addPackage(_ name: String, options: String = "") {
+        editPreamble(actionName: String(localized: "Add Package")) { text in
+            Self.packageInsertion([name], options: options.trimmingCharacters(in: .whitespaces), in: text)
+        }
+        // A part's main file changed, not the text on screen.
+        checkLiveIssues()
+    }
+
     private func ensureTheoremDefinition(_ kind: TheoremKind) {
         editPreamble(actionName: String(localized: "Define \(kind.title)")) { text in
             Self.theoremDefinitionInsertion(kind, in: text)
@@ -153,14 +162,15 @@ extension DocumentSession {
     }
 
     /// The `\usepackage` lines a document needs for `packages`, and where they go.
-    static func packageInsertion(_ packages: [String], in text: String) -> (range: NSRange, text: String)? {
+    static func packageInsertion(_ packages: [String], options: String = "", in text: String) -> (range: NSRange, text: String)? {
         let string = text as NSString
         let begin = string.range(of: "\\begin{document}")
         guard begin.location != NSNotFound else { return nil }
         let loaded = loadedPackages(in: string.substring(to: begin.location))
         let missing = packages.filter { !loaded.contains($0) }
         guard !missing.isEmpty else { return nil }
-        let insertion = missing.map { "\\usepackage{\($0)}\n" }.joined()
+        let optionText = options.isEmpty ? "" : "[\(options)]"
+        let insertion = missing.map { "\\usepackage\(optionText){\($0)}\n" }.joined()
         return (NSRange(location: preambleInsertionPoint(in: string, before: begin.location), length: 0), insertion)
     }
 

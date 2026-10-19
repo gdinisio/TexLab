@@ -184,6 +184,21 @@ final class EditorController {
         textView?.setRenderedMath(images)
     }
 
+    // MARK: - Missing packages
+
+    func showPackagePrompt(command: String, package: String, at range: NSRange, add: @escaping () -> Void, dismiss: @escaping () -> Void) {
+        textView?.showPackagePrompt(command: command, package: package, at: range, add: add, dismiss: dismiss)
+    }
+
+    func hidePackagePrompt() {
+        textView?.hidePackagePrompt()
+    }
+
+    /// The command the shown package prompt is about.
+    var packagePromptRange: NSRange? {
+        textView?.packagePromptRange
+    }
+
     func setFailedRenderKeys(_ keys: Set<String>) {
         textView?.setFailedRenderKeys(keys)
     }

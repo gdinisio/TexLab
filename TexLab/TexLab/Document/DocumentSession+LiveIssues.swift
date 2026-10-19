@@ -14,24 +14,33 @@ extension DocumentSession {
     /// project changes.
     func checkLiveIssues() {
         liveIssuesTask?.cancel()
-        guard UserDefaults.standard.bool(forKey: SettingsKey.showsLiveIssues), supportsVisualEditor else {
+        let defaults = UserDefaults.standard
+        let showsIssues = defaults.bool(forKey: SettingsKey.showsLiveIssues)
+        let offersPackages = defaults.bool(forKey: SettingsKey.offersMissingPackages)
+        guard showsIssues || offersPackages, supportsVisualEditor else {
             if !liveIssues.isEmpty {
                 liveIssues = []
                 updateIssueMarkers()
             }
+            missingPackages = []
+            editor.hidePackagePrompt()
             return
         }
         let text = text
         let context = liveCheckContext
+        let packageContext = packageContext
         let checkedDocument = currentDocument
         let source: SourceFile = fileURL.map { SourceFile.file($0) } ?? .currentDocument
         liveIssuesTask = Task { [weak self] in
-            let found = await Task.detached(priority: .utility) {
-                LiveChecker.check(text, context: context)
+            let (found, missing) = await Task.detached(priority: .utility) {
+                (
+                    showsIssues ? LiveChecker.check(text, context: context) : [],
+                    packageContext.flatMap { PackageRequirements.missing(in: text, context: $0) } ?? []
+                )
             }.value
             // The editor may show another file by now.
             guard !Task.isCancelled, let self, self.currentDocument === checkedDocument else { return }
-            let issues = found.enumerated().map { index, issue in
+            var issues = found.enumerated().map { index, issue in
                 Issue(
                     id: Self.liveIssueIDBase + index,
                     severity: issue.severity,
@@ -41,10 +50,26 @@ extension DocumentSession {
                     isLive: true
                 )
             }
+            if showsIssues {
+                // TeX stops at a command whose package isn't loaded.
+                issues += missing.enumerated().map { index, missing in
+                    Issue(
+                        id: Self.liveIssueIDBase + found.count + index,
+                        severity: .error,
+                        message: String(localized: "\(missing.command) needs the \(missing.package) package"),
+                        source: source,
+                        line: missing.line,
+                        isLive: true,
+                        fix: .addPackage(missing.package)
+                    )
+                }
+            }
             if issues != self.liveIssues {
                 self.liveIssues = issues
                 self.updateIssueMarkers()
             }
+            self.missingPackages = offersPackages ? missing : []
+            self.updatePackagePrompt(afterTyping: true)
         }
     }
 

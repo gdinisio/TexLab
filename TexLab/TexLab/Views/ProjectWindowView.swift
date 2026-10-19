@@ -40,6 +40,7 @@ struct ProjectWindowView: View {
     @AppStorage(SettingsKey.rendersMathInEditor) private var rendersMath = AppSettings.rendersMathInEditor
     @AppStorage(SettingsKey.showsImagesInline) private var showsImages = AppSettings.showsImagesInline
     @AppStorage(SettingsKey.previewsWhileEditing) private var previewsWhileEditing = AppSettings.previewsWhileEditing
+    @AppStorage(SettingsKey.offersMissingPackages) private var offersMissingPackages = AppSettings.offersMissingPackages
     @AppStorage(SettingsKey.showsLiveIssues) private var showsLiveIssues = AppSettings.showsLiveIssues
 
     var body: some View {
@@ -70,6 +71,11 @@ struct ProjectWindowView: View {
         .sheet(isPresented: $session.isShowingNewFileSheet) {
             NewFileSheet(session: session)
         }
+        .sheet(isPresented: $session.isShowingPackagePicker) {
+            PackagePicker(session: session) {
+                session.isShowingPackagePicker = false
+            }
+        }
         .fileExporter(
             isPresented: $session.isExportingPDF,
             document: session.isExportingPDF ? session.pdfExportDocument : nil,
@@ -94,6 +100,9 @@ struct ProjectWindowView: View {
             session.livePreviewSettingDidChange()
         }
         .onChange(of: showsLiveIssues) {
+            session.checkLiveIssues()
+        }
+        .onChange(of: offersMissingPackages) {
             session.checkLiveIssues()
         }
     }

@@ -94,6 +94,13 @@ struct SourceEditor: NSViewRepresentable {
         func textView(_ view: NSTextView, menu: NSMenu, for event: NSEvent, at charIndex: Int) -> NSMenu? {
             guard let sourceView = view as? SourceTextView else { return menu }
             var items: [NSMenuItem] = []
+            if charIndex >= 0, let missing = parent.session.missingPackage(at: charIndex) {
+                let item = NSMenuItem(title: IssueFix.addPackage(missing.package).help, action: #selector(addMissingPackage(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = missing.package
+                item.image = NSImage(systemSymbolName: "shippingbox", accessibilityDescription: nil)
+                items.append(item)
+            }
             if charIndex >= 0, let definition = parent.session.definition(at: charIndex) {
                 let item = NSMenuItem(title: definition.target.menuTitle, action: #selector(jumpToDefinition(_:)), keyEquivalent: "")
                 item.target = self
@@ -114,6 +121,12 @@ struct SourceEditor: NSViewRepresentable {
             }
             menu.insertItem(.separator(), at: items.count)
             return menu
+        }
+
+        @objc private func addMissingPackage(_ sender: NSMenuItem) {
+            if let package = sender.representedObject as? String {
+                parent.session.addMissingPackage(package)
+            }
         }
 
         @objc private func jumpToDefinition(_ sender: NSMenuItem) {

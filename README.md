@@ -146,13 +146,39 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
   between them), opens the list for its argument where that helps, and accepting an
   environment closes it.
 - **Customisable toolbar** — View ▸ Customize Toolbar offers more than 50 tools to drag
-  in, so each writer can lay it out their way. The default set covers most writing: Code
-  | Visual, Typeset, Heading, Figure, Table, Math, Symbols, Cite, Reference, Preview and
-  Share. The palette adds individual headings; images, lists, footnotes, links, quotes
-  and code listings; inline, display, numbered and aligned math, matrices, fractions and
-  theorems; text styles, comments and indentation; Beamer slides, columns and blocks;
-  typesetting, engine, issues, log, zoom, folding, find, go to line and word count; and
-  export, print and project files.
+  in, so each writer can lay it out their way. The default set reads left to right as
+  the window does, in four groups of Liquid Glass:
+  - over the editor, Code | Visual, then Heading, Figure, Table, Math and Symbols;
+  - Add Package;
+  - over the preview, Typeset and Preview — Typeset is Stop while TeX runs, like Xcode's
+    Run, and holding it offers the engine, automatic typesetting, the log and a clean
+    start;
+  - Share.
+
+  Items side by side share one capsule; dragging Space from the palette between two
+  items separates them, and dragging items next to each other groups them. No tool sits
+  over the sidebar, so hiding it hides none. The palette adds Cite and Reference (quick
+  to type with completion), individual headings; images, lists, footnotes, links,
+  quotes and code listings; inline, display, numbered and aligned math, matrices,
+  fractions and theorems; text styles, comments and indentation; Beamer slides, columns
+  and blocks; Stop, the engine, issues and an issue count, the log, zoom, folding, find,
+  go to line and word count; and export, print, New File and Show in Finder.
+- **Packages a command needs** — type `\mathbb{R}` without amssymb, or
+  `\begin{align}` without amsmath, and a small bar of Liquid Glass above the line asks
+  "\mathbb needs the amssymb package. Add amssymb · Not Now"; typing carries on, and
+  nothing is added without a click. The use is also a live issue with an Add button, and
+  the editor's context menu offers it. Nearly 300 commands and environments of about 70
+  packages are known — symbols, amsmath and mathtools, graphicx, xcolor, hyperref,
+  cleveref, booktabs, siunitx, TikZ and pgfplots, listings, biblatex and natbib, and more
+  — each checked with TeX Live to be missing from plain LaTeX and defined by the package
+  offered. Packages the class loads (Beamer loads amsmath, amssymb and hyperref, say),
+  packages other packages load (mathtools loads amsmath), the project's own packages and
+  preamble files, and commands the project defines all count; with a class it doesn't
+  know, the check stays quiet. Settings ▸ Editor turns it off.
+- **Add Package** — the toolbar's Add Package and Insert ▸ Package… list common packages
+  with what each is for, mark those the document already loads, and add any other by
+  name, with options such as `margin=2cm`; the package goes in after the others, in the
+  main file's preamble for a part of a project.
 - **Cite and Reference** — Cite searches the project's bibliographies by key, author,
   title or year and inserts `\cite` (or `\citep`, `\autocite`, …) for one or more
   entries; Reference lists every label by kind and inserts `\eqref` for equations and
@@ -510,7 +536,8 @@ TexLab/TexLab/
   document it makes. New from Template inlines each `\input` to make the same document
   as one file.
 - **Toolbar and navigators** — `EditorToolbar` is SwiftUI `CustomizableToolbarContent`,
-  split into groups of related tools so AppKit's customisation palette offers them all;
+  split into groups of related tools so AppKit's customisation palette offers them all,
+  with `ToolbarSpacer`s between the default groups so each has its own glass;
   tools insert through `DocumentSession+Insert`, which adds the packages and definitions
   they need. `ProjectSearch` and `ReferenceScanner` back the Find and References
   navigators and the Cite and Reference pickers. `DefinitionFinder` reads what is under

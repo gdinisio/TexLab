@@ -412,12 +412,23 @@ struct IssuesSidebar: View {
     }
 
     private func issueButton(_ issue: Issue, showsFile: Bool) -> some View {
-        Button {
-            session.reveal(issue)
-        } label: {
-            IssueRow(issue: issue, documentName: session.displayName, showsFile: showsFile)
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Button {
+                session.reveal(issue)
+            } label: {
+                IssueRow(issue: issue, documentName: session.displayName, showsFile: showsFile)
+            }
+            .buttonStyle(.plain)
+            if let fix = issue.fix {
+                // Like an Xcode Fix-It.
+                Button(fix.title) {
+                    session.apply(fix)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help(fix.help)
+            }
         }
-        .buttonStyle(.plain)
     }
 
     /// Issues grouped by the file they're in, named by its path in the project.

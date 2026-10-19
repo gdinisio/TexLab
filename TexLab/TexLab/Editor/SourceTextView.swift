@@ -76,6 +76,13 @@ final class SourceTextView: NSTextView {
     var editingPreviewLast: (anchor: NSRange, content: EditingPreviewContent)?
     var editingPreviewObservers: [NSObjectProtocol] = []
 
+    // MARK: Package prompt
+
+    /// Offers to load the package a command just typed needs.
+    var packagePrompt: NSView?
+    /// The command it's about, while it's shown.
+    var packagePromptRange: NSRange?
+
     // MARK: Completion
 
     let completionPopup = CompletionPopup()
@@ -287,8 +294,9 @@ final class SourceTextView: NSTextView {
 
     /// Replaces the whole text without registering undo, for loading and reverting.
     func setText(_ text: String) {
-        // Another file: what the preview showed belongs to the last one.
+        // Another file: what the preview and the prompt showed belong to the last one.
         hideEditingPreview()
+        hidePackagePrompt()
         guard let storage = textStorage else { return }
         endPlaceholders()
         let selection = selectedRange()

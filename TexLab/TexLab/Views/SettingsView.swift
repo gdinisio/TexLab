@@ -104,6 +104,7 @@ private struct EditorSettings: View {
     @AppStorage(SettingsKey.checksSpelling) private var checksSpelling = AppSettings.checksSpelling
     @AppStorage(SettingsKey.suggestsCompletions) private var suggestsCompletions = AppSettings.suggestsCompletions
     @AppStorage(SettingsKey.previewsWhileEditing) private var previewsWhileEditing = AppSettings.previewsWhileEditing
+    @AppStorage(SettingsKey.offersMissingPackages) private var offersMissingPackages = AppSettings.offersMissingPackages
     @AppStorage(SettingsKey.foldsFloatsOnOpen) private var foldsFloatsOnOpen = AppSettings.foldsFloatsOnOpen
     @AppStorage(SettingsKey.foldsPreambleOnOpen) private var foldsPreambleOnOpen = AppSettings.foldsPreambleOnOpen
 
@@ -170,6 +171,7 @@ private struct EditorSettings: View {
                 Toggle("Suggest completions as you type — commands, labels, citations and files", isOn: $suggestsCompletions)
                 Toggle("Check spelling while typing", isOn: $checksSpelling)
                 Toggle("Preview formulas, drawings, tables and images while editing them", isOn: $previewsWhileEditing)
+                Toggle("Offer to add the package a command needs, such as amssymb for \\mathbb", isOn: $offersMissingPackages)
             } header: {
                 Text("Editing")
             } footer: {

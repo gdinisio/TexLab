@@ -6,24 +6,49 @@
 import Foundation
 import SwiftUI
 
-/// Typeset: click to typeset, or hold for the engine and Stop.
+/// Typeset, like Xcode's Run: click to typeset, and while TeX runs it's Stop. Hold it for
+/// the engine, automatic typesetting, the log and a clean start.
 struct TypesetToolbarButton: View {
     var session: DocumentSession
+    @AppStorage(SettingsKey.typesetsAutomatically) private var typesetsAutomatically = AppSettings.typesetsAutomatically
 
     var body: some View {
         Menu {
-            Button("Stop Typesetting", systemImage: "stop.fill") {
-                session.stopTypesetting()
+            if session.isTypesetting {
+                Button("Stop Typesetting", systemImage: "stop.fill") {
+                    session.stopTypesetting()
+                }
+            } else {
+                Button("Typeset", systemImage: "play.fill") {
+                    session.typeset()
+                }
             }
-            .disabled(!session.isTypesetting)
             Divider()
             EnginePicker(session: session)
+            Divider()
+            Toggle("Typeset Automatically", isOn: $typesetsAutomatically)
+            Button("Show Log") {
+                session.isShowingLog = true
+            }
+            Button("Clean Build Files") {
+                session.cleanBuildFiles()
+            }
         } label: {
-            Label("Typeset", systemImage: "play.fill")
+            if session.isTypesetting {
+                Label("Stop", systemImage: "stop.fill")
+            } else {
+                Label("Typeset", systemImage: "play.fill")
+            }
         } primaryAction: {
-            session.typeset()
+            if session.isTypesetting {
+                session.stopTypesetting()
+            } else {
+                session.typeset()
+            }
         }
-        .help("Typeset the document (⌘R). Hold for the engine.")
+        .help(session.isTypesetting
+            ? "Stop typesetting (⌘.)"
+            : "Typeset the document (⌘R). Hold for the engine and more.")
     }
 }
 
@@ -108,6 +133,10 @@ struct InsertMenuContent: View {
         Button("Symbol…", systemImage: "function") {
             session?.isShowingSymbols = true
         }
+        Button("Package…", systemImage: "shippingbox") {
+            session?.isShowingPackagePicker = true
+        }
+        .disabled(session?.supportsVisualEditor != true)
     }
 
     private func snippetMenu(_ title: LocalizedStringKey, systemImage: String, snippets: [Snippet]) -> some View {

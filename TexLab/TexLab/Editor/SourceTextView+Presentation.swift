@@ -196,6 +196,7 @@ extension SourceTextView {
     func presentationTextWillChange(editedRange: NSRange, changeInLength delta: Int) {
         presentationLayoutManager?.textWillChange(editedRange: editedRange, changeInLength: delta)
         editingPreviewTextWillChange(editedRange: editedRange, changeInLength: delta)
+        packagePromptTextWillChange(editedRange: editedRange, changeInLength: delta)
         let oldEnd = NSMaxRange(editedRange) - delta
 
         func survives(_ range: NSRange) -> Int? {

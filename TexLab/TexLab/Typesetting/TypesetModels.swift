@@ -7,6 +7,26 @@ import Foundation
 
 /// A problem found while typesetting, or while typing, attached to a source file and line
 /// when known.
+/// A change that fixes an issue, offered with it.
+nonisolated enum IssueFix: Hashable, Sendable {
+    /// Load a package the document uses.
+    case addPackage(String)
+
+    /// The button's title.
+    var title: String {
+        switch self {
+        case .addPackage(let package): String(localized: "Add \(package)")
+        }
+    }
+
+    /// What it does, for the tooltip.
+    var help: String {
+        switch self {
+        case .addPackage(let package): String(localized: "Add \\usepackage{\(package)} to the preamble")
+        }
+    }
+}
+
 nonisolated struct Issue: Identifiable, Hashable, Sendable {
     let id: Int
     var severity: LogEntry.Severity
@@ -15,6 +35,8 @@ nonisolated struct Issue: Identifiable, Hashable, Sendable {
     var line: Int?
     /// Whether it was found while typing rather than by TeX.
     var isLive = false
+    /// What would fix it, offered as a button, like an Xcode Fix-It.
+    var fix: IssueFix?
 
     /// The file name shown next to the message.
     var fileName: String? {

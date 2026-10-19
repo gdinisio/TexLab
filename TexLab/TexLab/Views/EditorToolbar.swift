@@ -9,38 +9,72 @@ import SwiftUI
 
 /// The document window's toolbar, customisable with View ▸ Customize Toolbar.
 ///
-/// The default set serves most writing: switching between Code and Visual, typesetting,
-/// headings, figures, tables, math, symbols, citations, references, the preview and
-/// sharing. Everything else waits in the customisation palette, so a thesis writer can add
-/// chapters and footnotes, a mathematician theorems and aligned equations, a presenter
-/// frames and columns, and a minimalist can keep only Typeset.
+/// It reads left to right as the window does: what's for writing over the editor, what's
+/// for the PDF over the preview.
+///
+/// - Writing: Code | Visual, then what's inserted most — headings, figures, tables, math
+///   and symbols. References and citations are a few keystrokes with completion, so they
+///   wait in the palette with theorems, lists, formatting and slides.
+/// - The project: Add Package.
+/// - Output, over the preview: Typeset — which turns into Stop while TeX runs — beside
+///   the Preview button, the two things done to the PDF most.
+/// - Share, last, as in every Mac document window.
+///
+/// Every item stays in the window's toolbar proper, never over the sidebar, so hiding the
+/// sidebar never hides a tool. With Liquid Glass, items side by side share one capsule
+/// and a space starts a new one: the default set is in four groups, and dragging Space
+/// from the palette between any two items separates them, while items dragged next to
+/// each other join.
 struct EditorToolbar: CustomizableToolbarContent {
     var session: DocumentSession
 
     var body: some CustomizableToolbarContent {
-        TypesettingToolbarItems(session: session)
-        StructureToolbarItems(session: session)
-        ContentToolbarItems(session: session)
-        MathToolbarItems(session: session)
-        ReferenceToolbarItems(session: session)
-        FormattingToolbarItems(session: session)
-        PresentationToolbarItems(session: session)
-        ViewToolbarItems(session: session)
+        WritingToolbarItems(session: session)
+        ToolbarSpacer(.fixed)
+        ProjectToolbarItems(session: session)
+        ToolbarSpacer(.fixed)
+        OutputToolbarItems(session: session)
+        ToolbarSpacer(.fixed)
         DocumentToolbarItems(session: session)
     }
 }
 
 // MARK: - Groups
 
-/// Editor mode, typesetting and issues.
+/// Over the editor: how the source is shown, and what's inserted into it.
+private struct WritingToolbarItems: CustomizableToolbarContent {
+    var session: DocumentSession
+
+    var body: some CustomizableToolbarContent {
+        ToolbarItem(id: "editorMode") {
+            EditorModePicker(session: session)
+        }
+        ToolbarSpacer(.fixed)
+        StructureToolbarItems(session: session)
+        ContentToolbarItems(session: session)
+        MathToolbarItems(session: session)
+        ReferenceToolbarItems(session: session)
+        FormattingToolbarItems(session: session)
+        PresentationToolbarItems(session: session)
+    }
+}
+
+/// Over the preview: typesetting and the PDF.
+private struct OutputToolbarItems: CustomizableToolbarContent {
+    var session: DocumentSession
+
+    var body: some CustomizableToolbarContent {
+        TypesettingToolbarItems(session: session)
+        ViewToolbarItems(session: session)
+    }
+}
+
+/// Typesetting and issues.
 private struct TypesettingToolbarItems: CustomizableToolbarContent {
     var session: DocumentSession
 
     var body: some CustomizableToolbarContent {
-        ToolbarItem(id: "editorMode", placement: .navigation) {
-            EditorModePicker(session: session)
-        }
-        ToolbarItem(id: "typeset", placement: .primaryAction) {
+        ToolbarItem(id: "typeset") {
             TypesetToolbarButton(session: session)
         }
         ToolbarItem(id: "stopTypesetting", showsByDefault: false) {
@@ -77,6 +111,9 @@ private struct TypesettingToolbarItems: CustomizableToolbarContent {
             }
             .disabled(session.allIssues.isEmpty)
             .help("Move through errors and warnings (⌘' and ⇧⌘')")
+        }
+        ToolbarItem(id: "issueCount", showsByDefault: false) {
+            IssueCountToolbarButton(session: session)
         }
         ToolbarItem(id: "log", showsByDefault: false) {
             ToolButton("Log", systemImage: "doc.plaintext", help: "Show the typesetting log (⇧⌘L)") {
@@ -224,10 +261,11 @@ private struct ReferenceToolbarItems: CustomizableToolbarContent {
     var session: DocumentSession
 
     var body: some CustomizableToolbarContent {
-        ToolbarItem(id: "cite") {
+        // \cite and \ref are quick to type, with completion, so these are there to add.
+        ToolbarItem(id: "cite", showsByDefault: false) {
             CiteToolbarButton(session: session)
         }
-        ToolbarItem(id: "reference") {
+        ToolbarItem(id: "reference", showsByDefault: false) {
             ReferenceToolbarButton(session: session)
         }
         ToolbarItem(id: "label", showsByDefault: false) {
@@ -391,7 +429,7 @@ private struct ViewToolbarItems: CustomizableToolbarContent {
     }
 }
 
-/// Sharing, exporting and the project.
+/// Sharing and exporting the PDF.
 private struct DocumentToolbarItems: CustomizableToolbarContent {
     var session: DocumentSession
 
@@ -410,6 +448,17 @@ private struct DocumentToolbarItems: CustomizableToolbarContent {
                 session.printPDF()
             }
             .disabled(session.pdfDocument == nil)
+        }
+    }
+}
+
+/// The document's packages and the project's files.
+private struct ProjectToolbarItems: CustomizableToolbarContent {
+    var session: DocumentSession
+
+    var body: some CustomizableToolbarContent {
+        ToolbarItem(id: "addPackage") {
+            AddPackageToolbarButton(session: session)
         }
         ToolbarItem(id: "newFile", showsByDefault: false) {
             ToolButton("New File", systemImage: "doc.badge.plus", help: "Add a part, figure, table, image or other file to the project (⌥⌘N)") {
@@ -524,6 +573,52 @@ private struct TwoPagesToggle: View {
             Label("Two Pages", systemImage: "book")
         }
         .help("Show two preview pages side by side")
+    }
+}
+
+/// Add Package: pick a package to load, with what it's for.
+private struct AddPackageToolbarButton: View {
+    var session: DocumentSession
+    @State private var isPresented = false
+
+    var body: some View {
+        Button {
+            isPresented.toggle()
+        } label: {
+            Label("Add Package", systemImage: "shippingbox")
+        }
+        .help("Load a package in the preamble, such as amssymb or tikz")
+        .disabled(!session.supportsVisualEditor)
+        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+            PackagePicker(session: session) {
+                isPresented = false
+            }
+        }
+    }
+}
+
+/// Errors and warnings, counted; click to see them in the Issues navigator.
+private struct IssueCountToolbarButton: View {
+    var session: DocumentSession
+
+    var body: some View {
+        Button {
+            session.showIssues()
+        } label: {
+            Label {
+                Text("^[\(session.errorCount + session.warningCount) Issue](inflect: true)")
+            } icon: {
+                Image(systemName: session.errorCount > 0 ? "xmark.octagon.fill" : session.warningCount > 0 ? "exclamationmark.triangle.fill" : "checkmark.circle")
+                    .symbolRenderingMode(.multicolor)
+            }
+        }
+        .help(issueSummary)
+    }
+
+    private var issueSummary: String {
+        let errors = session.errorCount == 1 ? String(localized: "1 error") : String(localized: "\(session.errorCount) errors")
+        let warnings = session.warningCount == 1 ? String(localized: "1 warning") : String(localized: "\(session.warningCount) warnings")
+        return String(localized: "\(errors) and \(warnings): show them in the Issues navigator")
     }
 }
 

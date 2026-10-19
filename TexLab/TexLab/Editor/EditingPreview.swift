@@ -363,6 +363,7 @@ extension SourceTextView {
             editingPreviewObservers.append(NotificationCenter.default.addObserver(forName: name, object: clipView, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
                     self?.repositionEditingPreview()
+                    self?.positionPackagePrompt()
                 }
             })
         }

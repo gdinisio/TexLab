@@ -136,6 +136,7 @@ final class DocumentSession {
     var isImportingImage = false
     var imageImportPurpose: ImageImportPurpose = .figure
     var isShowingTableSheet = false
+    var isShowingPackagePicker = false
     var isShowingGoToLine = false
     var isExportingPDF = false
 
@@ -162,6 +163,10 @@ final class DocumentSession {
     /// The preamble and engine the cached formulas were typeset with.
     @ObservationIgnored var mathCacheSignature = ""
     @ObservationIgnored var mathRenderTask: Task<Void, Never>?
+    /// Packages the shown file uses without loading, from the latest check.
+    @ObservationIgnored var missingPackages: [MissingPackage] = []
+    /// Packages the writer said not to add, with Not Now.
+    @ObservationIgnored var declinedPackages: Set<String> = []
     /// What each `\input` of the shown file shows in the Visual editor, by its path.
     @ObservationIgnored var inclusionPreviews: [String: InclusionPreview] = [:]
     /// Previews of included files that aren't open, with the date the file had.
@@ -279,6 +284,7 @@ final class DocumentSession {
         if selectionLength != length {
             selectionLength = length
         }
+        updatePackagePrompt()
     }
 
     /// Inserts a figure for an image file, with a path relative to the document and the

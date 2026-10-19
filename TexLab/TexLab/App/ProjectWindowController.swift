@@ -21,7 +21,8 @@ final class ProjectWindowController: NSWindowController, NSWindowDelegate {
     private(set) static var all: [ProjectWindowController] = []
 
     private static let frameAutosaveName = "TexLabProjectWindow"
-    private static let toolbarID = "TexLabEditor"
+    /// Named afresh when the default set changes, so every window starts from it once.
+    private static let toolbarID = "TexLabWindowToolbar"
     private static let windowIdentifier = NSUserInterfaceItemIdentifier("TexLabProjectWindow")
     private static let openFilesKey = "TexLabOpenFiles"
 
