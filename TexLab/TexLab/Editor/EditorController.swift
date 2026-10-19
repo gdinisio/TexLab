@@ -29,7 +29,8 @@ final class EditorController {
 
     /// Makes the editor the focus of its window.
     func focus() {
-        guard let textView else { return }
+        // Not while the file is shown another way, such as a bibliography as a table.
+        guard let textView, !textView.isHiddenOrHasHiddenAncestor else { return }
         textView.window?.makeFirstResponder(textView)
     }
 

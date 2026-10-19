@@ -103,7 +103,12 @@ struct ProjectWindowView: View {
             if session.project != nil || session.documents.count > 1 {
                 EditorFileBar(session: session)
             }
-            SourceEditor(configuration: editorConfiguration, session: session)
+            ZStack {
+                SourceEditor(configuration: editorConfiguration, session: session, isHidden: session.showsBibliographyEditor)
+                if session.showsBibliographyEditor {
+                    BibliographyEditor(session: session)
+                }
+            }
             if showsStatusBar {
                 StatusBar(session: session)
             }

@@ -211,7 +211,7 @@ struct TexLabCommands: Commands {
             .disabled(session == nil)
         Toggle("Visual Editor", isOn: modeBinding(.visual))
             .keyboardShortcut("2", modifiers: [.command, .control])
-            .disabled(session?.supportsVisualEditor != true)
+            .disabled(session?.hasVisualEditor != true)
         Menu("Code Folding") {
             Button("Fold") {
                 session?.editor.foldAtSelection()
@@ -249,7 +249,7 @@ struct TexLabCommands: Commands {
 
     private func modeBinding(_ mode: EditorMode) -> Binding<Bool> {
         Binding {
-            session?.effectiveEditorMode == mode
+            session?.displayedEditorMode == mode
         } set: { isOn in
             if isOn {
                 session?.setEditorMode(mode)

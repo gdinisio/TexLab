@@ -13,6 +13,9 @@ import SwiftUI
 struct SourceEditor: NSViewRepresentable {
     var configuration: EditorConfiguration
     var session: DocumentSession
+    /// Hidden while the file is shown another way, such as a bibliography as a table. The
+    /// editor still holds the text and applies the changes made there.
+    var isHidden = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -37,10 +40,11 @@ struct SourceEditor: NSViewRepresentable {
             session?.jumpToDefinition(at: location) ?? false
         }
         session.editor.attach(textView)
+        scrollView.isHidden = isHidden
 
         // Start typing straight away in a new window.
         DispatchQueue.main.async { [weak textView] in
-            guard let textView, let window = textView.window else { return }
+            guard let textView, let window = textView.window, !textView.isHiddenOrHasHiddenAncestor else { return }
             if !(window.firstResponder is NSTextView) {
                 window.makeFirstResponder(textView)
             }
@@ -52,6 +56,13 @@ struct SourceEditor: NSViewRepresentable {
         let coordinator = context.coordinator
         coordinator.parent = self
         coordinator.textView?.configuration = configuration
+        if scrollView.isHidden != isHidden {
+            scrollView.isHidden = isHidden
+            if isHidden, let textView = coordinator.textView, let window = textView.window, window.firstResponder === textView {
+                // Typing mustn't go into text that isn't shown.
+                window.makeFirstResponder(nil)
+            }
+        }
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {

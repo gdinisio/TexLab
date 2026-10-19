@@ -142,7 +142,12 @@ final class DocumentSession {
     // MARK: Private
 
     /// The shown file's text, as the editor has it.
-    @ObservationIgnored var text = ""
+    @ObservationIgnored var text = "" {
+        didSet { textRevision &+= 1 }
+    }
+    /// Changes with each change to `text`, for views that show it another way, such as the
+    /// bibliography table.
+    private(set) var textRevision = 0
     @ObservationIgnored var synctex: SyncTeXData?
     @ObservationIgnored var sourceMap: SourceMap?
     @ObservationIgnored var typesetTask: Task<Void, Never>?

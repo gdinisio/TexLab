@@ -42,6 +42,23 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
     TikZ drawings, tables and images, lists, references and included files as they will
     look, and the preamble collapsed.
     Markup appears, in the code font, wherever the insertion point is.
+- **Bibliographies, read and edited like Xcode's Info editor** — a `.bib` file in the
+  Visual editor is a table: each entry a row with its citation key, its kind — Journal
+  Article, Book, Conference Paper, Website, PhD Thesis… — chosen from a menu, and a
+  summary ("Knuth · 1984 · The TeXbook"); open it to see its fields by name — Authors,
+  Title, Journal, Year, Publisher, Organization, URL — and edit them in place, as Xcode
+  shows "Bundle display name" for `CFBundleDisplayName`.
+  - The fields an entry's kind needs are always listed, ready to fill in, and an entry
+    missing any is marked; Add Field offers the ones its kind usually has, and more.
+  - Add Entry, Duplicate Entry, Delete (or the Delete key), Copy Citation and a filter by
+    key, author, title or year; a link opens a URL or DOI in the browser. Accents and
+    dashes read as they print (M{\"u}ller as Müller), and each field says how to write
+    it where it isn't obvious, such as names separated with "and".
+  - BibTeX stays behind it: each change is written into the text as an undoable edit
+    that touches only what changed — the file's comments, layout, `@string`
+    abbreviations and lined-up `=` signs stay as they were — and the Code editor shows
+    the BibTeX as it is. The BibTeX names button shows `booktitle` and `inproceedings`
+    instead of the readable names. Edits were checked with BibTeX and biber.
 - **Customisation** — the code font (any installed monospaced font) and size, line
   spacing, five colour themes (Xcode, Classic, Soft, High Contrast, Monochrome), and the
   Visual editor's typeface, size and line length, in Settings.

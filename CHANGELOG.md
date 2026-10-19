@@ -3,6 +3,43 @@
 All notable changes to TexLab are recorded here, grouped by version. Each version
 corresponds to a commit labelled `vX.Y - "…"`.
 
+## v1.35 — Bibliographies like Xcode's Info editor
+
+- **A Visual editor for bibliographies.** A `.bib` file in the Visual editor is shown as a
+  table, like Xcode's Info editor shows a property list: BibTeX behind it, but laid out
+  to read and edit. Code | Visual (⌃⌘1, ⌃⌘2) now works for bibliographies; Code shows the
+  BibTeX as it is.
+  - Each entry is a row with its citation key, its kind — Journal Article, Book,
+    Conference Paper, Chapter in an Edited Book, Part of a Book, Website, PhD Thesis,
+    Master's Thesis, Technical Report, Manual, Conference Proceedings, Booklet,
+    Unpublished Work, Software, Dataset or Other — chosen from a menu, and a summary
+    such as "Knuth · 1984 · The TeXbook". A short bibliography opens with every entry's
+    fields in view.
+  - Open an entry to see its fields by name — Authors, Title, Journal, Year, Publisher,
+    Place, Organization, URL, DOI… — with what kind of value each holds, and edit them in
+    place: Return or leaving the field writes the change, Esc puts back what was there.
+    The fields the entry's kind needs come first and are always listed, ready to fill in
+    ("Required"); an entry missing any is marked. Clearing a field removes it.
+  - Add Field offers the fields the entry's kind usually has, then the others in common
+    use, or any field by its BibTeX name. Add Entry adds any kind of entry, with a key of
+    its own; the context menu copies the citation or key, duplicates the entry, shows it
+    in the Code editor, or removes fields and entries, as the Delete key does.
+  - A filter finds entries by key, author, title, year or any field. Accents, dashes and
+    the TeX logos read as they print (M{\"u}ller as Müller, 12--34 as 12–34), fields say
+    how to write them where it isn't obvious (names separated with "and", a DOI without
+    https://doi.org/), and a URL or DOI opens in the browser.
+  - The BibTeX names button shows `booktitle` and `inproceedings` instead of the
+    readable names, as Xcode's Show Raw Keys does.
+- **BibTeX stays as it is.** Each change is one undoable edit to the text that touches
+  only what changed: comments between entries, the layout, `@string` abbreviations and
+  `@preamble` stay put, braces or quotes around a value are kept, a number or an
+  abbreviation stays bare, and a new field lines its `=` up with the others when they're
+  lined up. A value with unmatched braces, or a key with spaces or one another entry
+  has, is shown in red and not written until it's fixed. An entry that doesn't end
+  properly is marked and left to the Code editor. Edits were checked with BibTeX and
+  biber, including entries in parentheses, quoted values, `#` concatenation and
+  abbreviations.
+
 ## v1.34 — Preview while editing, and whole floats typeset
 
 - **Preview while editing.** While the insertion point is in a formula, a TikZ drawing,

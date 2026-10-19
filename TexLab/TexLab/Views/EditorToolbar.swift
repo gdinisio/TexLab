@@ -491,15 +491,17 @@ struct EditorModePicker: View {
     var session: DocumentSession
 
     var body: some View {
-        Picker("Editor", selection: Binding(get: { session.effectiveEditorMode }, set: { session.setEditorMode($0) })) {
+        Picker("Editor", selection: Binding(get: { session.displayedEditorMode }, set: { session.setEditorMode($0) })) {
             ForEach(EditorMode.allCases) { mode in
                 Text(mode.title).tag(mode)
             }
         }
         .pickerStyle(.segmented)
         .fixedSize()
-        .disabled(!session.supportsVisualEditor)
-        .help("Code shows the LaTeX source; Visual shows it close to the typeset document (⌃⌘1, ⌃⌘2)")
+        .disabled(!session.hasVisualEditor)
+        .help(session.isBibliography
+            ? "Code shows the BibTeX; Visual shows its entries as a table to read and edit (⌃⌘1, ⌃⌘2)"
+            : "Code shows the LaTeX source; Visual shows it close to the typeset document (⌃⌘1, ⌃⌘2)")
     }
 }
 
